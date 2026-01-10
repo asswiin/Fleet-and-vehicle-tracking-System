@@ -1,0 +1,203 @@
+const express = require("express");
+const router = express.Router();
+const crypto = require("crypto"); // Built-in Node module for generating passwords
+const User = require("../models/User"); // Your User Model
+const { sendCredentialsEmail } = require("../utils/emailService"); // Email utility
+
+// ==========================================
+// 1. REGISTER (Initial Admin Setup)
+// ==========================================
+// Use this route via Postman/Insomnia once to create your first Admin account.
+router.post("/register", async (req, res) => {
+  try {
+    const { fullName, email, password } = req.body;
+
+    // Basic Validation
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ message: "Please provide all required fields" });
+    }
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    // Create the Admin User
+    const user = new User({
+      fullName,
+      email,
+      password, // The model's pre-save hook will hash this
+      role: "admin", // Explicitly set as Admin
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      message: "Admin registered successfully",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("Register Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ==========================================
+// 2. LOGIN (For Admins & Managers)
+// ==========================================
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ message: "Please provide email and password" });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Check Password
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Return User Data (You can add JWT token here later)
+    res.json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ==========================================
+// 3. CREATE MANAGER (Called from Admin App)
+// ==========================================
+router.post("/create-manager", async (req, res) => {
+  try {
+    // 1. Get dynamic data from React Native App
+    // Note: The app sends 'name', but our model uses 'fullName'
+    const { name, email, phone, place, dob, address } = req.body;
+
+    // 2. Validation
+    if (!name || !email) {
+      return res.status(400).json({ message: "Name and Email are required" });
+    }
+
+    // 3. Check for duplicates
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User with this email already exists" });
+    }
+
+    // 4. Generate a unique Random Password (8 characters hex)
+    // This creates a new password every time this route is hit.
+    const randomPassword = crypto.randomBytes(4).toString("hex");
+
+
+    // 5. Construct the Full Address String for the 'place' field
+    // We combine house, street, city, district, and state into one string.
+    const addressData = {
+      house: address?.house || "",
+      street: address?.street || "",
+      city: address?.city || "",
+      district: address?.district || "",
+      state: address?.state || "",
+    };
+
+
+
+    // 6. PREPARE PLACE STRING (Full Address for display)
+    // Combine the specific fields into one string for the 'place' column
+    const placeString = [
+      addressData.house,
+      addressData.street,
+      addressData.city,
+      addressData.district,
+      addressData.state
+    ].filter(part => part && part.trim() !== "").join(", ");
+
+
+    // 7. Create the Manager in Database
+    const user = new User({
+     name: name,        // FIXED: Use 'name' to match User Schema (was 'fullName')
+      email: email,
+      password: randomPassword, 
+      phone: phone || "",
+      dob: dob || "",   // ADDED: Store the Date of Birth
+      place: placeString,       
+      address: addressData, // ADDED: Store the full Address object
+      role: "manager",  
+    });
+
+    await user.save();
+
+    // 8. Send Email with the PLAIN TEXT password
+    // (We send 'randomPassword' because 'user.password' is now hashed)
+    await sendCredentialsEmail(email, name, randomPassword);
+
+    res.status(201).json({
+      message: "Manager created and credentials sent via email",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        place: user.place,
+        address: user.address, // Verify this in response
+        role: user.role,
+      },
+    });
+
+  } catch (err) {
+    console.error("Create Manager Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ==========================================
+// 4. GET ALL USERS (For Admin Dashboard List)
+// ==========================================
+router.get("/", async (req, res) => {
+  try {
+    // Return all users, sorted by newest first, excluding passwords
+    const users = await User.find().sort({ createdAt: -1 }).select("-password");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ==========================================
+// 5. GET SINGLE USER
+// ==========================================
+router.get("/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+module.exports = router;
