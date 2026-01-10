@@ -44,12 +44,18 @@ export default function LoginScreen() {
       const data = await response.json();
 
       if (response.ok) {
+        // ✅ CHECK ROLE AND NAVIGATE ACCORDINGLY
         if (data.user.role === "admin") {
           router.replace("/admin-dashboard");
+        } else if (data.user.role === "manager") {
+          // Pass the user name to the dashboard if needed
+          router.replace({
+            pathname: "/manager-dashboard",
+            params: { userName: data.user.fullName || data.user.name } // Handle both naming conventions
+          });
         } else {
-          router.replace("/home");
+          Alert.alert("Access Denied", "Driver/User app is under development.");
         }
-      } else {
         Alert.alert("Login Failed", data.message || "Invalid credentials");
       }
     } catch (error) {
