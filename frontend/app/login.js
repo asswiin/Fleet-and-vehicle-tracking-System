@@ -48,10 +48,12 @@ export default function LoginScreen() {
         if (data.user.role === "admin") {
           router.replace("/admin-dashboard");
         } else if (data.user.role === "manager") {
+
+          console.log("Logging in as:", data.user.name);
           // Pass the user name to the dashboard if needed
           router.replace({
             pathname: "/manager-dashboard",
-            params: { userName: data.user.fullName || data.user.name } // Handle both naming conventions
+            params: { userName: data.user.name }  // Handle both naming conventions
           });
         } else {
           Alert.alert("Access Denied", "Driver/User app is under development.");
