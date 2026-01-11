@@ -203,12 +203,12 @@ export default function ManagerDashboard() {
         
         {/* VEHICLE BUTTON -> Navigate to Register Vehicle */}
         <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => router.push("/register-vehicle")}
-        >
-          <Car size={24} color="#9CA3AF" />
-          <Text style={styles.navLabel}>Vehicle</Text>
-        </TouchableOpacity>
+  style={styles.navItem}
+  onPress={() => router.push("/vehicle-list")} // <--- NEW LINK
+>
+  <Car size={24} color="#9CA3AF" />
+  <Text style={styles.navLabel}>Vehicle</Text>
+</TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>
           <Settings size={24} color="#9CA3AF" />

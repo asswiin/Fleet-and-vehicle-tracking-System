@@ -28,8 +28,8 @@ const VEHICLE_TYPES = ["Truck", "Lorry", "Van", "Container", "Trailer"];
 
 export default function RegisterVehicleScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
   
-  // Form State
   const [form, setForm] = useState({
     regNumber: "",
     model: "",
@@ -40,20 +40,49 @@ export default function RegisterVehicleScreen() {
     taxDate: ""
   });
 
-  // Modal State for Dropdown
   const [showTypeModal, setShowTypeModal] = useState(false);
-
-  // Date Picker State
   const [datePicker, setDatePicker] = useState({ show: false, field: null, value: new Date() });
 
-  // Handle Date Selection
+  // --- REGEX & FORMATTING LOGIC ---
+  const handleRegNumberChange = (text) => {
+    // 1. Remove non-alphanumeric characters & convert to Uppercase
+    let cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    // 2. Limit length to max chars (AA 00 BB 0000 = 10 chars + spaces)
+    // We strictly look for: 2 letters, 2 numbers, 2 letters, 4 numbers = 10 chars max
+    if (cleaned.length > 10) {
+      cleaned = cleaned.substring(0, 10);
+    }
+
+    // 3. Auto-Format with spaces: AA 00 BB 0000
+    let formatted = cleaned;
+    if (cleaned.length > 2) {
+      formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2);
+    }
+    if (cleaned.length > 4) {
+      formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2, 4) + " " + cleaned.substring(4);
+    }
+    if (cleaned.length > 6) {
+      formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2, 4) + " " + cleaned.substring(4, 6) + " " + cleaned.substring(6);
+    }
+
+    setForm({ ...form, regNumber: formatted });
+  };
+
+  const validateRegNumber = (reg) => {
+    // Regex: 2 Letters + space + 2 Digits + space + 2 Letters + space + 4 Digits
+    // Example: KL 01 AB 1234
+    const regex = /^[A-Z]{2}\s[0-9]{2}\s[A-Z]{2}\s[0-9]{4}$/;
+    return regex.test(reg);
+  };
+
+  // --- Date Picker Logic ---
   const onDateChange = (event, selectedDate) => {
     if (Platform.OS === 'android') {
         setDatePicker(prev => ({ ...prev, show: false }));
     }
-    
     if (selectedDate) {
-      const formatted = selectedDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
+      const formatted = selectedDate.toLocaleDateString('en-GB');
       setForm({ ...form, [datePicker.field]: formatted });
     }
   };
@@ -62,13 +91,43 @@ export default function RegisterVehicleScreen() {
     setDatePicker({ show: true, field, value: new Date() });
   };
 
-  const handleSubmit = () => {
-    if (!form.regNumber || !form.type) {
-      Alert.alert("Required", "Please fill Registration Number and Type");
+  const handleSubmit = async () => {
+    // 1. Validate Fields
+    if (!form.regNumber || !form.type || !form.model) {
+      Alert.alert("Missing Fields", "Please fill Registration Number, Model and Type");
       return;
     }
-    Alert.alert("Success", "Vehicle Registered");
-    router.back();
+
+    // 2. Validate Reg Number Format
+    if (!validateRegNumber(form.regNumber)) {
+      Alert.alert("Invalid Format", "Registration Number must be in format: AA 00 BB 0000 (e.g., KL 07 AB 1234)");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://172.20.10.5:5000/api/vehicles/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert("Success", "Vehicle Registered Successfully", [
+          { text: "OK", onPress: () => router.back() }
+        ]);
+      } else {
+        Alert.alert("Error", data.message || "Registration failed");
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Network Error", "Could not connect to server");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,12 +147,14 @@ export default function RegisterVehicleScreen() {
           <Text style={styles.label}>Registration Number</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. TX-1234-AB"
+            placeholder="AA 00 BB 0000"
             placeholderTextColor="#94A3B8"
             value={form.regNumber}
-            onChangeText={(t) => setForm({...form, regNumber: t})}
+            onChangeText={handleRegNumberChange} // Use custom handler
             autoCapitalize="characters"
+            maxLength={13} // 10 chars + 3 spaces
           />
+          <Text style={styles.helperText}>Format: State Dist Series Number (e.g. KL 07 AB 1234)</Text>
         </View>
 
         {/* Model */}
@@ -121,10 +182,10 @@ export default function RegisterVehicleScreen() {
 
         {/* Weight */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Weight Capacity</Text>
+          <Text style={styles.label}>Weight Capacity (Kg)</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. 2500 kg"
+            placeholder="e.g. 2500"
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
             value={form.weight}
@@ -137,10 +198,9 @@ export default function RegisterVehicleScreen() {
           <Calendar size={20} color="#2563EB" />
           <Text style={styles.sectionTitle}>Document Expiry</Text>
         </View>
+        <Text style={styles.descText}>Set the expiration dates for mandatory compliance.</Text>
 
-        <Text style={styles.descText}>Set the expiration dates for mandatory compliance documents.</Text>
-
-        {/* Insurance */}
+        {/* Dates */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Insurance Expiry</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('insuranceDate')}>
@@ -154,7 +214,6 @@ export default function RegisterVehicleScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Pollution */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Pollution Certificate</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('pollutionDate')}>
@@ -168,7 +227,6 @@ export default function RegisterVehicleScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Road Tax */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Road Tax</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('taxDate')}>
@@ -185,9 +243,13 @@ export default function RegisterVehicleScreen() {
         <View style={{ height: 20 }} />
 
         {/* Register Button */}
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Register Vehicle</Text>
-          <CheckCircle2 size={20} color="#fff" style={{ marginLeft: 8 }} />
+        <TouchableOpacity 
+          style={[styles.submitBtn, loading && {opacity: 0.7}]} 
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.submitText}>{loading ? "Registering..." : "Register Vehicle"}</Text>
+          {!loading && <CheckCircle2 size={20} color="#fff" style={{ marginLeft: 8 }} />}
         </TouchableOpacity>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -247,9 +309,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12,
     height: 50, paddingHorizontal: 16, fontSize: 15, color: "#0F172A"
   },
+  helperText: { fontSize: 12, color: "#64748B", marginTop: 4 },
   inputText: { fontSize: 15, color: "#0F172A" },
-  
-  // Custom Buttons mimicking inputs
   dropdownBtn: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12,
@@ -260,21 +321,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12,
     height: 50, paddingHorizontal: 16
   },
-
-  // Section
   sectionHeader: { flexDirection: "row", alignItems: "center", marginTop: 15, marginBottom: 5 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 8 },
   descText: { fontSize: 13, color: "#64748B", marginBottom: 20, lineHeight: 18 },
-
-  // Submit Btn
   submitBtn: {
-    backgroundColor: "#2563EB", // The purple/blue from screenshot
+    backgroundColor: "#2563EB",
     height: 56, borderRadius: 12, flexDirection: "row", justifyContent: "center", alignItems: "center",
     shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4
   },
   submitText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15, color: '#0F172A' },
