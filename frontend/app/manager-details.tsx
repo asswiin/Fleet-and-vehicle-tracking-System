@@ -7,7 +7,6 @@ const ManagerDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ user: string }>();
   
-  // Parse the user string back into an object
   let user: Partial<User> = {};
   try {
     if (params.user) {
@@ -17,7 +16,6 @@ const ManagerDetailsScreen = () => {
     console.error("Error parsing user data", e);
   }
 
-  // Helper to safely get address fields
   const getAddressField = (field: keyof NonNullable<User['address']>) => {
     return (user.address && user.address[field]) ? user.address[field] : "-";
   };
@@ -131,6 +129,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     backgroundColor: "#fff",
+    marginTop: 30, // Added to prevent status bar overlap
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backButton: { padding: 4 },

@@ -7,7 +7,7 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  Modal,
+  // Modal removed
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -24,7 +24,6 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  X,
 } from "lucide-react-native";
 
 interface Stats {
@@ -39,7 +38,9 @@ const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<User[]>([]);
-  const [showSettings, setShowSettings] = useState(false);
+  
+  // State to toggle the small menu visibility
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   
   const [stats, setStats] = useState<Stats>({
     managers: 0,
@@ -77,14 +78,9 @@ const AdminDashboard: React.FC = () => {
     }, [])
   );
 
-  // ✅ LOGOUT FUNCTION
   const handleLogout = () => {
-    // 1. Close the modal
-    setShowSettings(false);
-    
-    // 2. Navigate back to Login. 
-    // using 'replace' ensures the user cannot swipe back to the dashboard.
-    // Use "/" if your login is index.js, or "/login" if it is login.js
+    setShowSettingsMenu(false);
+    // Navigate back to Login page
     router.replace("/"); 
   };
 
@@ -106,6 +102,9 @@ const AdminDashboard: React.FC = () => {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={fetchData} />
         }
+        // Close menu if user scrolls
+        onScroll={() => setShowSettingsMenu(false)}
+        scrollEventThrottle={16}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -198,64 +197,48 @@ const AdminDashboard: React.FC = () => {
         <Plus size={32} color="#fff" />
       </TouchableOpacity>
 
-      {/* ✅ SETTINGS MODAL */}
-      <Modal
-        visible={showSettings}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowSettings(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Settings</Text>
-              <TouchableOpacity onPress={() => setShowSettings(false)}>
-                <X size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            {/* ✅ LOGOUT BUTTON inside Modal */}
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <LogOut size={20} color="#EF4444" style={{ marginRight: 12 }} />
-              <Text style={styles.logoutText}>Sign Out</Text>
-            </TouchableOpacity>
-            
-            <Text style={styles.versionText}>App Version 1.0.0</Text>
-          </View>
+      {/* ✅ FLOATING SETTINGS MENU (Appears above the Settings Icon) */}
+      {showSettingsMenu && (
+        <View style={styles.settingsMenu}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+            <LogOut size={20} color="#EF4444" />
+            <Text style={styles.menuItemText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
+      )}
 
       {/* Bottom Nav */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
           <Home size={24} color="#0EA5E9" fill="#0EA5E9" fillOpacity={0.2} />
           <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.navItem} 
-          onPress={() => router.push("managers-list" as any)} 
+          onPress={() => {
+            setShowSettingsMenu(false);
+            router.push("managers-list" as any);
+          }} 
         >
           <Users size={24} color="#94A3B8" />
           <Text style={styles.navText}>Managers</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
           <Truck size={24} color="#94A3B8" />
           <Text style={styles.navText}>Drivers</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
           <Car size={24} color="#94A3B8" />
           <Text style={styles.navText}>Vehicles</Text>
         </TouchableOpacity>
         
-        {/* Settings Button opens Modal */}
+        {/* Settings Button - Toggles Menu */}
         <TouchableOpacity 
           style={styles.navItem} 
-          onPress={() => setShowSettings(true)}
+          onPress={() => setShowSettingsMenu(!showSettingsMenu)}
         >
-          <Settings size={24} color="#94A3B8" />
-          <Text style={styles.navText}>Settings</Text>
+          <Settings size={24} color={showSettingsMenu ? "#0EA5E9" : "#94A3B8"} />
+          <Text style={[styles.navText, showSettingsMenu && styles.activeNavText]}>Settings</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -286,60 +269,38 @@ const styles = StyleSheet.create({
   listItemName: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
   listItemSub: { fontSize: 12, color: "#94A3B8" },
   fab: { position: "absolute", bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: "#0EA5E9", justifyContent: "center", alignItems: "center", shadowColor: "#0EA5E9", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6, zIndex: 10 },
-  bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
+  bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9", zIndex: 20 },
   navItem: { alignItems: "center", justifyContent: "center" },
   navText: { fontSize: 10, marginTop: 4, color: "#94A3B8", fontWeight: "500" },
   activeNavText: { color: "#0EA5E9", fontWeight: "600" },
 
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 24,
-    width: "100%",
-    maxWidth: 340,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FEE2E2", // Light red bg
-    padding: 16,
+  // ✅ New Menu Styles
+  settingsMenu: {
+    position: 'absolute',
+    bottom: 85, // Just above the bottom nav
+    right: 16,
+    backgroundColor: '#fff',
     borderRadius: 12,
+    paddingVertical: 8,
+    width: 150,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 30, // Above everything else
   },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#EF4444", // Red text
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  versionText: {
-    textAlign: "center",
-    marginTop: 20,
-    color: "#94A3B8",
-    fontSize: 12,
+  menuItemText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#EF4444', // Red for logout
+    fontWeight: '600',
   }
 });
 

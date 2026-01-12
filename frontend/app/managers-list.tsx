@@ -29,7 +29,6 @@ const ManagersListScreen: React.FC = () => {
       const response = await api.getUsers();
 
       if (response.ok && response.data) {
-        // Filter only managers
         const managerList = response.data.filter((user) => user.role === "manager");
         setManagers(managerList);
         setFilteredManagers(managerList);
@@ -47,7 +46,6 @@ const ManagersListScreen: React.FC = () => {
     }, [])
   );
 
-  // Search Logic
   const handleSearch = (text: string) => {
     setSearchText(text);
     if (text) {
@@ -62,10 +60,10 @@ const ManagersListScreen: React.FC = () => {
     }
   };
 
-  // Navigate to Details
+  // ✅ FIX: specific path to manager-details
   const handleManagerClick = (manager: UserType) => {
     router.push({
-      pathname: "/(tabs)/manager-details" as any,
+      pathname: "/manager-details", // Removed "(tabs)" to match flat structure
       params: { user: JSON.stringify(manager) },
     });
   };
@@ -150,6 +148,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     backgroundColor: "#fff",
+    marginTop: 30, // Added margin for status bar
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backBtn: { padding: 4 },
