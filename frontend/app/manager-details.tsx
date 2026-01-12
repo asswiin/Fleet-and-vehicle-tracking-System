@@ -10,14 +10,14 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { api, type User } from "../utils/api"; // Ensure api is imported here
+import { api, type User } from "../utils/api"; 
 import { 
   ChevronLeft, 
   Mail, 
   Phone, 
   MapPin, 
   Calendar, 
-  Trash2 
+  UserX // Changed icon to represent resignation
 } from "lucide-react-native";
 
 const ManagerDetailsScreen = () => {
@@ -38,29 +38,41 @@ const ManagerDetailsScreen = () => {
     return (user.address && user.address[field]) ? user.address[field] : "-";
   };
 
-  const handleDelete = async () => {
+  // Helper to determine badge color based on status
+  const isResigned = user.status === "Resigned";
+
+  const handleResign = async () => {
     if (!user._id) return;
 
     Alert.alert(
-      "Delete Manager",
-      `Are you sure you want to remove ${user.name}? This action cannot be undone.`,
+      "Confirm Resignation",
+      `Are you sure you want to mark ${user.name} as Resigned? \n\nThey will be moved to the Resigned list and will no longer be able to access the dashboard.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Mark as Resigned",
           style: "destructive",
           onPress: async () => {
             setLoading(true);
             try {
-              // Assuming your API has a deleteUser method
-              const response = await api.deleteUser(user._id!);
+              // CHANGE: We use updateUser or updateUserStatus instead of deleteUser
+              // This keeps the record in the DB but changes status to 'Resigned'
+              
+              // Depending on your API implementation, use one of these:
+              // Option A (Specific Status Update):
+              const response = await api.updateUserStatus(user._id!, "Resigned");
+              
+              // Option B (Generic Update - if Option A doesn't exist in your utils/api):
+              // const response = await api.updateUser(user._id!, { status: "Resigned" });
 
               if (response.ok) {
-                Alert.alert("Success", "Manager removed successfully", [
+                Alert.alert("Success", "Manager marked as Resigned", [
                   { text: "OK", onPress: () => router.back() }
                 ]);
               } else {
-                Alert.alert("Error", response.error || "Failed to delete manager");
+                // If backend returns HTML error, response.error might be vague
+                console.error("API Error:", response); 
+                Alert.alert("Error", response.error || "Failed to update status. Check server logs.");
               }
             } catch (error) {
               console.error(error);
@@ -91,13 +103,18 @@ const ManagerDetailsScreen = () => {
           
           {/* Main Profile Card */}
           <View style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user.name?.charAt(0).toUpperCase()}</Text>
+            <View style={[styles.avatar, isResigned && styles.avatarResigned]}>
+              <Text style={[styles.avatarText, isResigned && styles.avatarTextResigned]}>
+                {user.name?.charAt(0).toUpperCase()}
+              </Text>
             </View>
             <Text style={styles.name}>{user.name}</Text>
             <Text style={styles.role}>Logistics Manager</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>Active</Text>
+            
+            <View style={[styles.statusBadge, isResigned ? styles.badgeResigned : styles.badgeActive]}>
+              <Text style={[styles.statusText, isResigned ? styles.textResigned : styles.textActive]}>
+                {user.status || "Active"}
+              </Text>
             </View>
           </View>
 
@@ -166,22 +183,31 @@ const ManagerDetailsScreen = () => {
             </View>
           </View>
 
-          {/* Delete Button */}
-          <TouchableOpacity 
-            style={styles.deleteButton} 
-            onPress={handleDelete}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Trash2 size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.deleteButtonText}>Delete Manager</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {/* Resign / Delete Button */}
+          {/* Only show if not already resigned */}
+          {!isResigned && (
+            <TouchableOpacity 
+                style={styles.deleteButton} 
+                onPress={handleResign}
+                disabled={loading}
+            >
+                {loading ? (
+                <ActivityIndicator color="#fff" />
+                ) : (
+                <>
+                    <UserX size={20} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.deleteButtonText}>Mark as Resigned</Text>
+                </>
+                )}
+            </TouchableOpacity>
+          )}
           
+          {isResigned && (
+              <View style={styles.resignedNotice}>
+                  <Text style={styles.resignedNoticeText}>This manager has resigned and is inactive.</Text>
+              </View>
+          )}
+
           <View style={{ height: 20 }} />
 
         </ScrollView>
@@ -218,11 +244,20 @@ const styles = StyleSheet.create({
     width: 80, height: 80, borderRadius: 40, backgroundColor: "#E0F2FE",
     justifyContent: "center", alignItems: "center", marginBottom: 12
   },
+  avatarResigned: { backgroundColor: "#FEE2E2" },
   avatarText: { fontSize: 32, fontWeight: "700", color: "#0EA5E9" },
+  avatarTextResigned: { color: "#EF4444" },
+  
   name: { fontSize: 22, fontWeight: "700", color: "#1E293B", marginBottom: 4 },
   role: { fontSize: 14, color: "#64748B", marginBottom: 12 },
-  statusBadge: { backgroundColor: "#DCFCE7", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  statusText: { color: "#166534", fontSize: 12, fontWeight: "600" },
+  
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  badgeActive: { backgroundColor: "#DCFCE7" },
+  badgeResigned: { backgroundColor: "#FEE2E2" },
+  
+  statusText: { fontSize: 12, fontWeight: "600" },
+  textActive: { color: "#166534" },
+  textResigned: { color: "#991B1B" },
 
   section: {
     backgroundColor: "#fff",
@@ -272,6 +307,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700"
+  },
+  resignedNotice: {
+      padding: 15,
+      backgroundColor: "#F1F5F9",
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 10
+  },
+  resignedNoticeText: {
+      color: "#64748B",
+      fontWeight: '600'
   }
 });
 

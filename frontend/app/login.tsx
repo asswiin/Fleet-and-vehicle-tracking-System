@@ -38,14 +38,14 @@ const LoginScreen: FC = () => {
       if (response.ok) {
         const data = response.data;
         // ✅ CHECK ROLE AND NAVIGATE ACCORDINGLY
-        if (data?.user.role === "admin") {
+        if (data?.role === "admin") {
           router.replace({pathname: "admin-dashboard" as any});
-        } else if (data?.user.role === "manager") {
-          console.log("Logging in as:", data.user.name);
+        } else if (data?.role === "manager") {
+          console.log("Logging in as:", data.name);
           // Pass the user name to the dashboard if needed
           router.replace({
             pathname: "manager-dashboard" as any,
-            params: { userName: data.user.name }  // Handle both naming conventions
+            params: { userName: data.name }  // Handle both naming conventions
           });
         } else {
           Alert.alert("Access Denied", "Driver/User app is under development.");

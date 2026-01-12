@@ -200,4 +200,34 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body; // Expecting { status: "Resigned" }
+
+    // Validate status
+    if (!["Active", "Resigned"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id, 
+      { status: status }, 
+      { new: true } // Return the updated document
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      message: `User status updated to ${status}`,
+      user: user
+    });
+
+  } catch (err) {
+    console.error("Update Status Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 module.exports = router;

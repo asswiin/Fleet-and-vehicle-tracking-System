@@ -11,16 +11,21 @@ import {
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import React from "react";
-import { ChevronLeft, Search, ChevronRight, User } from "lucide-react-native";
+import { ChevronLeft, Search, ChevronRight, User, UserX } from "lucide-react-native";
 import { api } from "../utils/api";
 import type { User as UserType } from "../utils/api";
 
 const ManagersListScreen: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [managers, setManagers] = useState<UserType[]>([]);
+  
+  // Data State
+  const [activeManagers, setActiveManagers] = useState<UserType[]>([]);
+  const [resignedManagers, setResignedManagers] = useState<UserType[]>([]);
+  
+  // UI State
+  const [selectedTab, setSelectedTab] = useState<"Active" | "Resigned">("Active");
   const [searchText, setSearchText] = useState("");
-  const [filteredManagers, setFilteredManagers] = useState<UserType[]>([]);
 
   // Fetch Data
   const fetchManagers = async () => {
@@ -29,9 +34,17 @@ const ManagersListScreen: React.FC = () => {
       const response = await api.getUsers();
 
       if (response.ok && response.data) {
-        const managerList = response.data.filter((user) => user.role === "manager");
-        setManagers(managerList);
-        setFilteredManagers(managerList);
+        // Filter for managers only
+        const allManagers = response.data.filter((user) => user.role === "manager");
+
+        // Split into Active and Resigned based on status
+        // specific logic: If status is "Resigned", they go to resigned list. 
+        // Otherwise (Active, null, undefined) they stay in Active list.
+        const active = allManagers.filter(m => m.status !== "Resigned");
+        const resigned = allManagers.filter(m => m.status === "Resigned");
+
+        setActiveManagers(active);
+        setResignedManagers(resigned);
       }
     } catch (error) {
       console.error("Error fetching managers:", error);
@@ -46,45 +59,54 @@ const ManagersListScreen: React.FC = () => {
     }, [])
   );
 
-  const handleSearch = (text: string) => {
-    setSearchText(text);
-    if (text) {
-      const filtered = managers.filter(
-        (m) =>
-          m.name.toLowerCase().includes(text.toLowerCase()) ||
-          m.email.toLowerCase().includes(text.toLowerCase())
-      );
-      setFilteredManagers(filtered);
-    } else {
-      setFilteredManagers(managers);
-    }
+  // Filter based on Search Text AND Selected Tab
+  const getDisplayData = () => {
+    const sourceList = selectedTab === "Active" ? activeManagers : resignedManagers;
+
+    if (!searchText) return sourceList;
+
+    return sourceList.filter(
+      (m) =>
+        m.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        m.email.toLowerCase().includes(searchText.toLowerCase())
+    );
   };
 
-  // ✅ FIX: specific path to manager-details
   const handleManagerClick = (manager: UserType) => {
     router.push({
-      pathname: "/manager-details", // Removed "(tabs)" to match flat structure
+      pathname: "manager-details" as any,
       params: { user: JSON.stringify(manager) },
     });
   };
 
   const renderItem = ({ item }: { item: UserType }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, selectedTab === "Resigned" && styles.cardResigned]}
       onPress={() => handleManagerClick(item)}
     >
       <View style={styles.cardLeft}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {item.name ? item.name.charAt(0).toUpperCase() : "U"}
-          </Text>
+        <View style={[styles.avatar, selectedTab === "Resigned" && styles.avatarResigned]}>
+          {selectedTab === "Resigned" ? (
+             <UserX size={24} color="#EF4444" />
+          ) : (
+            <Text style={styles.avatarText}>
+              {item.name ? item.name.charAt(0).toUpperCase() : "U"}
+            </Text>
+          )}
         </View>
         <View>
-          <Text style={styles.name}>{item.name}</Text>
+          <Text style={[styles.name, selectedTab === "Resigned" && styles.textResigned]}>
+            {item.name}
+          </Text>
           <Text style={styles.email}>{item.email}</Text>
           <Text style={styles.location} numberOfLines={1}>
             {item.place || "No location"}
           </Text>
+          {selectedTab === "Resigned" && (
+            <View style={styles.resignedBadge}>
+              <Text style={styles.resignedBadgeText}>Resigned</Text>
+            </View>
+          )}
         </View>
       </View>
       <ChevronRight size={20} color="#CBD5E1" />
@@ -99,8 +121,31 @@ const ManagersListScreen: React.FC = () => {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <ChevronLeft size={28} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>All Managers</Text>
+          <Text style={styles.headerTitle}>Managers Directory</Text>
           <View style={{ width: 28 }} />
+        </View>
+
+        {/* Tab Navigation Bar */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tabButton, selectedTab === "Active" && styles.activeTab]}
+            onPress={() => setSelectedTab("Active")}
+          >
+            <Text style={[styles.tabText, selectedTab === "Active" && styles.activeTabText]}>
+              All Managers
+            </Text>
+            {selectedTab === "Active" && <View style={styles.activeIndicator} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.tabButton, selectedTab === "Resigned" && styles.activeTab]}
+            onPress={() => setSelectedTab("Resigned")}
+          >
+            <Text style={[styles.tabText, selectedTab === "Resigned" && styles.activeTabText]}>
+              Resigned
+            </Text>
+            {selectedTab === "Resigned" && <View style={styles.activeIndicator} />}
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
@@ -108,10 +153,10 @@ const ManagersListScreen: React.FC = () => {
           <Search size={20} color="#94A3B8" style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search managers..."
+            placeholder={`Search ${selectedTab === "Active" ? "active" : "resigned"} managers...`}
             placeholderTextColor="#94A3B8"
             value={searchText}
-            onChangeText={handleSearch}
+            onChangeText={setSearchText}
           />
         </View>
 
@@ -122,14 +167,20 @@ const ManagersListScreen: React.FC = () => {
           </View>
         ) : (
           <FlatList
-            data={filteredManagers}
+            data={getDisplayData()}
             keyExtractor={(item) => item._id}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.center}>
-                <User size={48} color="#CBD5E1" />
-                <Text style={styles.emptyText}>No managers found</Text>
+                {selectedTab === "Active" ? (
+                  <User size={48} color="#CBD5E1" />
+                ) : (
+                  <UserX size={48} color="#CBD5E1" />
+                )}
+                <Text style={styles.emptyText}>
+                  No {selectedTab.toLowerCase()} managers found
+                </Text>
               </View>
             }
           />
@@ -148,10 +199,47 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     backgroundColor: "#fff",
-    marginTop: 30, // Added margin for status bar
+    marginTop: 30,
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backBtn: { padding: 4 },
+  
+  /* Tab Navigation Styles */
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  activeTab: {
+    // Background color can be changed if needed
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  activeTabText: {
+    color: "#0EA5E9",
+    fontWeight: "700",
+  },
+  activeIndicator: {
+    position: "absolute",
+    bottom: 0,
+    height: 3,
+    width: "60%",
+    backgroundColor: "#0EA5E9",
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -165,6 +253,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, height: "100%", color: "#0F172A", fontSize: 15 },
   listContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  
   card: {
     backgroundColor: "#fff",
     padding: 16,
@@ -179,6 +268,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  cardResigned: {
+    backgroundColor: "#F1F5F9", // Slightly greyed out for resigned
+    opacity: 0.9,
+  },
   cardLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   avatar: {
     width: 50,
@@ -189,10 +282,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 15,
   },
+  avatarResigned: {
+    backgroundColor: "#FEE2E2", // Light red bg
+  },
   avatarText: { fontSize: 20, fontWeight: "700", color: "#0EA5E9" },
   name: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
+  textResigned: {
+    color: "#64748B",
+    textDecorationLine: "line-through",
+  },
   email: { fontSize: 13, color: "#64748B", marginTop: 2 },
   location: { fontSize: 12, color: "#94A3B8", marginTop: 2, marginRight: 10 },
+  
+  resignedBadge: {
+    marginTop: 4,
+    backgroundColor: "#FEE2E2",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  resignedBadgeText: {
+    fontSize: 10,
+    color: "#EF4444",
+    fontWeight: "700",
+  },
+
   center: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
   emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 10 },
 });
