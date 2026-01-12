@@ -1,22 +1,25 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, User, Mail, Phone, MapPin, Calendar, Home } from "lucide-react-native";
+import type { User } from "../utils/api";
+import { ChevronLeft, Mail, Phone, MapPin, Calendar } from "lucide-react-native";
 
-export default function ManagerDetailsScreen() {
+const ManagerDetailsScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ user: string }>();
   
   // Parse the user string back into an object
-  let user = {};
+  let user: Partial<User> = {};
   try {
-    user = JSON.parse(params.user);
+    if (params.user) {
+      user = JSON.parse(params.user);
+    }
   } catch (e) {
     console.error("Error parsing user data", e);
   }
 
   // Helper to safely get address fields
-  const getAddressField = (field) => {
-    return user.address && user.address[field] ? user.address[field] : "-";
+  const getAddressField = (field: keyof NonNullable<User['address']>) => {
+    return (user.address && user.address[field]) ? user.address[field] : "-";
   };
 
   return (
@@ -79,7 +82,6 @@ export default function ManagerDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address Details</Text>
             
-            {/* Displaying simple formatted string (Place) */}
             <View style={styles.infoRow}>
               <View style={styles.iconBox}><MapPin size={20} color="#0EA5E9" /></View>
               <View style={{flex: 1}}>
@@ -88,7 +90,6 @@ export default function ManagerDetailsScreen() {
               </View>
             </View>
 
-            {/* Displaying Detailed Address Object */}
             <View style={styles.addressGrid}>
                 <View style={styles.addressItem}>
                     <Text style={styles.label}>House/Flat</Text>
@@ -118,7 +119,7 @@ export default function ManagerDetailsScreen() {
       </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
@@ -132,6 +133,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  backButton: { padding: 4 },
   content: { padding: 20 },
   
   profileCard: {
@@ -183,3 +185,5 @@ const styles = StyleSheet.create({
     paddingBottom: 8
   }
 });
+
+export default ManagerDetailsScreen;

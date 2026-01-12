@@ -4,10 +4,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
   SafeAreaView,
   StatusBar,
-  Dimensions
+  Dimensions,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -30,13 +29,16 @@ import {
 
 const { width } = Dimensions.get("window");
 
-export default function ManagerDashboard() {
+interface RouteParams {
+  userName?: string;
+}
+
+const ManagerDashboard = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   
   // 1. DYNAMIC NAME LOGIC
-  // This grabs the name passed from login.js. If null, defaults to "Manager".
- const displayName = params.userName || "Manager"; 
+  const displayName = params.userName || "Manager";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -51,13 +53,9 @@ export default function ManagerDashboard() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Image 
-                source={{ uri: "" }} 
-                style={styles.avatar} 
-              />
+              <View style={styles.avatar} />
               <View>
                 <Text style={styles.headerTitle}>Dashboard</Text>
-                {/* Display Dynamic Name */}
                 <Text style={styles.headerSubtitle}>Welcome back, {displayName}</Text>
               </View>
             </View>
@@ -135,46 +133,6 @@ export default function ManagerDashboard() {
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
-
-          {/* <View style={styles.deliveryCard}>
-            <View style={styles.deliveryHeader}>
-              <View style={styles.vehicleInfo}>
-                <View style={styles.vehicleIconBox}>
-                  <Truck size={24} color="#4B5563" />
-                </View>
-                <View>
-                  <Text style={styles.vehicleName}>Vehicle 1</Text>
-                  <Text style={styles.vehicleDriver}>Driver</Text>
-                </View>
-              </View>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>IN TRANSIT</Text>
-              </View>
-            </View>
-
-            <View style={styles.progressSection}>
-              <View style={styles.timeRow}>
-                <Text style={styles.timeText}>--:-- PM</Text>
-                <Text style={styles.timeText}>--%</Text>
-              </View>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: "60%" }]} />
-                <View style={[styles.progressKnob, { left: "58%" }]} />
-              </View>
-            </View>
-
-            <View style={styles.cardActions}>
-              <TouchableOpacity style={styles.outlineButton}>
-                <MessageSquare size={20} color="#374151" style={{ marginRight: 8 }} />
-                <Text style={styles.outlineButtonText}>Message</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.filledButton}>
-                <Map size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.filledButtonText}>Track</Text>
-              </TouchableOpacity>
-            </View>
-          </View> */}
           
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -192,23 +150,21 @@ export default function ManagerDashboard() {
           <Text style={styles.navLabel}>go</Text>
         </TouchableOpacity>
         
-        {/* DRIVER BUTTON -> Navigate to Register Driver */}
         <TouchableOpacity 
           style={styles.navItem}
-          onPress={() => router.push("/register-driver")}
+          onPress={() => router.push("register-driver" as any)}
         >
           <User size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Drivers</Text>
         </TouchableOpacity>
         
-        {/* VEHICLE BUTTON -> Navigate to Register Vehicle */}
         <TouchableOpacity 
-  style={styles.navItem}
-  onPress={() => router.push("/vehicle-list")} // <--- NEW LINK
->
-  <Car size={24} color="#9CA3AF" />
-  <Text style={styles.navLabel}>Vehicle</Text>
-</TouchableOpacity>
+          style={styles.navItem}
+          onPress={() => router.push("vehicle-list" as any)}
+        >
+          <Car size={24} color="#9CA3AF" />
+          <Text style={styles.navLabel}>Vehicle</Text>
+        </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>
           <Settings size={24} color="#9CA3AF" />
@@ -218,7 +174,7 @@ export default function ManagerDashboard() {
 
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
@@ -226,11 +182,11 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 20 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, marginTop: 10 },
   headerLeft: { flexDirection: "row", alignItems: "center" },
-  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12, backgroundColor: "#E5E7EB" },
   headerTitle: { fontSize: 20, fontWeight: "800", color: "#111827" },
   headerSubtitle: { fontSize: 13, color: "#6B7280" },
   headerRight: { flexDirection: "row", gap: 16 },
-  iconBtn: { position: "relative" },
+  iconBtn: { position: "relative" as const },
   notificationDot: { position: "absolute", top: -2, right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444", borderWidth: 1.5, borderColor: "#F9FAFB" },
   statsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30 },
   statCard: { width: (width - 50) / 2, height: 140, borderRadius: 20, padding: 16, justifyContent: "space-between" },
@@ -248,36 +204,6 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 12, fontWeight: "600", color: "#4B5563" },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   viewAllText: { color: "#2563EB", fontWeight: "600", fontSize: 14 },
-  deliveryCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  deliveryHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
-  vehicleInfo: { flexDirection: "row", alignItems: "center" },
-  vehicleIconBox: { width: 44, height: 44, borderRadius: 10, backgroundColor: "#F3F4F6", justifyContent: "center", alignItems: "center", marginRight: 12 },
-  vehicleName: { fontSize: 16, fontWeight: "700", color: "#111827" },
-  vehicleDriver: { fontSize: 13, color: "#6B7280" },
-  statusBadge: { backgroundColor: "#EFF6FF", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  statusText: { color: "#2563EB", fontSize: 11, fontWeight: "700", textTransform: "uppercase" },
-  progressSection: { marginBottom: 20 },
-  timeRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  timeText: { fontSize: 13, color: "#6B7280" },
-  progressBarBg: { height: 6, backgroundColor: "#F3F4F6", borderRadius: 3, position: "relative" },
-  progressBarFill: { height: 6, backgroundColor: "#2563EB", borderRadius: 3 },
-  progressKnob: { position: "absolute", top: -5, width: 16, height: 16, borderRadius: 8, backgroundColor: "#fff", borderWidth: 3, borderColor: "#2563EB" },
-  cardActions: { flexDirection: "row", gap: 12 },
-  outlineButton: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB" },
-  outlineButtonText: { color: "#374151", fontWeight: "600", fontSize: 15 },
-  filledButton: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center", paddingVertical: 12, borderRadius: 10, backgroundColor: "#2563EB" },
-  filledButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   bottomNav: {
     position: "absolute",
     bottom: 0,
@@ -295,3 +221,5 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center" },
   navLabel: { fontSize: 10, fontWeight: "600", color: "#9CA3AF", marginTop: 4 },
 });
+
+export default ManagerDashboard;

@@ -1,8 +1,9 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { api } from "../utils/api";
 
-export default function SignupScreen() {
+const SignupScreen = () => {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,25 +36,17 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch("http://172.20.10.5:5000/api/users/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName,
-          email,
-          password,
-        }),
+      const response = await api.register({
+        fullName,
+        email,
+        password,
       });
-
-      const data = await response.json();
 
       if (response.ok) {
         Alert.alert("Success", "Account created successfully!");
-        router.push("/login");
+        router.push("login" as any);
       } else {
-        Alert.alert("Signup Failed", data.message || "Unable to create account");
+        Alert.alert("Signup Failed", response.error || "Unable to create account");
       }
     } catch (error) {
       Alert.alert("Error", "Failed to connect to server. Please try again.");
@@ -167,7 +160,7 @@ export default function SignupScreen() {
       </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -277,3 +270,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+export default SignupScreen;

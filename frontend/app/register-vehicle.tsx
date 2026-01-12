@@ -9,11 +9,13 @@ import {
   Modal,
   FlatList,
   Platform,
-  Alert
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { api } from "../utils/api";
 import { 
   ChevronLeft, 
   ChevronDown, 
@@ -26,11 +28,27 @@ import {
 
 const VEHICLE_TYPES = ["Truck", "Lorry", "Van", "Container", "Trailer"];
 
-export default function RegisterVehicleScreen() {
+interface VehicleForm {
+  regNumber: string;
+  model: string;
+  type: string;
+  weight: string;
+  insuranceDate: string;
+  pollutionDate: string;
+  taxDate: string;
+}
+
+interface DatePickerState {
+  show: boolean;
+  field: keyof VehicleForm | null;
+  value: Date;
+}
+
+const RegisterVehicleScreen = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<VehicleForm>({
     regNumber: "",
     model: "",
     type: "",
@@ -41,20 +59,20 @@ export default function RegisterVehicleScreen() {
   });
 
   const [showTypeModal, setShowTypeModal] = useState(false);
-  const [datePicker, setDatePicker] = useState({ show: false, field: null, value: new Date() });
+  const [datePicker, setDatePicker] = useState<DatePickerState>({ 
+    show: false, 
+    field: null, 
+    value: new Date() 
+  });
 
-  // --- REGEX & FORMATTING LOGIC ---
-  const handleRegNumberChange = (text) => {
-    // 1. Remove non-alphanumeric characters & convert to Uppercase
+  // Register Number Formatting
+  const handleRegNumberChange = (text: string) => {
     let cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-    // 2. Limit length to max chars (AA 00 BB 0000 = 10 chars + spaces)
-    // We strictly look for: 2 letters, 2 numbers, 2 letters, 4 numbers = 10 chars max
     if (cleaned.length > 10) {
       cleaned = cleaned.substring(0, 10);
     }
 
-    // 3. Auto-Format with spaces: AA 00 BB 0000
     let formatted = cleaned;
     if (cleaned.length > 2) {
       formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2);
@@ -69,36 +87,33 @@ export default function RegisterVehicleScreen() {
     setForm({ ...form, regNumber: formatted });
   };
 
-  const validateRegNumber = (reg) => {
-    // Regex: 2 Letters + space + 2 Digits + space + 2 Letters + space + 4 Digits
-    // Example: KL 01 AB 1234
+  const validateRegNumber = (reg: string): boolean => {
     const regex = /^[A-Z]{2}\s[0-9]{2}\s[A-Z]{2}\s[0-9]{4}$/;
     return regex.test(reg);
   };
 
-  // --- Date Picker Logic ---
-  const onDateChange = (event, selectedDate) => {
+  // Date Picker Logic
+  const onDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
         setDatePicker(prev => ({ ...prev, show: false }));
     }
-    if (selectedDate) {
+    if (selectedDate && datePicker.field) {
       const formatted = selectedDate.toLocaleDateString('en-GB');
       setForm({ ...form, [datePicker.field]: formatted });
     }
   };
 
-  const openDatePicker = (field) => {
+  const openDatePicker = (field: keyof VehicleForm) => {
     setDatePicker({ show: true, field, value: new Date() });
   };
 
   const handleSubmit = async () => {
-    // 1. Validate Fields
+    // Validation
     if (!form.regNumber || !form.type || !form.model) {
       Alert.alert("Missing Fields", "Please fill Registration Number, Model and Type");
       return;
     }
 
-    // 2. Validate Reg Number Format
     if (!validateRegNumber(form.regNumber)) {
       Alert.alert("Invalid Format", "Registration Number must be in format: AA 00 BB 0000 (e.g., KL 07 AB 1234)");
       return;
@@ -107,20 +122,14 @@ export default function RegisterVehicleScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://172.20.10.5:5000/api/vehicles/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = await response.json();
+      const response = await api.registerVehicle(form);
 
       if (response.ok) {
         Alert.alert("Success", "Vehicle Registered Successfully", [
           { text: "OK", onPress: () => router.back() }
         ]);
       } else {
-        Alert.alert("Error", data.message || "Registration failed");
+        Alert.alert("Error", response.error || "Registration failed");
       }
     } catch (error) {
       console.error(error);
@@ -150,9 +159,9 @@ export default function RegisterVehicleScreen() {
             placeholder="AA 00 BB 0000"
             placeholderTextColor="#94A3B8"
             value={form.regNumber}
-            onChangeText={handleRegNumberChange} // Use custom handler
+            onChangeText={handleRegNumberChange}
             autoCapitalize="characters"
-            maxLength={13} // 10 chars + 3 spaces
+            maxLength={13}
           />
           <Text style={styles.helperText}>Format: State Dist Series Number (e.g. KL 07 AB 1234)</Text>
         </View>
@@ -200,7 +209,7 @@ export default function RegisterVehicleScreen() {
         </View>
         <Text style={styles.descText}>Set the expiration dates for mandatory compliance.</Text>
 
-        {/* Dates */}
+        {/* Insurance Expiry */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Insurance Expiry</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('insuranceDate')}>
@@ -214,6 +223,7 @@ export default function RegisterVehicleScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Pollution Certificate */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Pollution Certificate</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('pollutionDate')}>
@@ -227,6 +237,7 @@ export default function RegisterVehicleScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Road Tax */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Road Tax</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('taxDate')}>
@@ -293,7 +304,7 @@ export default function RegisterVehicleScreen() {
 
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
@@ -336,3 +347,5 @@ const styles = StyleSheet.create({
   modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection:'row', justifyContent:'space-between' },
   modalItemText: { fontSize: 16, color: '#334155' }
 });
+
+export default RegisterVehicleScreen;

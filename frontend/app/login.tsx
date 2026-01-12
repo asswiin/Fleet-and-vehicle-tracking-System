@@ -10,11 +10,12 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { useState } from "react";
+import { useState, FC } from "react";
 import { useRouter } from "expo-router";
 import { Truck, Lock, User, Eye, EyeOff, Headphones } from "lucide-react-native";
+import { api } from "../utils/api";
 
-export default function LoginScreen() {
+const LoginScreen: FC = () => {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -32,33 +33,25 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://172.20.10.5:5000/api/users/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }
-      );
-
-      const data = await response.json();
+      const response = await api.login(email, password);
 
       if (response.ok) {
+        const data = response.data;
         // ✅ CHECK ROLE AND NAVIGATE ACCORDINGLY
-        if (data.user.role === "admin") {
-          router.replace("/admin-dashboard");
-        } else if (data.user.role === "manager") {
-
+        if (data?.user.role === "admin") {
+          router.replace({pathname: "admin-dashboard" as any});
+        } else if (data?.user.role === "manager") {
           console.log("Logging in as:", data.user.name);
           // Pass the user name to the dashboard if needed
           router.replace({
-            pathname: "/manager-dashboard",
+            pathname: "manager-dashboard" as any,
             params: { userName: data.user.name }  // Handle both naming conventions
           });
         } else {
           Alert.alert("Access Denied", "Driver/User app is under development.");
         }
-        Alert.alert("Login Failed", data.message || "Invalid credentials");
+      } else {
+        Alert.alert("Login Failed", response.error || "Invalid credentials");
       }
     } catch (error) {
       console.error(error);
@@ -82,8 +75,6 @@ export default function LoginScreen() {
           <View style={styles.logoContainer}>
             <View style={styles.logoBackground}>
               <Truck size={32} color="#0096FF" fill="#0096FF" strokeWidth={0} />
-              {/* Using fill to make it look solid like the screenshot, 
-                  or use color="#0096FF" strokeWidth={2} for outline style */}
             </View>
           </View>
 
@@ -156,12 +147,12 @@ export default function LoginScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EFF6FF", // Light blueish gray background
+    backgroundColor: "#EFF6FF",
   },
   scrollContent: {
     flexGrow: 1,
@@ -187,7 +178,7 @@ const styles = StyleSheet.create({
   logoBackground: {
     width: 80,
     height: 80,
-    backgroundColor: "#E0F2FE", // Very light blue
+    backgroundColor: "#E0F2FE",
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
@@ -207,7 +198,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC", // Very light gray input bg
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 8,
@@ -227,7 +218,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   loginButton: {
-    backgroundColor: "#0EA5E9", // Bright blue
+    backgroundColor: "#0EA5E9",
     height: 50,
     borderRadius: 8,
     justifyContent: "center",
@@ -259,3 +250,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
+export default LoginScreen;

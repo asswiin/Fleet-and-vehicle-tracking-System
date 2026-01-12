@@ -12,11 +12,13 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import React from "react";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { api } from "../utils/api";
 import { 
   ChevronLeft, 
   User, 
@@ -48,16 +50,28 @@ const KERALA_DISTRICTS = [
   "Wayanad",
 ];
 
-export default function AddManagerScreen() {
+interface ManagerFormData {
+  name: string;
+  email: string;
+  phone: string;
+  dob: string;
+  houseName: string;
+  street: string;
+  city: string;
+  district: string;
+  state: string;
+}
+
+const AddManagerScreen: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // --- Calculate 18 Years Ago ---
+  // Calculate 18 Years Ago
   const today = new Date();
   const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ManagerFormData>({
     name: "",
     email: "",
     phone: "",
@@ -70,17 +84,14 @@ export default function AddManagerScreen() {
   });
 
   // Date Picker State
-  // Initialize date picker to 18 years ago so it opens at a valid year
-  const [date, setDate] = useState(eighteenYearsAgo);
+  const [date, setDate] = useState<Date>(eighteenYearsAgo);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // District Modal State
   const [showDistrictModal, setShowDistrictModal] = useState(false);
 
-  // --- Handlers ---
-
+  // Handlers
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    // On Android, the picker closes automatically
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
@@ -88,7 +99,6 @@ export default function AddManagerScreen() {
     if (selectedDate) {
       setDate(selectedDate);
       
-      // Format Date to DD/MM/YYYY
       const day = selectedDate.getDate().toString().padStart(2, '0');
       const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
       const year = selectedDate.getFullYear();
@@ -110,7 +120,7 @@ export default function AddManagerScreen() {
   const handleAddManager = async () => {
     const { name, email, phone, dob, houseName, street, city, district, state } = formData;
     
-    // 1. STRICT EMPTY FIELD CHECK
+    // Validation
     if (
       !name.trim() || !email.trim() || !phone.trim() || !dob.trim() ||
       !houseName.trim() || !street.trim() || !city.trim() || !district.trim() || !state.trim()
@@ -119,14 +129,14 @@ export default function AddManagerScreen() {
       return;
     }
 
-    // 2. EMAIL VALIDATION
+    // Email Validation
     const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
     if (!emailRegex.test(email)) {
       Alert.alert("Invalid Email", "Please enter a valid @gmail.com address");
       return;
     }
 
-    // 3. PHONE VALIDATION
+    // Phone Validation
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(phone)) {
       Alert.alert("Invalid Phone", "Number must be 10 digits and start with 6, 7, 8, or 9.");
@@ -151,13 +161,7 @@ export default function AddManagerScreen() {
         }
       };
 
-      const response = await fetch("http://172.20.10.5:5000/api/users/create-manager", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
+      const response = await api.createManager(payload);
 
       if (response.ok) {
         Alert.alert(
@@ -166,7 +170,7 @@ export default function AddManagerScreen() {
           [{ text: "OK", onPress: () => router.back() }]
         );
       } else {
-        Alert.alert("Error", data.message || "Failed to create manager");
+        Alert.alert("Error", response.error || "Failed to create manager");
       }
     } catch (error) {
       console.error(error);
@@ -179,7 +183,6 @@ export default function AddManagerScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
             <ChevronLeft size={28} color="#0F172A" />
@@ -196,7 +199,7 @@ export default function AddManagerScreen() {
         >
           <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
             
-            {/* --- Personal Details --- */}
+            {/* Personal Details */}
             <Text style={styles.sectionHeader}>Personal Details</Text>
 
             <View style={styles.inputGroup}>
@@ -249,7 +252,7 @@ export default function AddManagerScreen() {
               </View>
             </View>
 
-            {/* --- Date of Birth Picker --- */}
+            {/* Date of Birth Picker */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>DATE OF BIRTH (Min. 18 Years)</Text>
               <TouchableOpacity onPress={toggleDatePicker} style={styles.inputWrapper}>
@@ -264,13 +267,13 @@ export default function AddManagerScreen() {
                   value={date}
                   mode="date"
                   display="default"
-                  maximumDate={eighteenYearsAgo} // ✅ Restricts selection to 18 years ago
+                  maximumDate={eighteenYearsAgo}
                   onChange={handleDateChange}
                 />
               )}
             </View>
 
-            {/* --- Address Details --- */}
+            {/* Address Details */}
             <Text style={styles.sectionHeader}>Address Details</Text>
 
             <View style={styles.inputGroup}>
@@ -315,7 +318,6 @@ export default function AddManagerScreen() {
                 </View>
               </View>
 
-              {/* --- District Selector --- */}
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>DISTRICT</Text>
                 <TouchableOpacity 
@@ -330,7 +332,6 @@ export default function AddManagerScreen() {
               </View>
             </View>
 
-            {/* --- State (Locked to Kerala) --- */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>STATE</Text>
               <View style={[styles.inputWrapper, { backgroundColor: "#F1F5F9" }]}> 
@@ -360,7 +361,7 @@ export default function AddManagerScreen() {
           </View>
         </KeyboardAvoidingView>
 
-        {/* --- District Selection Modal --- */}
+        {/* District Selection Modal */}
         <Modal
           visible={showDistrictModal}
           animationType="slide"
@@ -404,7 +405,7 @@ export default function AddManagerScreen() {
       </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
@@ -518,3 +519,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+
+export default AddManagerScreen;

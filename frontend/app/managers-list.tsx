@@ -6,30 +6,31 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
-  SafeAreaView
+  SafeAreaView,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
+import React from "react";
 import { ChevronLeft, Search, ChevronRight, User } from "lucide-react-native";
+import { api } from "../utils/api";
+import type { User as UserType } from "../utils/api";
 
-export default function ManagersListScreen() {
+const ManagersListScreen: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [managers, setManagers] = useState([]);
+  const [managers, setManagers] = useState<UserType[]>([]);
   const [searchText, setSearchText] = useState("");
-  const [filteredManagers, setFilteredManagers] = useState([]);
+  const [filteredManagers, setFilteredManagers] = useState<UserType[]>([]);
 
   // Fetch Data
   const fetchManagers = async () => {
     try {
       setLoading(true);
-      // Replace with your IP address
-      const response = await fetch("http://172.20.10.5:5000/api/users");
-      const data = await response.json();
+      const response = await api.getUsers();
 
-      if (response.ok) {
+      if (response.ok && response.data) {
         // Filter only managers
-        const managerList = data.filter((user) => user.role === "manager");
+        const managerList = response.data.filter((user) => user.role === "manager");
         setManagers(managerList);
         setFilteredManagers(managerList);
       }
@@ -47,7 +48,7 @@ export default function ManagersListScreen() {
   );
 
   // Search Logic
-  const handleSearch = (text) => {
+  const handleSearch = (text: string) => {
     setSearchText(text);
     if (text) {
       const filtered = managers.filter(
@@ -62,14 +63,14 @@ export default function ManagersListScreen() {
   };
 
   // Navigate to Details
-  const handleManagerClick = (manager) => {
+  const handleManagerClick = (manager: UserType) => {
     router.push({
-      pathname: "/manager-details",
+      pathname: "/(tabs)/manager-details" as any,
       params: { user: JSON.stringify(manager) },
     });
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: UserType }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => handleManagerClick(item)}
@@ -138,7 +139,7 @@ export default function ManagersListScreen() {
       </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
@@ -151,6 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  backBtn: { padding: 4 },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -195,3 +197,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
   emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 10 },
 });
+
+export default ManagersListScreen;

@@ -8,21 +8,26 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { 
-  ChevronLeft, 
-  Smartphone, 
-  CreditCard, 
-  Home, 
-  ArrowRight 
-} from "lucide-react-native";
+import { ChevronLeft, Smartphone, CreditCard, Home, ArrowRight } from "lucide-react-native";
 
-export default function RegisterDriverScreen() {
+interface DriverForm {
+  name: string;
+  mobile: string;
+  license: string;
+  street: string;
+  city: string;
+  district: string;
+  state: string;
+  zip: string;
+}
+
+const RegisterDriverScreen = () => {
   const router = useRouter();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<DriverForm>({
     name: "",
     mobile: "",
     license: "",
@@ -110,7 +115,7 @@ export default function RegisterDriverScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>house/flat</Text>
+            <Text style={styles.label}>House/Flat</Text>
             <TextInput
               style={styles.simpleInput}
               placeholder="e.g. 123 Main St"
@@ -182,7 +187,7 @@ export default function RegisterDriverScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
@@ -196,41 +201,40 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F1F5F9"
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  backBtn: { padding: 4 },
   content: { padding: 20 },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "600", color: "#1E293B", marginBottom: 8 },
-  
-  // Input Styles
+  row: { flexDirection: "row" },
+  label: { fontSize: 13, fontWeight: "700", color: "#475569", marginBottom: 8 },
   simpleInput: {
-    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#1E293B",
+    backgroundColor: "#FFFFFF",
+  },
+  iconInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 12,
     height: 50,
     paddingHorizontal: 16,
-    fontSize: 15,
-    color: "#0F172A"
   },
-  iconInputWrapper: {
+  inputIcon: { marginRight: 12 },
+  iconInput: { flex: 1, fontSize: 15, color: "#1E293B", height: "100%" },
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    height: 50,
-    paddingHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 15,
   },
-  iconInput: { flex: 1, fontSize: 15, color: "#0F172A", height: "100%" },
-  inputIcon: { marginRight: 10 },
-  
-  // Section Header
-  sectionHeader: { flexDirection: "row", alignItems: "center", marginTop: 10, marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 8 },
-  
-  row: { flexDirection: "row" },
-  
-  // Button
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 10 },
   submitBtn: {
     backgroundColor: "#2563EB",
     height: 56,
@@ -238,11 +242,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   submitText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });
+
+export default RegisterDriverScreen;

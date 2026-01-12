@@ -7,52 +7,61 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router"; // Added useFocusEffect
+import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
+import React from "react";
+import { api } from "../utils/api";
+import type { User } from "../utils/api";
 import {
   Users,
   Truck,
   Car,
   DollarSign,
-  MoreVertical,
   Plus,
   Home,
   Settings,
-  ChevronRight
+  ChevronRight,
+  LogOut,
+  X,
 } from "lucide-react-native";
 
-export default function AdminDashboard() {
+interface Stats {
+  managers: number;
+  drivers: number;
+  vehicles: number;
+  revenue: number;
+}
+
+const AdminDashboard: React.FC = () => {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [managers, setManagers] = useState([]);
-  const [stats, setStats] = useState({
+  const [managers, setManagers] = useState<User[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  const [stats, setStats] = useState<Stats>({
     managers: 0,
     drivers: 0,
     vehicles: 0,
     revenue: 0,
   });
 
-  // Function to Fetch Data from Backend
+  // Function to Fetch Data
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Replace with your actual IP
-      const response = await fetch("http://172.20.10.5:5000/api/users"); 
-      const data = await response.json();
+      const response = await api.getUsers();
 
-      if (response.ok) {
-        // 1. Filter only Managers
-        const managerList = data.filter((user) => user.role === "manager");
-        
-        // 2. Update State
+      if (response.ok && response.data) {
+        const managerList = response.data.filter((user) => user.role === "manager");
         setManagers(managerList);
         setStats({
-          managers: managerList.length, // Dynamic Count
-          drivers: 0, // Placeholder for now
-          vehicles: 0, // Placeholder for now
-          revenue: 0, // Placeholder for now
+          managers: managerList.length,
+          drivers: 0,
+          vehicles: 0,
+          revenue: 0,
         });
       }
     } catch (error) {
@@ -62,26 +71,30 @@ export default function AdminDashboard() {
     }
   };
 
-  // useFocusEffect runs every time you navigate back to this screen
   useFocusEffect(
     useCallback(() => {
       fetchData();
     }, [])
   );
 
+  // ✅ LOGOUT FUNCTION
   const handleLogout = () => {
-    router.replace("/");
+    // 1. Close the modal
+    setShowSettings(false);
+    
+    // 2. Navigate back to Login. 
+    // using 'replace' ensures the user cannot swipe back to the dashboard.
+    // Use "/" if your login is index.js, or "/login" if it is login.js
+    router.replace("/"); 
   };
 
   const handleAddManager = () => {
-    router.push("/add-manager");
+    router.push("add-manager" as any);
   };
 
-  // Navigate to Details Page
-  const handleManagerClick = (manager) => {
-    // We pass the manager data as a stringified parameter
+  const handleManagerClick = (manager: User) => {
     router.push({
-      pathname: "/manager-details",
+      pathname: "manager-details" as any,
       params: { user: JSON.stringify(manager) }
     });
   };
@@ -102,7 +115,7 @@ export default function AdminDashboard() {
           </View>
           <View style={styles.profileContainer}>
             <Image
-              source={{ uri: "" }}
+              source={{ uri: "" }} 
               style={styles.avatar}
             />
             <View style={styles.onlineDot} />
@@ -118,8 +131,6 @@ export default function AdminDashboard() {
             <Text style={styles.cardLabel}>Total Managers</Text>
             <Text style={styles.cardValue}>{stats.managers}</Text>
           </View>
-
-          {/* Other Cards (Static for now) */}
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#FFEDD5" }]}>
               <Truck size={24} color="#F97316" />
@@ -127,7 +138,6 @@ export default function AdminDashboard() {
             <Text style={styles.cardLabel}>Total Drivers</Text>
             <Text style={styles.cardValue}>{stats.drivers}</Text>
           </View>
-
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#F3E8FF" }]}>
               <Car size={24} color="#A855F7" />
@@ -135,7 +145,6 @@ export default function AdminDashboard() {
             <Text style={styles.cardLabel}>Total Vehicles</Text>
             <Text style={styles.cardValue}>{stats.vehicles}</Text>
           </View>
-
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#DCFCE7" }]}>
               <DollarSign size={24} color="#22C55E" />
@@ -145,7 +154,7 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Dynamic Managers List */}
+        {/* Managers List */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Current Managers</Text>
           <Text style={styles.viewAllText}>{managers.length} Active</Text>
@@ -189,6 +198,35 @@ export default function AdminDashboard() {
         <Plus size={32} color="#fff" />
       </TouchableOpacity>
 
+      {/* ✅ SETTINGS MODAL */}
+      <Modal
+        visible={showSettings}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Settings</Text>
+              <TouchableOpacity onPress={() => setShowSettings(false)}>
+                <X size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* ✅ LOGOUT BUTTON inside Modal */}
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <LogOut size={20} color="#EF4444" style={{ marginRight: 12 }} />
+              <Text style={styles.logoutText}>Sign Out</Text>
+            </TouchableOpacity>
+            
+            <Text style={styles.versionText}>App Version 1.0.0</Text>
+          </View>
+        </View>
+      </Modal>
+
       {/* Bottom Nav */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
@@ -196,14 +234,12 @@ export default function AdminDashboard() {
           <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-  style={styles.navItem} 
-  onPress={() => router.push("/managers-list")} 
->
-  {/* I changed color to distinguish it slightly or keep it #94A3B8 */}
-  <Users size={24} color="#94A3B8" />
-  <Text style={styles.navText}>Managers</Text>
-</TouchableOpacity>
-
+          style={styles.navItem} 
+          onPress={() => router.push("managers-list" as any)} 
+        >
+          <Users size={24} color="#94A3B8" />
+          <Text style={styles.navText}>Managers</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
           <Truck size={24} color="#94A3B8" />
           <Text style={styles.navText}>Drivers</Text>
@@ -212,14 +248,19 @@ export default function AdminDashboard() {
           <Car size={24} color="#94A3B8" />
           <Text style={styles.navText}>Vehicles</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={handleLogout}>
+        
+        {/* Settings Button opens Modal */}
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => setShowSettings(true)}
+        >
           <Settings size={24} color="#94A3B8" />
           <Text style={styles.navText}>Settings</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC" },
@@ -227,11 +268,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
   greeting: { fontSize: 14, color: "#64748B", marginBottom: 4 },
   headerTitle: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
-  profileContainer: { position: 'relative' },
-  avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff" },
+  profileContainer: { position: 'relative' as const },
+  avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff", backgroundColor: "#E2E8F0" },
   onlineDot: { position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: "#F8FAFC" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 24 },
-  card: { width: "48%", backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, alignItems: "flex-start" },
+  card: { width: "48%", backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, alignItems: "flex-start" as const },
   iconContainer: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginBottom: 12 },
   cardLabel: { fontSize: 13, color: "#64748B", marginBottom: 8, fontWeight: "500" },
   cardValue: { fontSize: 20, fontWeight: "700", color: "#0F172A" },
@@ -249,4 +290,57 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center", justifyContent: "center" },
   navText: { fontSize: 10, marginTop: 4, color: "#94A3B8", fontWeight: "500" },
   activeNavText: { color: "#0EA5E9", fontWeight: "600" },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 340,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEE2E2", // Light red bg
+    padding: 16,
+    borderRadius: 12,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#EF4444", // Red text
+  },
+  versionText: {
+    textAlign: "center",
+    marginTop: 20,
+    color: "#94A3B8",
+    fontSize: 12,
+  }
 });
+
+export default AdminDashboard;

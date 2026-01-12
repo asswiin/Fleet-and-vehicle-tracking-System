@@ -1,11 +1,11 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 
-export default function HomeScreen() {
+const HomeScreen = () => {
   const router = useRouter();
 
   const handleLogout = () => {
-    router.replace("/login");
+    router.replace("login" as any);
   };
 
   return (
@@ -54,7 +54,7 @@ export default function HomeScreen() {
       </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -151,3 +151,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+export default HomeScreen;
