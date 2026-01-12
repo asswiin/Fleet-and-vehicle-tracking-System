@@ -7,7 +7,6 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  // Modal removed
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -38,8 +37,6 @@ const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<User[]>([]);
-  
-  // State to toggle the small menu visibility
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   
   const [stats, setStats] = useState<Stats>({
@@ -53,18 +50,35 @@ const AdminDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.getUsers();
 
-      if (response.ok && response.data) {
-        const managerList = response.data.filter((user) => user.role === "manager");
+      // 1. Fetch Users & Vehicles in parallel
+      const [usersRes, vehiclesRes] = await Promise.all([
+        api.getUsers(),
+        api.getVehicles()
+      ]);
+
+      let managerList: User[] = [];
+      let vehicleCount = 0;
+
+      // Process Users
+      if (usersRes.ok && usersRes.data) {
+        managerList = usersRes.data.filter((user: any) => user.role === "manager");
         setManagers(managerList);
-        setStats({
-          managers: managerList.length,
-          drivers: 0,
-          vehicles: 0,
-          revenue: 0,
-        });
       }
+
+      // Process Vehicles
+      if (vehiclesRes.ok && vehiclesRes.data) {
+        vehicleCount = vehiclesRes.data.length;
+      }
+
+      // Update Stats
+      setStats({
+        managers: managerList.length,
+        drivers: 0, // Placeholder
+        vehicles: vehicleCount, // ✅ Dynamic Count
+        revenue: 0,
+      });
+
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -80,7 +94,6 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     setShowSettingsMenu(false);
-    // Navigate back to Login page
     router.replace("/"); 
   };
 
@@ -102,7 +115,6 @@ const AdminDashboard: React.FC = () => {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={fetchData} />
         }
-        // Close menu if user scrolls
         onScroll={() => setShowSettingsMenu(false)}
         scrollEventThrottle={16}
       >
@@ -137,6 +149,8 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Total Drivers</Text>
             <Text style={styles.cardValue}>{stats.drivers}</Text>
           </View>
+          
+          {/* ✅ VEHICLE CARD (Now Dynamic) */}
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#F3E8FF" }]}>
               <Car size={24} color="#A855F7" />
@@ -144,6 +158,7 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Total Vehicles</Text>
             <Text style={styles.cardValue}>{stats.vehicles}</Text>
           </View>
+          
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#DCFCE7" }]}>
               <DollarSign size={24} color="#22C55E" />
@@ -197,7 +212,7 @@ const AdminDashboard: React.FC = () => {
         <Plus size={32} color="#fff" />
       </TouchableOpacity>
 
-      {/* ✅ FLOATING SETTINGS MENU (Appears above the Settings Icon) */}
+      {/* Floating Settings Menu */}
       {showSettingsMenu && (
         <View style={styles.settingsMenu}>
           <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
@@ -213,6 +228,7 @@ const AdminDashboard: React.FC = () => {
           <Home size={24} color="#0EA5E9" fill="#0EA5E9" fillOpacity={0.2} />
           <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity 
           style={styles.navItem} 
           onPress={() => {
@@ -223,16 +239,24 @@ const AdminDashboard: React.FC = () => {
           <Users size={24} color="#94A3B8" />
           <Text style={styles.navText}>Managers</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
           <Truck size={24} color="#94A3B8" />
           <Text style={styles.navText}>Drivers</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
+        
+        {/* ✅ VEHICLE BUTTON (Navigates to vehicle-list) */}
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => {
+            setShowSettingsMenu(false);
+            router.push("vehicle-list" as any);
+          }}
+        >
           <Car size={24} color="#94A3B8" />
           <Text style={styles.navText}>Vehicles</Text>
         </TouchableOpacity>
         
-        {/* Settings Button - Toggles Menu */}
         <TouchableOpacity 
           style={styles.navItem} 
           onPress={() => setShowSettingsMenu(!showSettingsMenu)}
@@ -273,11 +297,9 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center", justifyContent: "center" },
   navText: { fontSize: 10, marginTop: 4, color: "#94A3B8", fontWeight: "500" },
   activeNavText: { color: "#0EA5E9", fontWeight: "600" },
-
-  // ✅ New Menu Styles
   settingsMenu: {
     position: 'absolute',
-    bottom: 85, // Just above the bottom nav
+    bottom: 85,
     right: 16,
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -288,7 +310,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
-    zIndex: 30, // Above everything else
+    zIndex: 30,
   },
   menuItem: {
     flexDirection: 'row',
@@ -299,7 +321,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#EF4444', // Red for logout
+    color: '#EF4444',
     fontWeight: '600',
   }
 });

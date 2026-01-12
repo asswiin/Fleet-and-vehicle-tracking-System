@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useState } from "react"; // 1. Import useState
 import {
   Search,
   Bell,
@@ -17,14 +18,15 @@ import {
   Package,
   Wrench,
   AlertTriangle,
-  MessageSquare,
+  MessageSquare, // Kept existing imports
   Map,
   LayoutGrid,
   Navigation,
   User,
   Car,
   Settings,
-  ArrowUpRight
+  ArrowUpRight,
+  LogOut, // 2. Import LogOut icon
 } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
@@ -37,8 +39,17 @@ const ManagerDashboard = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   
-  // 1. DYNAMIC NAME LOGIC
+  // State for the settings popup menu
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+
+  // Dynamic Name Logic
   const displayName = params.userName || "Manager";
+
+  // 3. Logout Function
+  const handleLogout = () => {
+    setShowSettingsMenu(false);
+    router.replace("/"); // Navigate back to Login
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,6 +59,9 @@ const ManagerDashboard = () => {
         <ScrollView 
           contentContainerStyle={styles.scrollContent} 
           showsVerticalScrollIndicator={false}
+          // 4. Close menu on scroll
+          onScroll={() => setShowSettingsMenu(false)}
+          scrollEventThrottle={16}
         >
           
           {/* Header */}
@@ -138,21 +152,34 @@ const ManagerDashboard = () => {
         </ScrollView>
       </View>
 
-      {/* 2. NAVIGATION BUTTONS */}
+      {/* 5. FLOATING SETTINGS MENU */}
+      {showSettingsMenu && (
+        <View style={styles.settingsMenu}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+            <LogOut size={20} color="#EF4444" />
+            <Text style={styles.menuItemText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Navigation Buttons */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
           <LayoutGrid size={24} color="#2563EB" fill="#2563EB" fillOpacity={0.1} />
           <Text style={[styles.navLabel, { color: "#2563EB" }]}>Home</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
           <Map size={24} color="#9CA3AF" />
-          <Text style={styles.navLabel}>go</Text>
+          <Text style={styles.navLabel}>Trips</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={styles.navItem}
-          onPress={() => router.push("register-driver" as any)}
+          onPress={() => {
+            setShowSettingsMenu(false);
+            router.push("register-driver" as any);
+          }}
         >
           <User size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Drivers</Text>
@@ -160,15 +187,22 @@ const ManagerDashboard = () => {
         
         <TouchableOpacity 
           style={styles.navItem}
-          onPress={() => router.push("vehicle-list" as any)}
+          onPress={() => {
+            setShowSettingsMenu(false);
+            router.push("vehicle-list" as any);
+          }}
         >
           <Car size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Vehicle</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
-          <Settings size={24} color="#9CA3AF" />
-          <Text style={styles.navLabel}>Settings</Text>
+        {/* 6. Settings Button Toggles Menu */}
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => setShowSettingsMenu(!showSettingsMenu)}
+        >
+          <Settings size={24} color={showSettingsMenu ? "#2563EB" : "#9CA3AF"} />
+          <Text style={[styles.navLabel, showSettingsMenu && { color: "#2563EB" }]}>Settings</Text>
         </TouchableOpacity>
       </View>
 
@@ -217,9 +251,39 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: "#F3F4F6",
+    zIndex: 20,
   },
   navItem: { alignItems: "center" },
   navLabel: { fontSize: 10, fontWeight: "600", color: "#9CA3AF", marginTop: 4 },
+
+  // 7. Styles for the Floating Menu
+  settingsMenu: {
+    position: 'absolute',
+    bottom: 85, // Adjust based on your bottom nav height
+    right: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 8,
+    width: 150,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 30, // Above everything
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuItemText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#EF4444', // Red for Logout
+    fontWeight: '600',
+  }
 });
 
 export default ManagerDashboard;
