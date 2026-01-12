@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
 import { api, type Vehicle } from "../utils/api";
 import { ChevronLeft, Plus, Search, Truck } from "lucide-react-native";
@@ -25,12 +25,17 @@ interface StatusStyle {
 
 const VehicleListScreen = () => {
   const router = useRouter();
+  
+  // 1. Get the user role passed from Dashboard (Admin or Manager)
+  const params = useLocalSearchParams<{ userRole: string }>();
+  const userRole = params.userRole || "admin"; // Default to admin if undefined
+
   const [vehicles, setVehicles] = useState<Vehicle[]>([]); 
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [selectedTab, setSelectedTab] = useState("All");
 
-  // 1. Fetch Data
+  // 2. Fetch Data
   const fetchVehicles = async () => {
     try {
       setLoading(true);
@@ -52,7 +57,7 @@ const VehicleListScreen = () => {
     }, [])
   );
 
-  // 2. Filter Logic
+  // 3. Filter Logic
   const filteredVehicles = vehicles.filter(v => {
     const matchesSearch = 
       v.regNumber.toLowerCase().includes(searchText.toLowerCase()) || 
@@ -67,7 +72,7 @@ const VehicleListScreen = () => {
     return matchesSearch && statusMatch;
   });
 
-  // 3. Helper for Status Badge Styles
+  // 4. Helper for Status Badge Styles
   const getStatusStyles = (status?: string): StatusStyle => {
     const displayStatus = status === "Active" ? "Available" : status;
 
@@ -85,10 +90,14 @@ const VehicleListScreen = () => {
     }
   };
 
+  // 5. Navigate to Details (Passing the Role)
   const handleVehicleClick = (vehicle: Vehicle) => {
     router.push({
       pathname: "vehicle-details" as any,
-      params: { vehicle: JSON.stringify(vehicle) }
+      params: { 
+        vehicle: JSON.stringify(vehicle),
+        userRole: userRole // Pass role so details screen knows whether to show "Sell" button
+      }
     });
   };
 
@@ -193,7 +202,8 @@ const VehicleListScreen = () => {
         )}
       </View>
 
-      {/* FAB */}
+      {/* FAB - Add Vehicle Button */}
+      {/* You can hide this for Managers if needed, currently shown for both */}
       <TouchableOpacity 
         style={styles.fab} 
         onPress={() => router.push("register-vehicle" as any)}

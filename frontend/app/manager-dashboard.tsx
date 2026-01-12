@@ -185,11 +185,14 @@ const ManagerDashboard = () => {
           <Text style={styles.navLabel}>Drivers</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
+         <TouchableOpacity 
           style={styles.navItem}
           onPress={() => {
             setShowSettingsMenu(false);
-            router.push("vehicle-list" as any);
+            router.push({
+              pathname: "vehicle-list",
+              params: { userRole: "manager" } // <--- CRITICAL: Enables "Mark as Sold"
+            } as any);
           }}
         >
           <Car size={24} color="#9CA3AF" />
@@ -287,3 +290,19 @@ const styles = StyleSheet.create({
 });
 
 export default ManagerDashboard;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

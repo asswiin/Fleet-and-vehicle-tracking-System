@@ -9,46 +9,81 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api, type Vehicle } from "../utils/api";
 import { 
   ChevronLeft, 
   Truck, 
-  Calendar, 
   FileCheck, 
   AlertCircle,
-  Weight,
   History,
   Tag
 } from "lucide-react-native";
 
 const VehicleDetailsScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ vehicle: string }>();
+  const params = useLocalSearchParams<{ vehicle: string; userRole: string }>();
   
-  // Parse vehicle data
-  let initialVehicle: Partial<Vehicle> = {};
-  try {
-    if (params.vehicle) {
-      initialVehicle = JSON.parse(params.vehicle);
-    }
-  } catch (e) {
-    console.error("Error parsing vehicle data");
-  }
+  // Default to 'admin' (view-only) if no role is passed
+  const userRole = params.userRole || "admin";
 
-  const [vehicle, setVehicle] = useState<Partial<Vehicle>>(initialVehicle);
+  const [vehicle, setVehicle] = useState<Partial<Vehicle>>({});
   const [loading, setLoading] = useState(false);
 
-  // Helper for Status Color
+  // Load vehicle data on mount
+  useEffect(() => {
+    try {
+      if (params.vehicle) {
+        const parsedVehicle = JSON.parse(params.vehicle);
+        setVehicle(parsedVehicle);
+      }
+    } catch (e) {
+      console.error("Error parsing vehicle data", e);
+      Alert.alert("Error", "Could not load vehicle details");
+    }
+  }, [params.vehicle]);
+
+  // --- Helpers ---
+
   const getStatusColor = (status?: string) => {
     switch(status) {
-      case 'Active': return '#22C55E';
-      case 'Sold': return '#EF4444';
-      default: return '#F59E0B';
+      case 'Active': return '#22C55E'; // Green
+      case 'Sold': return '#EF4444';   // Red
+      default: return '#F59E0B';       // Orange/Amber
     }
   };
 
-  // --- API CALL TO MARK AS SOLD ---
+  const getExpiryStatus = (dateStr?: string) => {
+    if (!dateStr) return { text: "Not Set", color: "#94A3B8" };
+    
+    // Handle both DD/MM/YYYY and YYYY-MM-DD formats
+    let expiryDate: Date;
+    
+    if (dateStr.includes('/')) {
+      // Assuming DD/MM/YYYY
+      const [day, month, year] = dateStr.split("/");
+      expiryDate = new Date(`${year}-${month}-${day}`);
+    } else {
+      // Assuming ISO string or other format handled by Date constructor
+      expiryDate = new Date(dateStr);
+    }
+
+    // Check if date is invalid
+    if (isNaN(expiryDate.getTime())) {
+       return { text: "Invalid Date", color: "#94A3B8" };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (expiryDate < today) {
+      return { text: "Expired", color: "#EF4444" }; 
+    }
+    return { text: "Valid", color: "#22C55E" }; 
+  };
+
+  // --- Handlers ---
+
   const handleMarkAsSold = async () => {
     Alert.alert(
       "Confirm Sale",
@@ -65,7 +100,7 @@ const VehicleDetailsScreen = () => {
               const response = await api.updateVehicleStatus(vehicle._id, "Sold");
 
               if (response.ok && response.data) {
-                setVehicle(response.data);
+                setVehicle(response.data); // Update local state to reflect 'Sold' immediately
                 Alert.alert("Success", "Vehicle marked as Sold.");
               } else {
                 Alert.alert("Error", response.error || "Failed to update status.");
@@ -84,17 +119,6 @@ const VehicleDetailsScreen = () => {
 
   const handleViewHistory = () => {
     Alert.alert("Coming Soon", "Service and Trip history feature is under development.");
-  };
-
-  // Helper for Expiry Status
-  const getExpiryStatus = (dateStr?: string) => {
-    if (!dateStr) return { text: "Not Set", color: "#94A3B8" };
-    const [day, month, year] = dateStr.split("/");
-    const expiryDate = new Date(`${year}-${month}-${day}`);
-    const today = new Date();
-    
-    if (expiryDate < today) return { text: "Expired", color: "#EF4444" }; 
-    return { text: "Valid", color: "#22C55E" }; 
   };
 
   return (
@@ -117,8 +141,8 @@ const VehicleDetailsScreen = () => {
             <View style={styles.iconContainer}>
               <Truck size={40} color="#0EA5E9" />
             </View>
-            <Text style={styles.modelText}>{vehicle.model || "N/A"}</Text>
-            <Text style={styles.regText}>{vehicle.regNumber || "N/A"}</Text>
+            <Text style={styles.modelText}>{vehicle.model || "Unknown Model"}</Text>
+            <Text style={styles.regText}>{vehicle.regNumber || "No Reg #"}</Text>
             
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vehicle.status) + "20" }]}>
               <View style={[styles.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />
@@ -140,7 +164,10 @@ const VehicleDetailsScreen = () => {
               <View style={styles.infoDivider} />
               <View style={styles.infoRight}>
                 <Text style={styles.label}>WEIGHT CAPACITY</Text>
-                <Text style={styles.value}>{vehicle.weight || "N/A"} kg</Text>
+                {/* Explicitly check for weight property */}
+                <Text style={styles.value}>
+                  {vehicle.weight ? `${vehicle.weight} Kg` : "N/A"}
+                </Text>
               </View>
             </View>
           </View>
@@ -149,6 +176,7 @@ const VehicleDetailsScreen = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Document Status</Text>
             
+            {/* Insurance */}
             <View style={styles.docItem}>
               <View style={styles.docIcon}>
                 <FileCheck size={20} color="#0EA5E9" />
@@ -164,6 +192,7 @@ const VehicleDetailsScreen = () => {
               </View>
             </View>
 
+            {/* Pollution */}
             <View style={styles.docItem}>
               <View style={styles.docIcon}>
                 <AlertCircle size={20} color="#0EA5E9" />
@@ -179,6 +208,7 @@ const VehicleDetailsScreen = () => {
               </View>
             </View>
 
+            {/* Road Tax */}
             <View style={styles.docItem}>
               <View style={styles.docIcon}>
                 <Tag size={20} color="#0EA5E9" />
@@ -197,22 +227,30 @@ const VehicleDetailsScreen = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionContainer}>
+            {/* Everyone can view history */}
             <TouchableOpacity style={styles.outlineButton} onPress={handleViewHistory}>
               <History size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
               <Text style={styles.outlineButtonText}>View History</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.dangerButton} 
-              onPress={handleMarkAsSold}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.dangerButtonText}>Mark as Sold</Text>
-              )}
-            </TouchableOpacity>
+            {/* 
+              CONDITIONAL: 
+              1. Must be MANAGER
+              2. Vehicle must NOT be Sold
+            */}
+            {userRole === "manager" && vehicle.status !== "Sold" && (
+              <TouchableOpacity 
+                style={styles.dangerButton} 
+                onPress={handleMarkAsSold}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.dangerButtonText}>Mark as Sold</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
         </ScrollView>
