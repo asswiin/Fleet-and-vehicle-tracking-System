@@ -24,13 +24,12 @@ const VehicleDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ vehicle: string; userRole: string }>();
   
-  // Default to 'admin' (view-only) if no role is passed
   const userRole = params.userRole || "admin";
 
-  const [vehicle, setVehicle] = useState<Partial<Vehicle>>({});
+  // Use 'any' to handle flexible database keys
+  const [vehicle, setVehicle] = useState<any>({});
   const [loading, setLoading] = useState(false);
 
-  // Load vehicle data on mount
   useEffect(() => {
     try {
       if (params.vehicle) {
@@ -43,51 +42,69 @@ const VehicleDetailsScreen = () => {
     }
   }, [params.vehicle]);
 
-  // --- Helpers ---
+  // --- Date Helpers ---
 
-  const getStatusColor = (status?: string) => {
-    switch(status) {
-      case 'Active': return '#22C55E'; // Green
-      case 'Sold': return '#EF4444';   // Red
-      default: return '#F59E0B';       // Orange/Amber
+  const parseDate = (dateInput?: string): Date | null => {
+    if (!dateInput) return null;
+
+    // Handle "DD/MM/YYYY"
+    if (dateInput.includes('/')) {
+      const parts = dateInput.split('/');
+      if (parts.length === 3) {
+        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
     }
+
+    // Handle ISO/Standard
+    const date = new Date(dateInput);
+    if (!isNaN(date.getTime())) return date;
+
+    return null;
   };
 
-  const getExpiryStatus = (dateStr?: string) => {
-    if (!dateStr) return { text: "Not Set", color: "#94A3B8" };
-    
-    // Handle both DD/MM/YYYY and YYYY-MM-DD formats
-    let expiryDate: Date;
-    
-    if (dateStr.includes('/')) {
-      // Assuming DD/MM/YYYY
-      const [day, month, year] = dateStr.split("/");
-      expiryDate = new Date(`${year}-${month}-${day}`);
-    } else {
-      // Assuming ISO string or other format handled by Date constructor
-      expiryDate = new Date(dateStr);
-    }
+  const formatDateForDisplay = (dateInput?: string) => {
+    const date = parseDate(dateInput);
+    if (!date) return "Not Set";
+    return date.toLocaleDateString('en-GB'); // DD/MM/YYYY
+  };
 
-    // Check if date is invalid
-    if (isNaN(expiryDate.getTime())) {
-       return { text: "Invalid Date", color: "#94A3B8" };
-    }
+  const getExpiryStatus = (dateInput?: string) => {
+    const date = parseDate(dateInput);
+    if (!date) return { text: "Not Set", color: "#94A3B8" };
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (expiryDate < today) {
+    if (date < today) {
       return { text: "Expired", color: "#EF4444" }; 
     }
     return { text: "Valid", color: "#22C55E" }; 
   };
+
+  const getStatusColor = (status?: string) => {
+    switch(status) {
+      case 'Active': return '#22C55E';
+      case 'Sold': return '#EF4444';
+      default: return '#F59E0B';
+    }
+  };
+
+  // --- Fallback Accessors (Updated for DB keys) ---
+  
+  // Checks 'taxExpiry' first based on your database request
+  const getTaxDate = () => vehicle.taxExpiry || vehicle.taxDate || vehicle.roadTaxExpiry;
+  
+  // Checks common variations for others
+  const getInsuranceDate = () => vehicle.insuranceExpiry || vehicle.insuranceDate || vehicle.insurance_date;
+  const getPollutionDate = () => vehicle.pollutionExpiry || vehicle.pollutionDate || vehicle.pollution_date;
+  const getWeight = () => vehicle.weight || vehicle.weightCapacity || vehicle.capacity;
 
   // --- Handlers ---
 
   const handleMarkAsSold = async () => {
     Alert.alert(
       "Confirm Sale",
-      "Are you sure you want to mark this vehicle as Sold? This will remove it from active fleet operations.",
+      "Are you sure you want to mark this vehicle as Sold?",
       [
         { text: "Cancel", style: "cancel" },
         { 
@@ -98,15 +115,13 @@ const VehicleDetailsScreen = () => {
             setLoading(true);
             try {
               const response = await api.updateVehicleStatus(vehicle._id, "Sold");
-
               if (response.ok && response.data) {
-                setVehicle(response.data); // Update local state to reflect 'Sold' immediately
+                setVehicle(response.data);
                 Alert.alert("Success", "Vehicle marked as Sold.");
               } else {
                 Alert.alert("Error", response.error || "Failed to update status.");
               }
             } catch (error) {
-              console.error(error);
               Alert.alert("Error", "Network error.");
             } finally {
               setLoading(false);
@@ -118,7 +133,7 @@ const VehicleDetailsScreen = () => {
   };
 
   const handleViewHistory = () => {
-    Alert.alert("Coming Soon", "Service and Trip history feature is under development.");
+    Alert.alert("Coming Soon", "History feature is under development.");
   };
 
   return (
@@ -164,9 +179,8 @@ const VehicleDetailsScreen = () => {
               <View style={styles.infoDivider} />
               <View style={styles.infoRight}>
                 <Text style={styles.label}>WEIGHT CAPACITY</Text>
-                {/* Explicitly check for weight property */}
                 <Text style={styles.value}>
-                  {vehicle.weight ? `${vehicle.weight} Kg` : "N/A"}
+                  {getWeight() ? `${getWeight()} Kg` : "N/A"}
                 </Text>
               </View>
             </View>
@@ -183,11 +197,13 @@ const VehicleDetailsScreen = () => {
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.label}>Insurance Expiry</Text>
-                <Text style={styles.value}>{vehicle.insuranceDate || "Not Set"}</Text>
+                <Text style={styles.value}>
+                  {formatDateForDisplay(getInsuranceDate())}
+                </Text>
               </View>
-              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(vehicle.insuranceDate).color + "20" }]}>
-                <Text style={[styles.docBadgeText, { color: getExpiryStatus(vehicle.insuranceDate).color }]}>
-                  {getExpiryStatus(vehicle.insuranceDate).text}
+              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getInsuranceDate()).color + "20" }]}>
+                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getInsuranceDate()).color }]}>
+                  {getExpiryStatus(getInsuranceDate()).text}
                 </Text>
               </View>
             </View>
@@ -199,11 +215,13 @@ const VehicleDetailsScreen = () => {
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.label}>Pollution Certificate</Text>
-                <Text style={styles.value}>{vehicle.pollutionDate || "Not Set"}</Text>
+                <Text style={styles.value}>
+                   {formatDateForDisplay(getPollutionDate())}
+                </Text>
               </View>
-              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(vehicle.pollutionDate).color + "20" }]}>
-                <Text style={[styles.docBadgeText, { color: getExpiryStatus(vehicle.pollutionDate).color }]}>
-                  {getExpiryStatus(vehicle.pollutionDate).text}
+              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getPollutionDate()).color + "20" }]}>
+                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getPollutionDate()).color }]}>
+                  {getExpiryStatus(getPollutionDate()).text}
                 </Text>
               </View>
             </View>
@@ -215,11 +233,13 @@ const VehicleDetailsScreen = () => {
               </View>
               <View style={styles.docInfo}>
                 <Text style={styles.label}>Road Tax</Text>
-                <Text style={styles.value}>{vehicle.taxDate || "Not Set"}</Text>
+                <Text style={styles.value}>
+                   {formatDateForDisplay(getTaxDate())}
+                </Text>
               </View>
-              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(vehicle.taxDate).color + "20" }]}>
-                <Text style={[styles.docBadgeText, { color: getExpiryStatus(vehicle.taxDate).color }]}>
-                  {getExpiryStatus(vehicle.taxDate).text}
+              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getTaxDate()).color + "20" }]}>
+                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getTaxDate()).color }]}>
+                  {getExpiryStatus(getTaxDate()).text}
                 </Text>
               </View>
             </View>
@@ -227,17 +247,12 @@ const VehicleDetailsScreen = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionContainer}>
-            {/* Everyone can view history */}
             <TouchableOpacity style={styles.outlineButton} onPress={handleViewHistory}>
               <History size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
               <Text style={styles.outlineButtonText}>View History</Text>
             </TouchableOpacity>
             
-            {/* 
-              CONDITIONAL: 
-              1. Must be MANAGER
-              2. Vehicle must NOT be Sold
-            */}
+            {/* Conditional Button: Manager ONLY + NOT Sold */}
             {userRole === "manager" && vehicle.status !== "Sold" && (
               <TouchableOpacity 
                 style={styles.dangerButton} 
@@ -263,58 +278,29 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
   container: { flex: 1 },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    padding: 20, backgroundColor: "#fff",
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   content: { padding: 20 },
-  
   mainCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: "#fff", borderRadius: 16, padding: 24, alignItems: "center", marginBottom: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E0F2FE",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
+    width: 60, height: 60, borderRadius: 30, backgroundColor: "#E0F2FE",
+    justifyContent: "center", alignItems: "center", marginBottom: 12,
   },
   modelText: { fontSize: 20, fontWeight: "700", color: "#1E293B", marginBottom: 4 },
   regText: { fontSize: 14, color: "#64748B", marginBottom: 12 },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
   statusText: { fontSize: 12, fontWeight: "600" },
-
   section: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: "#fff", borderRadius: 16, padding: 20, marginBottom: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 16 },
   infoRow: { flexDirection: "row", alignItems: "center" },
@@ -323,46 +309,26 @@ const styles = StyleSheet.create({
   infoRight: { flex: 1 },
   label: { fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 4, textTransform: "uppercase" },
   value: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
-
   docItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    flexDirection: "row", alignItems: "center", paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
   },
   docIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+    width: 40, height: 40, borderRadius: 10, backgroundColor: "#F1F5F9",
+    justifyContent: "center", alignItems: "center", marginRight: 12,
   },
   docInfo: { flex: 1 },
   docBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   docBadgeText: { fontSize: 11, fontWeight: "600" },
-
   actionContainer: { flexDirection: "row", gap: 12, marginBottom: 40 },
   outlineButton: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#0EA5E9",
+    flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center",
+    paddingVertical: 12, borderRadius: 8, borderWidth: 2, borderColor: "#0EA5E9",
   },
   outlineButtonText: { color: "#0EA5E9", fontWeight: "600", fontSize: 14 },
   dangerButton: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: "#EF4444",
+    flex: 1, justifyContent: "center", alignItems: "center",
+    paddingVertical: 12, borderRadius: 8, backgroundColor: "#EF4444",
   },
   dangerButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
 });
