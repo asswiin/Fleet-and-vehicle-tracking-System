@@ -116,8 +116,8 @@ const VehicleListScreen = () => {
           </View>
 
           <View style={styles.infoContainer}>
-            <Text style={styles.modelText}>{item.model}</Text>
-            <Text style={styles.regText}>{item.regNumber}</Text>
+            <Text style={styles.modelText}>{item.regNumber}</Text>
+            <Text style={styles.regText}>{item.model}</Text>
           </View>
 
           <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>

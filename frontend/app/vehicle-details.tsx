@@ -156,8 +156,8 @@ const VehicleDetailsScreen = () => {
             <View style={styles.iconContainer}>
               <Truck size={40} color="#0EA5E9" />
             </View>
-            <Text style={styles.modelText}>{vehicle.model || "Unknown Model"}</Text>
-            <Text style={styles.regText}>{vehicle.regNumber || "No Reg #"}</Text>
+            <Text style={styles.modelText}>{vehicle.regNumber || "No Reg #"}</Text>
+            <Text style={styles.regText}>{vehicle.model || "Unknown Model"}</Text>
             
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vehicle.status) + "20" }]}>
               <View style={[styles.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />

@@ -1,11 +1,29 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from "react-native";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  SafeAreaView, 
+  Alert, 
+  ActivityIndicator 
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import type { User } from "../utils/api";
-import { ChevronLeft, Mail, Phone, MapPin, Calendar } from "lucide-react-native";
+import { useState } from "react";
+import { api, type User } from "../utils/api"; // Ensure api is imported here
+import { 
+  ChevronLeft, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar, 
+  Trash2 
+} from "lucide-react-native";
 
 const ManagerDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ user: string }>();
+  const [loading, setLoading] = useState(false);
   
   let user: Partial<User> = {};
   try {
@@ -18,6 +36,42 @@ const ManagerDetailsScreen = () => {
 
   const getAddressField = (field: keyof NonNullable<User['address']>) => {
     return (user.address && user.address[field]) ? user.address[field] : "-";
+  };
+
+  const handleDelete = async () => {
+    if (!user._id) return;
+
+    Alert.alert(
+      "Delete Manager",
+      `Are you sure you want to remove ${user.name}? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              // Assuming your API has a deleteUser method
+              const response = await api.deleteUser(user._id!);
+
+              if (response.ok) {
+                Alert.alert("Success", "Manager removed successfully", [
+                  { text: "OK", onPress: () => router.back() }
+                ]);
+              } else {
+                Alert.alert("Error", response.error || "Failed to delete manager");
+              }
+            } catch (error) {
+              console.error(error);
+              Alert.alert("Error", "Network error occurred");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -110,8 +164,25 @@ const ManagerDetailsScreen = () => {
                     <Text style={styles.value}>{getAddressField("state")}</Text>
                 </View>
             </View>
-
           </View>
+
+          {/* Delete Button */}
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={handleDelete}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Trash2 size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.deleteButtonText}>Delete Manager</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <View style={{ height: 20 }} />
 
         </ScrollView>
       </View>
@@ -129,7 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     backgroundColor: "#fff",
-    marginTop: 30, // Added to prevent status bar overlap
+    marginTop: 30,
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backButton: { padding: 4 },
@@ -182,6 +253,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
     paddingBottom: 8
+  },
+  deleteButton: {
+    backgroundColor: "#EF4444",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    marginTop: 10
+  },
+  deleteButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700"
   }
 });
 
