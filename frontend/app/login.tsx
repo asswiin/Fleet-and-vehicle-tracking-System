@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useState, FC } from "react";
 import { useRouter } from "expo-router";
-import { Truck, Lock, User, Eye, EyeOff, Headphones } from "lucide-react-native";
+import { Lock, User, Eye, EyeOff, Globe } from "lucide-react-native";
 import { api } from "../utils/api";
 
 const LoginScreen: FC = () => {
@@ -37,15 +37,12 @@ const LoginScreen: FC = () => {
 
       if (response.ok) {
         const data = response.data;
-        // ✅ CHECK ROLE AND NAVIGATE ACCORDINGLY
         if (data?.role === "admin") {
-          router.replace({pathname: "admin-dashboard" as any});
+          router.replace({ pathname: "admin-dashboard" as any });
         } else if (data?.role === "manager") {
-          console.log("Logging in as:", data.name);
-          // Pass the user name to the dashboard if needed
           router.replace({
             pathname: "manager-dashboard" as any,
-            params: { userName: data.name }  // Handle both naming conventions
+            params: { userName: data.name },
           });
         } else {
           Alert.alert("Access Denied", "Driver/User app is under development.");
@@ -67,27 +64,35 @@ const LoginScreen: FC = () => {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
         {/* Main Card */}
         <View style={styles.card}>
           
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoBackground}>
-              <Truck size={32} color="#0096FF" fill="#0096FF" strokeWidth={0} />
+          {/* BRANDING HEADER SECTION */}
+          <View style={styles.headerContainer}>
+            <Text style={styles.brandSmallRed}>SREE</Text>
+            <Text style={styles.brandBigRed}>GOKULAM</Text>
+            
+            <View style={styles.brandRow}>
+              {/* Note: The 'lines' effect in the logo font requires a custom font file. 
+                  We use italic/bold to approximate the style. */}
+              <Text style={styles.brandBlueBig}>SPEED</Text>
+              <Text style={styles.brandAmpersand}> & </Text>
+              <Text style={styles.brandBlueBig}>SAFE</Text>
             </View>
+            
+            <Text style={styles.brandSubtitle}>COURIER SERVICE</Text>
+          
           </View>
 
           {/* Form Section */}
           <View style={styles.formContainer}>
-            
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
               <View style={styles.inputWrapper}>
                 <User size={20} color="#64748B" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="user@logistics.com"
+                  placeholder="Enter your ID"
                   placeholderTextColor="#94A3B8"
                   value={email}
                   onChangeText={setEmail}
@@ -132,18 +137,17 @@ const LoginScreen: FC = () => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginButtonText}>Sign In Securely</Text>
+                <Text style={styles.loginButtonText}>Login</Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Footer Link */}
+        {/* Footer Link / Website */}
         <TouchableOpacity style={styles.footerLink}>
-          <Headphones size={16} color="#64748B" style={{ marginRight: 8 }} />
-          <Text style={styles.footerText}>Contact Support</Text>
+          <Globe size={16} color="#15803d" style={{ marginRight: 8 }} />
+          
         </TouchableOpacity>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -152,7 +156,7 @@ const LoginScreen: FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#F1F5F9", // Light grey background
   },
   scrollContent: {
     flexGrow: 1,
@@ -166,23 +170,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
     marginBottom: 30,
   },
-  logoContainer: {
+  
+  // --- BRANDING STYLES START ---
+  headerContainer: {
     alignItems: "center",
     marginBottom: 32,
   },
-  logoBackground: {
-    width: 80,
-    height: 80,
-    backgroundColor: "#E0F2FE",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
+  brandSmallRed: {
+    color: "#DC2626", // Red
+    fontSize: 12,
+    fontWeight: "bold",
+    marginBottom: -4, // Pull GOKULAM closer
   },
+  brandBigRed: {
+    color: "#DC2626", // Red
+    fontSize: 32,
+    fontWeight: "900", // Extra Bold
+    letterSpacing: 0.5,
+    marginBottom: 2,
+    // Note: To match the logo exactly, you'd usually use an Image component
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  brandBlueBig: {
+    color: "#312E81", // Deep Indigo/Navy
+    fontSize: 26,
+    fontWeight: "800", // Heavy Bold
+    fontStyle: "italic", // Adds the dynamic feel
+  },
+  brandAmpersand: {
+    color: "#312E81",
+    fontSize: 24,
+    fontStyle: "italic",
+    fontFamily: Platform.OS === 'ios' ? 'Times New Roman' : 'serif', // Attempt to look like script
+  },
+  brandSubtitle: {
+    color: "#312E81", // Deep Indigo
+    fontSize: 18,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  brandTagline: {
+    color: "#333333", // Dark Grey/Black
+    fontSize: 12,
+    fontWeight: "500",
+    textTransform: "uppercase",
+  },
+  // --- BRANDING STYLES END ---
+
   formContainer: {
     width: "100%",
   },
@@ -218,15 +263,15 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   loginButton: {
-    backgroundColor: "#0EA5E9",
+    backgroundColor: "#312E81", // Updated to match brand Navy Blue
     height: 50,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 10,
-    shadowColor: "#0EA5E9",
+    shadowColor: "#312E81",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -242,30 +287,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 10,
   },
-  footerText: {
-    color: "#64748B",
+  websiteText: {
+    color: "#15803d", // Green
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "700",
   },
 });
 
 export default LoginScreen;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
