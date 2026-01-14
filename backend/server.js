@@ -14,6 +14,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/vehicles",require("./routes/vehicleRoutes"));
+app.use("/api/drivers", require("./routes/driverRoutes"));
 
 const PORT = process.env.PORT || 5000;
 

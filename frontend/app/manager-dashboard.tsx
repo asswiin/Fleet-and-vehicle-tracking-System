@@ -178,7 +178,7 @@ const ManagerDashboard = () => {
           style={styles.navItem}
           onPress={() => {
             setShowSettingsMenu(false);
-            router.push("register-driver" as any);
+            router.push("drivers-list" as any);
           }}
         >
           <User size={24} color="#9CA3AF" />

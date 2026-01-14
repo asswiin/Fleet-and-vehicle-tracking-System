@@ -9,44 +9,138 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
+  Modal,
+  FlatList,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ChevronLeft, Smartphone, CreditCard, Home, ArrowRight } from "lucide-react-native";
+import { ChevronLeft, Smartphone, CreditCard, Home, ArrowRight, Mail, ChevronDown, Check } from "lucide-react-native";
+import { api } from "../utils/api";
+
+// Kerala Districts List
+const KERALA_DISTRICTS = [
+  "Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod", 
+  "Kollam", "Kottayam", "Kozhikode", "Malappuram", "Palakkad", 
+  "Pathanamthitta", "Thiruvananthapuram", "Thrissur", "Wayanad"
+];
 
 interface DriverForm {
   name: string;
   mobile: string;
+  email: string;
   license: string;
+  house: string;
   street: string;
   city: string;
   district: string;
   state: string;
-  zip: string;
 }
 
 const RegisterDriverScreen = () => {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  
+  // UI State for Modal
+  const [showDistrictModal, setShowDistrictModal] = useState(false);
+
   const [form, setForm] = useState<DriverForm>({
     name: "",
     mobile: "",
+    email: "",
     license: "",
+    house: "",
     street: "",
     city: "",
     district: "",
-    state: "",
-    zip: ""
+    state: "Kerala", // Default State
   });
 
-  const handleSubmit = () => {
-    // Validation
-    if (!form.name || !form.mobile || !form.license) {
-      Alert.alert("Missing Fields", "Please fill in the required fields.");
+  const handleDistrictSelect = (district: string) => {
+    setForm({ ...form, district });
+    setShowDistrictModal(false);
+  };
+
+  const handleSubmit = async () => {
+    const { name, mobile, email, license, house, street, city, district } = form;
+
+    // 1. Basic Empty Check
+    if (!name.trim() || !mobile.trim() || !email.trim() || !license.trim() || !house.trim() || !city.trim() || !district.trim()) {
+      Alert.alert("Missing Fields", "Please fill in all required fields.");
       return;
     }
-    // Add API call here
-    Alert.alert("Success", "Driver Registered Successfully");
-    router.back();
+
+    // 2. Phone Validation
+    // Must be 10 digits, start with 6, 7, 8, or 9
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(mobile)) {
+      Alert.alert("Invalid Phone", "Enter a valid phone number");
+      return;
+    }
+
+    // 3. Email Validation (Allowed Providers)
+    // List of allowed domains
+    const allowedDomainsRegex = /@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com|icloud\.com|proton\.me|protonmail\.com|zoho\.com|aol\.com|mail\.com|gmx\.com|yandex\.com|rediffmail\.com|yahoo\.co\.in|outlook\.in|live\.com|msn\.com|hey\.com)$/i;
+    
+    // Check standard email format + allowed domain
+    const standardEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    if (!standardEmailRegex.test(email) || !allowedDomainsRegex.test(email)) {
+      Alert.alert(
+        "Invalid Email", 
+        "Please enter a valid email"
+      );
+      return;
+    }
+
+    // 4. License Validation
+    // Format: AA XX YYYY XXXXXXX (Total 15 alphanumeric characters)
+    const cleanLicense = license.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    
+    // Regex: 2 Letters (State) + 2 Digits (RTO) + 4 Digits (Year) + 7 Digits (ID)
+    const licenseRegex = /^[A-Z]{2}[0-9]{13}$/;
+
+    if (cleanLicense.length !== 15 || !licenseRegex.test(cleanLicense)) {
+      Alert.alert(
+        "Invalid License", 
+        "License must follow format: State(2) RTO(2) Year(4) ID(7).\nExample: MH1420110062821"
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const payload = {
+        name: form.name,
+        mobile: `+91${form.mobile}`, // Add +91 prefix for DB
+        email: form.email,
+        license: cleanLicense, // Send cleaned license number
+        address: {
+          house: form.house,
+          street: form.street,
+          city: form.city,
+          district: form.district,
+          state: form.state,
+        }
+      };
+
+      const response = await api.createDriver(payload);
+
+      if (response.ok) {
+        Alert.alert("Success", "Driver Registered Successfully", [
+          { text: "OK", onPress: () => router.back() }
+        ]);
+      } else {
+        Alert.alert("Error", response.error || "Failed to register driver");
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Network error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,15 +174,38 @@ const RegisterDriverScreen = () => {
           {/* Mobile */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mobile Number</Text>
-            <View style={styles.iconInputWrapper}>
+            <View style={styles.phoneInputWrapper}>
               <Smartphone size={20} color="#94A3B8" style={styles.inputIcon} />
+              <Text style={styles.phonePrefix}>+91</Text>
+              <View style={styles.phoneDivider} />
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="98765 43210"
+                placeholderTextColor="#94A3B8"
+                keyboardType="number-pad"
+                maxLength={10}
+                value={form.mobile}
+                onChangeText={(t) => {
+                  // Only allow digits
+                  if (/^\d*$/.test(t)) setForm({...form, mobile: t});
+                }}
+              />
+            </View>
+          </View>
+
+          {/* Email */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.iconInputWrapper}>
+              <Mail size={20} color="#94A3B8" style={styles.inputIcon} />
               <TextInput
                 style={styles.iconInput}
-                placeholder="+1 (555) 000-0000"
+                placeholder="e.g. driver@gmail.com"
                 placeholderTextColor="#94A3B8"
-                keyboardType="phone-pad"
-                value={form.mobile}
-                onChangeText={(t) => setForm({...form, mobile: t})}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={form.email}
+                onChangeText={(t) => setForm({...form, email: t})}
               />
             </View>
           </View>
@@ -100,12 +217,15 @@ const RegisterDriverScreen = () => {
               <CreditCard size={20} color="#94A3B8" style={styles.inputIcon} />
               <TextInput
                 style={styles.iconInput}
-                placeholder="X000-0000-0000"
+                placeholder="MH14 2011 0062821"
                 placeholderTextColor="#94A3B8"
+                autoCapitalize="characters"
+                maxLength={18} // Allow typing separators, validated on submit
                 value={form.license}
                 onChangeText={(t) => setForm({...form, license: t})}
               />
             </View>
+            <Text style={styles.helperText}>Format: State(2) RTO(2) Year(4) ID(7)</Text>
           </View>
 
           {/* Address Section */}
@@ -115,17 +235,27 @@ const RegisterDriverScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>House/Flat</Text>
+            <Text style={styles.label}>House / Flat</Text>
             <TextInput
               style={styles.simpleInput}
-              placeholder="e.g. 123 Main St"
+              placeholder="e.g. Rose Villa"
+              placeholderTextColor="#94A3B8"
+              value={form.house}
+              onChangeText={(t) => setForm({...form, house: t})}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Street</Text>
+            <TextInput
+              style={styles.simpleInput}
+              placeholder="Street name"
               placeholderTextColor="#94A3B8"
               value={form.street}
               onChangeText={(t) => setForm({...form, street: t})}
             />
           </View>
 
-          {/* Row 1: City & District */}
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
               <Text style={styles.label}>City</Text>
@@ -137,54 +267,92 @@ const RegisterDriverScreen = () => {
                 onChangeText={(t) => setForm({...form, city: t})}
               />
             </View>
+
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>District</Text>
-              <TextInput
-                style={styles.simpleInput}
-                placeholder="District"
-                placeholderTextColor="#94A3B8"
-                value={form.district}
-                onChangeText={(t) => setForm({...form, district: t})}
-              />
+              <TouchableOpacity 
+                style={styles.dropdownButton}
+                onPress={() => setShowDistrictModal(true)}
+              >
+                <Text style={[styles.dropdownText, !form.district && { color: "#94A3B8" }]}>
+                  {form.district || "Select"}
+                </Text>
+                <ChevronDown size={18} color="#94A3B8" />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Row 2: State & Zip */}
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
-              <Text style={styles.label}>State</Text>
-              <TextInput
-                style={styles.simpleInput}
-                placeholder="State"
-                placeholderTextColor="#94A3B8"
-                value={form.state}
-                onChangeText={(t) => setForm({...form, state: t})}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Zip Code</Text>
-              <TextInput
-                style={styles.simpleInput}
-                placeholder="Zip Code"
-                placeholderTextColor="#94A3B8"
-                keyboardType="numeric"
-                value={form.zip}
-                onChangeText={(t) => setForm({...form, zip: t})}
-              />
+          {/* State (Read-only) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>State</Text>
+            <View style={[styles.simpleInput, styles.disabledInput]}>
+              <Text style={{ color: "#64748B", fontSize: 15 }}>{form.state}</Text>
             </View>
           </View>
 
           <View style={{ height: 20 }} />
 
           {/* Submit Button */}
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-            <Text style={styles.submitText}>Submit</Text>
-            <ArrowRight size={20} color="#fff" style={{ marginLeft: 8 }} />
+          <TouchableOpacity 
+            style={[styles.submitBtn, loading && { opacity: 0.7 }]} 
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+                <ActivityIndicator color="#fff" />
+            ) : (
+                <>
+                <Text style={styles.submitText}>Register Driver</Text>
+                <ArrowRight size={20} color="#fff" style={{ marginLeft: 8 }} />
+                </>
+            )}
           </TouchableOpacity>
 
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* District Modal */}
+      <Modal
+        visible={showDistrictModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDistrictModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowDistrictModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select District</Text>
+                  <TouchableOpacity onPress={() => setShowDistrictModal(false)}>
+                    <Text style={styles.closeText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={KERALA_DISTRICTS}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.districtItem} 
+                      onPress={() => handleDistrictSelect(item)}
+                    >
+                      <Text style={[
+                        styles.districtText, 
+                        form.district === item && styles.selectedDistrictText
+                      ]}>
+                        {item}
+                      </Text>
+                      {form.district === item && <Check size={20} color="#0EA5E9" />}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -192,58 +360,77 @@ const RegisterDriverScreen = () => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9"
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    padding: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#F1F5F9"
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backBtn: { padding: 4 },
   content: { padding: 20 },
   inputGroup: { marginBottom: 16 },
   row: { flexDirection: "row" },
-  label: { fontSize: 13, fontWeight: "700", color: "#475569", marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: "700", color: "#475569", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
+  
   simpleInput: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#1E293B",
-    backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12, paddingHorizontal: 16,
+    paddingVertical: 12, fontSize: 15, color: "#1E293B", backgroundColor: "#FFFFFF",
+    height: 50, justifyContent: "center"
   },
+  disabledInput: { backgroundColor: "#F1F5F9", borderColor: "#E2E8F0" },
+  
+  // Icon Input Wrapper
   iconInputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    height: 50,
-    paddingHorizontal: 16,
+    flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12, height: 50, paddingHorizontal: 16,
   },
   inputIcon: { marginRight: 12 },
   iconInput: { flex: 1, fontSize: 15, color: "#1E293B", height: "100%" },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 15,
+  
+  // Phone Specific Styles
+  phoneInputWrapper: {
+    flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12, height: 50, paddingHorizontal: 16,
   },
+  phonePrefix: { fontSize: 16, fontWeight: "600", color: "#1E293B", marginRight: 8 },
+  phoneDivider: { width: 1, height: 24, backgroundColor: "#E2E8F0", marginRight: 10 },
+  phoneInput: { flex: 1, fontSize: 16, color: "#1E293B", height: "100%", letterSpacing: 1 },
+
+  // Dropdown Button
+  dropdownButton: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0",
+    borderRadius: 12, height: 50, paddingHorizontal: 16,
+  },
+  dropdownText: { fontSize: 15, color: "#1E293B" },
+
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginTop: 10, marginBottom: 15 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 10 },
   submitBtn: {
-    backgroundColor: "#2563EB",
-    height: 56,
-    borderRadius: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#2563EB", height: 56, borderRadius: 12, flexDirection: "row",
+    justifyContent: "center", alignItems: "center",
   },
   submitText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  helperText: { fontSize: 12, color: "#64748B", marginTop: 4 },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF", borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    maxHeight: "60%", padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    marginBottom: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  closeText: { color: "#0EA5E9", fontSize: 16, fontWeight: "600" },
+  districtItem: {
+    flexDirection: "row", justifyContent: "space-between", paddingVertical: 15,
+    borderBottomWidth: 1, borderBottomColor: "#F8FAFC",
+  },
+  districtText: { fontSize: 16, color: "#334155" },
+  selectedDistrictText: { color: "#0EA5E9", fontWeight: "700" },
 });
 
 export default RegisterDriverScreen;

@@ -74,6 +74,38 @@ interface CreateManagerData {
   };
 }
 
+export interface Driver {
+  _id: string;
+  name: string;
+  mobile: string;
+  license: string;
+  status: string;
+  address?: {
+    house?: string;
+    street?: string;
+    city?: string;
+    district?: string;
+    state?: string;
+    zip?: string;
+  };
+  createdAt?: string;
+}
+
+export interface RegisterDriverData {
+  name: string;
+  mobile: string;
+  license: string;
+  address: {
+    house: string;
+    street: string;
+    city: string;
+    district: string;
+    state: string;
+    zip: string;
+  };
+}
+
+
 // ==========================================
 // 2. Network Configuration
 // ==========================================
@@ -199,6 +231,18 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+
+
+    // --- DRIVERS ---
+    getDrivers: () => apiCall<Driver[]>("/api/drivers"),
+  
+  createDriver: (data: RegisterDriverData) =>
+    apiCall<Driver>("/api/drivers/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
+
+
 
 export default api;
