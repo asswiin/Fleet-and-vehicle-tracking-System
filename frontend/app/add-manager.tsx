@@ -130,9 +130,16 @@ const AddManagerScreen: React.FC = () => {
     }
 
     // Email Validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Invalid Email", "Please enter a valid @gmail.com address");
+    const allowedDomainsRegex = /@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com|icloud\.com|proton\.me|protonmail\.com|zoho\.com|aol\.com|mail\.com|gmx\.com|yandex\.com|rediffmail\.com|yahoo\.co\.in|outlook\.in|live\.com|msn\.com|hey\.com)$/i;
+    
+    // Check standard email format + allowed domain
+    const standardEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    if (!standardEmailRegex.test(email) || !allowedDomainsRegex.test(email)) {
+      Alert.alert(
+        "Invalid Email", 
+        "Please enter a valid email"
+      );
       return;
     }
 

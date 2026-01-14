@@ -62,11 +62,27 @@ const RegisterDriverScreen = () => {
     setShowDistrictModal(false);
   };
 
+  const handleLicenseChange = (text: string) => {
+    // Remove all spaces and convert to uppercase
+    const cleaned = text.toUpperCase().replace(/\s/g, '');
+    
+    // Format: AAXX YYYYYYYYYYY (space after first 4 characters)
+    let formatted = cleaned;
+    if (cleaned.length > 4) {
+      formatted = cleaned.slice(0, 4) + ' ' + cleaned.slice(4);
+    }
+    
+    // Limit to 15 characters (excluding space)
+    if (cleaned.length <= 15) {
+      setForm({ ...form, license: formatted });
+    }
+  };
+
   const handleSubmit = async () => {
     const { name, mobile, email, license, house, street, city, district } = form;
 
     // 1. Basic Empty Check
-    if (!name.trim() || !mobile.trim() || !email.trim() || !license.trim() || !house.trim() || !city.trim() || !district.trim()) {
+    if (!name.trim() || !mobile.trim() || !email.trim() || !license.trim() || !district.trim()) {
       Alert.alert("Missing Fields", "Please fill in all required fields.");
       return;
     }
@@ -96,7 +112,7 @@ const RegisterDriverScreen = () => {
 
     // 4. License Validation
     // Format: AA XX YYYY XXXXXXX (Total 15 alphanumeric characters)
-    const cleanLicense = license.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const cleanLicense = license.toUpperCase().replace(/[^A-Z0-9]/g, ''); // Remove non-alphanumeric chars
     
     // Regex: 2 Letters (State) + 2 Digits (RTO) + 4 Digits (Year) + 7 Digits (ID)
     const licenseRegex = /^[A-Z]{2}[0-9]{13}$/;
@@ -217,15 +233,15 @@ const RegisterDriverScreen = () => {
               <CreditCard size={20} color="#94A3B8" style={styles.inputIcon} />
               <TextInput
                 style={styles.iconInput}
-                placeholder="MH14 2011 0062821"
+                placeholder="KL12 20201234567"
                 placeholderTextColor="#94A3B8"
                 autoCapitalize="characters"
-                maxLength={18} // Allow typing separators, validated on submit
+                maxLength={16}
                 value={form.license}
-                onChangeText={(t) => setForm({...form, license: t})}
+                onChangeText={handleLicenseChange}
               />
             </View>
-            <Text style={styles.helperText}>Format: State(2) RTO(2) Year(4) ID(7)</Text>
+            <Text style={styles.helperText}>Format: State(2)RTO(2) Year(4)ID(7)</Text>
           </View>
 
           {/* Address Section */}
