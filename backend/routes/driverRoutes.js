@@ -1,7 +1,10 @@
 // routes/driverRoutes.js
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcryptjs"); // Import bcrypt
+const crypto = require("crypto"); 
 const Driver = require("../models/Driver");
+const User = require("../models/User"); 
 
 // POST: Register a new driver
 router.post("/register", async (req, res) => {
