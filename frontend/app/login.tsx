@@ -44,7 +44,15 @@ const LoginScreen: FC = () => {
             pathname: "manager-dashboard" as any,
             params: { userName: data.name },
           });
-        } else {
+        } 
+        else if (data?.role === "driver") {
+          router.replace({
+            pathname: "driver-dashboard" as any, // Point to new file
+            params: { userName: data.name },     // Pass driver name
+          });
+        } 
+        
+        else {
           Alert.alert("Access Denied", "Driver/User app is under development.");
         }
       } else {

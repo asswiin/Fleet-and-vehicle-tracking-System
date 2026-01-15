@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto"); // Built-in Node module for generating passwords
-const User = require("../models/User"); // Your User Model
+const User = require("../models/User"); 
+const Driver = require("../models/Driver");// Your User Model
 const { sendCredentialsEmail } = require("../utils/emailService"); // Email utility
 
 // ==========================================
@@ -61,27 +62,46 @@ router.post("/login", async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email: email });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      const user = await User.findOne({ email: email });
+    
+    if (user) {
+      // User found, check password
+      const isMatch = await user.comparePassword(password);
+      if (isMatch) {
+        return res.json({
+          message: "Login successful",
+          user: {
+            id: user._id,
+            name: user.name,  
+            email: user.email,
+            role: user.role,
+          },
+        });
+      }
     }
 
-    // Check Password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    // 2. If not found in User (or password mismatch), check DRIVER collection
+    const driver = await Driver.findOne({ email: email });
+
+    if (driver) {
+      // Driver found, check password
+      const isDriverMatch = await driver.comparePassword(password);
+      if (isDriverMatch) {
+        return res.json({
+          message: "Login successful",
+          user: {
+            id: driver._id,
+            name: driver.name,
+            email: driver.email,
+            role: "driver", // Explicitly identify as driver
+          },
+        });
+      }
     }
 
-    // Return User Data (You can add JWT token here later)
-    res.json({
-      message: "Login successful",
-      user: {
-        id: user._id,
-        name: user.name,  
-        email: user.email,
-        role: user.role,
-      },
-    });
+    // 3. Neither found or passwords didn't match
+    return res.status(401).json({ message: "Invalid credentials" });
+
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });

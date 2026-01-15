@@ -26,7 +26,7 @@ import {
   FileText 
 } from "lucide-react-native";
 
-const VEHICLE_TYPES = ["Truck", "Lorry", "Van", "Container", "Trailer"];
+const VEHICLE_TYPES = ["Truck", "Lorry", "Van", "Container"];
 
 interface VehicleForm {
   regNumber: string;
