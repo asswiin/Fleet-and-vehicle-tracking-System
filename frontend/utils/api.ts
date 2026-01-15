@@ -79,7 +79,10 @@ export interface Driver {
   name: string;
   mobile: string;
   license: string;
+  email?: string;
   status: string;
+  gender?: "male" | "female" | "other";
+  dob?: string;
   address?: {
     house?: string;
     street?: string;
@@ -94,7 +97,10 @@ export interface Driver {
 export interface RegisterDriverData {
   name: string;
   mobile: string;
+  email: string;
   license: string;
+  gender: string;
+  dob: string;
   address: {
     house: string;
     street: string;

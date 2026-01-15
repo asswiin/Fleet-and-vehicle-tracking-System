@@ -8,14 +8,31 @@ const { sendCredentialsEmail } = require("../utils/emailService");
 // POST: Register a new driver
 router.post("/register", async (req, res) => {
   try {
-    const { name, mobile, email, license, address } = req.body;
+    const { name, mobile, email, license, gender, dob, address } = req.body;
 
     // 1. Validation
-    if (!name || !mobile || !email || !license) {
-      return res.status(400).json({ message: "Name, Mobile, Email, and License are required" });
+    if (!name || !mobile || !email || !license || !gender || !dob) {
+      return res.status(400).json({ message: "Name, Mobile, Email, License, Gender, and DOB are required" });
     }
 
-    // 2. DETAILED DUPLICATE CHECK (Strictly checking Driver collection)
+    // 2. Gender Validation
+    const validGenders = ["male", "female", "other"];
+    if (!validGenders.includes(gender.toLowerCase())) {
+      return res.status(400).json({ message: "Gender must be 'male', 'female', or 'other'" });
+    }
+
+    // 3. DOB Validation (18+ years old)
+    const dobDate = new Date(dob);
+    if (Number.isNaN(dobDate.getTime())) {
+      return res.status(400).json({ message: "Invalid date of birth" });
+    }
+    const minDob = new Date();
+    minDob.setFullYear(minDob.getFullYear() - 18);
+    if (dobDate > minDob) {
+      return res.status(400).json({ message: "Driver must be at least 18 years old" });
+    }
+
+    // 4. DETAILED DUPLICATE CHECK (Strictly checking Driver collection)
     
     // Check Email
     const emailExists = await Driver.findOne({ email: email });
@@ -35,15 +52,17 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "A Driver with this LICENSE already exists." });
     }
 
-    // 3. Generate Random Password
+    // 5. Generate Random Password
     const randomPassword = crypto.randomBytes(4).toString("hex");
 
-    // 4. Create Driver
+    // 6. Create Driver
     const newDriver = new Driver({
       name,
       mobile,
       email,
       license,
+      gender: gender.toLowerCase(),
+      dob: dobDate,
       address,
       password: randomPassword, // Will be hashed by model
       role: "driver"
@@ -51,7 +70,7 @@ router.post("/register", async (req, res) => {
 
     await newDriver.save();
 
-    // 5. Send Email
+    // 7. Send Email
     try {
         await sendCredentialsEmail(email, name, randomPassword);
     } catch (emailErr) {

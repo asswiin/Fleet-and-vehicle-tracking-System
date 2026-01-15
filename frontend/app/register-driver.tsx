@@ -14,9 +14,10 @@ import {
   FlatList,
   TouchableWithoutFeedback,
 } from "react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ChevronLeft, Smartphone, CreditCard, Home, ArrowRight, Mail, ChevronDown, Check } from "lucide-react-native";
+import { ChevronLeft, Smartphone, CreditCard, Home, ArrowRight, Mail, ChevronDown, Check, Calendar } from "lucide-react-native";
 import { api } from "../utils/api";
 
 // Kerala Districts List
@@ -25,6 +26,8 @@ const KERALA_DISTRICTS = [
   "Kollam", "Kottayam", "Kozhikode", "Malappuram", "Palakkad", 
   "Pathanamthitta", "Thiruvananthapuram", "Thrissur", "Wayanad"
 ];
+
+const GENDER_OPTIONS = ["Male", "Female", "Other"];
 
 interface DriverForm {
   name: string;
@@ -36,6 +39,8 @@ interface DriverForm {
   city: string;
   district: string;
   state: string;
+  gender: string;
+  dob: string;
 }
 
 const RegisterDriverScreen = () => {
@@ -44,6 +49,8 @@ const RegisterDriverScreen = () => {
   
   // UI State for Modal
   const [showDistrictModal, setShowDistrictModal] = useState(false);
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const [showDobPicker, setShowDobPicker] = useState(false);
 
   const [form, setForm] = useState<DriverForm>({
     name: "",
@@ -55,11 +62,42 @@ const RegisterDriverScreen = () => {
     city: "",
     district: "",
     state: "Kerala", // Default State
+    gender: "",
+    dob: "",
   });
 
   const handleDistrictSelect = (district: string) => {
     setForm({ ...form, district });
     setShowDistrictModal(false);
+  };
+
+  const handleGenderSelect = (gender: string) => {
+    setForm({ ...form, gender });
+    setShowGenderModal(false);
+  };
+
+  const getEighteenYearsAgo = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d;
+  };
+
+  const handleDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (!selectedDate) {
+      setShowDobPicker(Platform.OS === "ios");
+      return;
+    }
+
+    const maxDate = getEighteenYearsAgo();
+    if (selectedDate > maxDate) {
+      Alert.alert("Age Restriction", "Driver must be at least 18 years old.");
+    } else {
+      setForm({ ...form, dob: selectedDate.toISOString() });
+    }
+
+    if (Platform.OS !== "ios") {
+      setShowDobPicker(false);
+    }
   };
 
   const handleLicenseChange = (text: string) => {
@@ -79,10 +117,10 @@ const RegisterDriverScreen = () => {
   };
 
   const handleSubmit = async () => {
-    const { name, mobile, email, license, house, street, city, district } = form;
+    const { name, mobile, email, license, house, street, city, district, gender, dob } = form;
 
     // 1. Basic Empty Check
-    if (!name.trim() || !mobile.trim() || !email.trim() || !license.trim() || !district.trim()) {
+    if (!name.trim() || !mobile.trim() || !email.trim() || !license.trim() || !district.trim() || !gender.trim() || !dob.trim()) {
       Alert.alert("Missing Fields", "Please fill in all required fields.");
       return;
     }
@@ -110,7 +148,27 @@ const RegisterDriverScreen = () => {
       return;
     }
 
-    // 4. License Validation
+    // 4. Gender Validation
+    const genderValue = gender.toLowerCase();
+    const allowedGenders = ["male", "female", "other"];
+    if (!allowedGenders.includes(genderValue)) {
+      Alert.alert("Invalid Gender", "Please select gender as Male, Female, or Other.");
+      return;
+    }
+
+    // 5. DOB Validation (18+)
+    const dobDate = new Date(dob);
+    if (Number.isNaN(dobDate.getTime())) {
+      Alert.alert("Invalid Date", "Please select a valid date of birth.");
+      return;
+    }
+    const minDob = getEighteenYearsAgo();
+    if (dobDate > minDob) {
+      Alert.alert("Age Restriction", "Driver must be at least 18 years old.");
+      return;
+    }
+
+    // 6. License Validation
     // Format: AA XX YYYY XXXXXXX (Total 15 alphanumeric characters)
     const cleanLicense = license.toUpperCase().replace(/[^A-Z0-9]/g, ''); // Remove non-alphanumeric chars
     
@@ -133,6 +191,8 @@ const RegisterDriverScreen = () => {
         mobile: `+91${form.mobile}`, // Add +91 prefix for DB
         email: form.email,
         license: cleanLicense, // Send cleaned license number
+        gender: genderValue,
+        dob: dobDate.toISOString(),
         address: {
           house: form.house,
           street: form.street,
@@ -225,6 +285,46 @@ const RegisterDriverScreen = () => {
               />
             </View>
           </View>
+
+          {/* Gender */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Gender</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowGenderModal(true)}
+            >
+              <Text style={[styles.dropdownText, !form.gender && { color: "#94A3B8" }]}>
+                {form.gender ? form.gender.charAt(0).toUpperCase() + form.gender.slice(1) : "Select"}
+              </Text>
+              <ChevronDown size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Date of Birth */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date of Birth</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowDobPicker(true)}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Calendar size={18} color="#94A3B8" style={{ marginRight: 10 }} />
+                <Text style={[styles.dropdownText, !form.dob && { color: "#94A3B8" }]}>
+                  {form.dob ? new Date(form.dob).toLocaleDateString('en-GB') : "Select (18+ only)"}
+                </Text>
+              </View>
+              <ChevronDown size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+          {showDobPicker && (
+            <DateTimePicker
+              value={form.dob ? new Date(form.dob) : getEighteenYearsAgo()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "calendar"}
+              onChange={handleDobChange}
+              maximumDate={getEighteenYearsAgo()}
+            />
+          )}
 
           {/* License */}
           <View style={styles.inputGroup}>
@@ -327,6 +427,47 @@ const RegisterDriverScreen = () => {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Gender Modal */}
+      <Modal
+        visible={showGenderModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowGenderModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowGenderModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Gender</Text>
+                  <TouchableOpacity onPress={() => setShowGenderModal(false)}>
+                    <Text style={styles.closeText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={GENDER_OPTIONS}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.districtItem} 
+                      onPress={() => handleGenderSelect(item.toLowerCase())}
+                    >
+                      <Text style={[
+                        styles.districtText, 
+                        form.gender.toLowerCase() === item.toLowerCase() && styles.selectedDistrictText
+                      ]}>
+                        {item}
+                      </Text>
+                      {form.gender.toLowerCase() === item.toLowerCase() && <Check size={20} color="#0EA5E9" />}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       {/* District Modal */}
       <Modal

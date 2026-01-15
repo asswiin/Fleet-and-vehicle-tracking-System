@@ -93,7 +93,10 @@ const DriversListScreen = () => {
                   key={driver._id}
                   style={styles.driverCard}
                   onPress={() => {
-                    // Navigate to driver details if needed
+                    router.push({
+                      pathname: "drivers-details",
+                      params: { driver: encodeURIComponent(JSON.stringify(driver)) },
+                    } as any);
                   }}
                 >
                   <View style={styles.driverHeader}>
