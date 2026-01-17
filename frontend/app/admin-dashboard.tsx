@@ -12,7 +12,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import React from "react";
 import { api } from "../utils/api";
-import type { User } from "../utils/api";
+import type { User, Driver } from "../utils/api"; // Import Driver type
 import {
   Users,
   Truck,
@@ -23,6 +23,7 @@ import {
   Settings,
   ChevronRight,
   LogOut,
+  Phone, // Added Phone icon
 } from "lucide-react-native";
 
 interface Stats {
@@ -37,6 +38,7 @@ const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<User[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]); // 1. Driver State
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   
   const [stats, setStats] = useState<Stats>({
@@ -51,16 +53,18 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      // 1. Fetch Users & Vehicles in parallel
-      const [usersRes, vehiclesRes] = await Promise.all([
+      // 2. Fetch Users, Vehicles, AND Drivers in parallel
+      const [usersRes, vehiclesRes, driversRes] = await Promise.all([
         api.getUsers(),
-        api.getVehicles()
+        api.getVehicles(),
+        api.getDrivers()
       ]);
 
       let managerList: User[] = [];
+      let driverList: Driver[] = [];
       let vehicleCount = 0;
 
-      // Process Users
+      // Process Users (Managers)
       if (usersRes.ok && usersRes.data) {
         managerList = usersRes.data.filter((user: any) => user.role === "manager");
         setManagers(managerList);
@@ -71,11 +75,19 @@ const AdminDashboard: React.FC = () => {
         vehicleCount = vehiclesRes.data.length;
       }
 
+      // 3. Process Drivers
+      if (driversRes.ok && driversRes.data) {
+        // Handle if backend returns { data: [] } or just []
+        const rawData = driversRes.data as any;
+        driverList = Array.isArray(rawData) ? rawData : rawData.data || [];
+        setDrivers(driverList);
+      }
+
       // Update Stats
       setStats({
         managers: managerList.length,
-        drivers: 0, // Placeholder
-        vehicles: vehicleCount, // ✅ Dynamic Count
+        drivers: driverList.length, // ✅ Dynamic Count
+        vehicles: vehicleCount,
         revenue: 0,
       });
 
@@ -108,6 +120,14 @@ const AdminDashboard: React.FC = () => {
     });
   };
 
+  // 4. Handle Driver Click
+  const handleDriverClick = (driver: Driver) => {
+    router.push({
+      pathname: "drivers-details" as any,
+      params: { driver: encodeURIComponent(JSON.stringify(driver)) }
+    });
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -125,10 +145,9 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.headerTitle}>Logistics Overview</Text>
           </View>
           <View style={styles.profileContainer}>
-            <Image
-              source={{ uri: "" }} 
-              style={styles.avatar}
-            />
+            <View style={styles.avatar}>
+               <Text style={{fontSize: 20, fontWeight:'bold', color: '#64748B'}}>A</Text>
+            </View>
             <View style={styles.onlineDot} />
           </View>
         </View>
@@ -142,6 +161,8 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Total Managers</Text>
             <Text style={styles.cardValue}>{stats.managers}</Text>
           </View>
+          
+          {/* ✅ Drivers Card (Dynamic) */}
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#FFEDD5" }]}>
               <Truck size={24} color="#F97316" />
@@ -150,7 +171,6 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardValue}>{stats.drivers}</Text>
           </View>
           
-          {/* ✅ VEHICLE CARD (Now Dynamic) */}
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#F3E8FF" }]}>
               <Car size={24} color="#A855F7" />
@@ -168,21 +188,21 @@ const AdminDashboard: React.FC = () => {
           </View>
         </View>
 
-        {/* Managers List */}
+        {/* --- MANAGERS LIST --- */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Current Managers</Text>
-          <Text style={styles.viewAllText}>{managers.length} Active</Text>
+          <TouchableOpacity onPress={() => router.push("managers-list" as any)}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.listContainer}>
           {loading ? (
             <ActivityIndicator size="large" color="#0EA5E9" />
           ) : managers.length === 0 ? (
-            <Text style={{ textAlign: "center", color: "#94A3B8", marginTop: 20 }}>
-              No managers found. Add one!
-            </Text>
+            <Text style={styles.emptyText}>No managers found.</Text>
           ) : (
-            managers.map((manager) => (
+            managers.slice(0, 3).map((manager) => (
               <TouchableOpacity 
                 key={manager._id} 
                 style={styles.listItem}
@@ -190,7 +210,7 @@ const AdminDashboard: React.FC = () => {
               >
                 <View style={styles.listItemLeft}>
                   <View style={styles.listAvatarPlaceholder}>
-                    <Text style={{ color: "#64748B", fontWeight: "bold" }}>
+                    <Text style={styles.avatarText}>
                       {manager.name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -203,8 +223,51 @@ const AdminDashboard: React.FC = () => {
               </TouchableOpacity>
             ))
           )}
-          <View style={{ height: 80 }} />
         </View>
+
+        <View style={{height: 20}} />
+
+        {/* --- 5. DRIVERS LIST (New Section) --- */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Registered Drivers</Text>
+          <TouchableOpacity onPress={() => router.push("drivers-list" as any)}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.listContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#0EA5E9" />
+          ) : drivers.length === 0 ? (
+            <Text style={styles.emptyText}>No drivers found.</Text>
+          ) : (
+            drivers.slice(0, 3).map((driver) => (
+              <TouchableOpacity 
+                key={driver._id} 
+                style={styles.listItem}
+                onPress={() => handleDriverClick(driver)}
+              >
+                <View style={styles.listItemLeft}>
+                  <View style={[styles.listAvatarPlaceholder, { backgroundColor: "#FFEDD5" }]}>
+                    <Text style={[styles.avatarText, { color: "#F97316" }]}>
+                      {driver.name ? driver.name.charAt(0).toUpperCase() : "D"}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={styles.listItemName}>{driver.name}</Text>
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <Phone size={12} color="#94A3B8" style={{marginRight: 4}} />
+                        <Text style={styles.listItemSub}>{driver.mobile}</Text>
+                    </View>
+                  </View>
+                </View>
+                <ChevronRight size={20} color="#CBD5E1" />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* FAB */}
@@ -240,12 +303,17 @@ const AdminDashboard: React.FC = () => {
           <Text style={styles.navText}>Managers</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem} onPress={() => setShowSettingsMenu(false)}>
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => {
+            setShowSettingsMenu(false);
+            router.push("drivers-list" as any);
+          }} 
+        >
           <Truck size={24} color="#94A3B8" />
           <Text style={styles.navText}>Drivers</Text>
         </TouchableOpacity>
         
-        {/* ✅ VEHICLE BUTTON (Navigates to vehicle-list) */}
         <TouchableOpacity 
           style={styles.navItem} 
           onPress={() => {
@@ -276,7 +344,7 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, color: "#64748B", marginBottom: 4 },
   headerTitle: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
   profileContainer: { position: 'relative' as const },
-  avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff", backgroundColor: "#E2E8F0" },
+  avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff", backgroundColor: "#E2E8F0", justifyContent:'center', alignItems:'center' },
   onlineDot: { position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: "#F8FAFC" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 24 },
   card: { width: "48%", backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, alignItems: "flex-start" as const },
@@ -285,11 +353,13 @@ const styles = StyleSheet.create({
   cardValue: { fontSize: 20, fontWeight: "700", color: "#0F172A" },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  viewAllText: { color: "#64748B", fontSize: 14, fontWeight: "500" },
+  viewAllText: { color: "#0EA5E9", fontSize: 14, fontWeight: "600" },
   listContainer: { gap: 12 },
+  emptyText: { textAlign: "center", color: "#94A3B8", marginTop: 10, marginBottom: 20 },
   listItem: { backgroundColor: "#fff", padding: 16, borderRadius: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   listItemLeft: { flexDirection: "row", alignItems: "center" },
   listAvatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  avatarText: { color: "#64748B", fontWeight: "bold" },
   listItemName: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
   listItemSub: { fontSize: 12, color: "#94A3B8" },
   fab: { position: "absolute", bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: "#0EA5E9", justifyContent: "center", alignItems: "center", shadowColor: "#0EA5E9", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6, zIndex: 10 },
@@ -326,25 +396,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default AdminDashboard; 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default AdminDashboard;
