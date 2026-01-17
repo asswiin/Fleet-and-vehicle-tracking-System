@@ -30,6 +30,7 @@ const DriverDashboard = () => {
   
   // Get User Name from Login params or default
   const driverName = params.userName || "Driver 1";
+  const driverId = params.userId; // Capture the ID
   const initials = driverName.toString().substring(0, 2).toUpperCase();
 
   const handleLogout = () => {
@@ -39,6 +40,17 @@ const DriverDashboard = () => {
     ]);
   };
 
+   // Navigate to Profile
+  const handleProfileClick = () => {
+    if (driverId) {
+      router.push({
+        pathname: "driver-profile",
+        params: { driverId: driverId }
+      } as any);
+    } else {
+      Alert.alert("Error", "Driver ID not found. Please relogin.");
+    }
+  };
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -134,7 +146,7 @@ const DriverDashboard = () => {
           <Text style={styles.navText}>Earnings</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={handleProfileClick}>
           <User size={24} color="#94A3B8" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>

@@ -240,15 +240,35 @@ export const api = {
 
 
     // --- DRIVERS ---
-    getDrivers: () => apiCall<Driver[]>("/api/drivers"),
+//     getDrivers: () => apiCall<Driver[]>("/api/drivers"),
   
+//   createDriver: (data: RegisterDriverData) =>
+//     apiCall<Driver>("/api/drivers/register", {
+//       method: "POST",
+//       body: JSON.stringify(data),
+//     }),
+// };
+
+
+
+getDrivers: () => apiCall<Driver[]>("/api/drivers"),
+  
+  // NEW: Get Single Driver
+  getDriver: (id: string) => apiCall<Driver>(`/api/drivers/${id}`),
+
+  // NEW: Update Driver
+  updateDriver: (id: string, data: Partial<Driver>) => 
+    apiCall<Driver>(`/api/drivers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   createDriver: (data: RegisterDriverData) =>
     apiCall<Driver>("/api/drivers/register", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 };
-
 
 
 export default api;

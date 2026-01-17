@@ -48,7 +48,7 @@ const LoginScreen: FC = () => {
         else if (data?.role === "driver") {
           router.replace({
             pathname: "driver-dashboard" as any, // Point to new file
-            params: { userName: data.name },     // Pass driver name
+            params: { userName: data.name , userId: data.id},     // Pass driver name
           });
         } 
         
