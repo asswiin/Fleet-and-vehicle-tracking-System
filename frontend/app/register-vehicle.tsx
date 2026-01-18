@@ -10,7 +10,6 @@ import {
   FlatList,
   Platform,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -65,32 +64,72 @@ const RegisterVehicleScreen = () => {
     value: new Date() 
   });
 
-  // Register Number Formatting
+  // ------------------------------------------------------------------
+  // UPDATED REGISTRATION NUMBER LOGIC
+  // ------------------------------------------------------------------
+
   const handleRegNumberChange = (text: string) => {
+    // 1. Clean input: Remove non-alphanumeric, convert to uppercase
     let cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+    // 2. Limit Raw Length (State(2)+Dist(2)+Series(2)+Num(4) = Max 10 chars)
     if (cleaned.length > 10) {
       cleaned = cleaned.substring(0, 10);
     }
 
-    let formatted = cleaned;
-    if (cleaned.length > 2) {
-      formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2);
+    let formatted = "";
+
+    // 3. Construct the formatted string
+    
+    // Part 1: State (First 2 chars)
+    if (cleaned.length > 0) {
+      formatted = cleaned.substring(0, 2);
     }
-    if (cleaned.length > 4) {
-      formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2, 4) + " " + cleaned.substring(4);
+
+    // Part 2: District (Next 2 chars)
+    if (cleaned.length >= 3) {
+      formatted += " " + cleaned.substring(2, 4);
     }
-    if (cleaned.length > 6) {
-      formatted = cleaned.substring(0, 2) + " " + cleaned.substring(2, 4) + " " + cleaned.substring(4, 6) + " " + cleaned.substring(6);
+
+    // Part 3: Series (1 or 2 Letters) & Number (1 to 4 Digits)
+    if (cleaned.length >= 5) {
+      const remaining = cleaned.substring(4);
+      
+      // Regex separates Letters (Series) from Digits (Number)
+      const match = remaining.match(/^([A-Z]*)([0-9]*)$/);
+
+      if (match) {
+        const series = match[1]; // Captured letters
+        const number = match[2]; // Captured numbers
+
+        // Add space before Series if series exists
+        if (series.length > 0) {
+          formatted += " " + series;
+        }
+
+        // Add space before Number if number exists
+        if (number.length > 0) {
+           formatted += " " + number;
+        }
+      } else {
+        formatted += " " + remaining;
+      }
     }
 
     setForm({ ...form, regNumber: formatted });
   };
 
   const validateRegNumber = (reg: string): boolean => {
-    const regex = /^[A-Z]{2}\s[0-9]{2}\s[A-Z]{2}\s[0-9]{4}$/;
+    // Format: 
+    // ^[A-Z]{2}    -> 2 Letters (State)
+    // \s[0-9]{2}   -> Space + 2 Numbers (District)
+    // \s[A-Z]{1,2} -> Space + 1 or 2 Letters (Series)
+    // \s[0-9]{1,4} -> Space + 1 to 4 Numbers (Unique ID)
+    const regex = /^[A-Z]{2}\s[0-9]{2}\s[A-Z]{1,2}\s[0-9]{1,4}$/;
     return regex.test(reg);
   };
+
+  // ------------------------------------------------------------------
 
   // Date Picker Logic
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -115,7 +154,7 @@ const RegisterVehicleScreen = () => {
     }
 
     if (!validateRegNumber(form.regNumber)) {
-      Alert.alert("Invalid Format", "Registration Number must be in format: AA 00 BB 0000 (e.g., KL 07 AB 1234)");
+      Alert.alert("Invalid Format", "Format should be like: KL 07 AB 1234 or KL 07 A 1");
       return;
     }
 
@@ -156,14 +195,14 @@ const RegisterVehicleScreen = () => {
           <Text style={styles.label}>Registration Number</Text>
           <TextInput
             style={styles.input}
-            placeholder="AA 00 BB 0000"
+            placeholder="KL 07 AB 1234"
             placeholderTextColor="#94A3B8"
             value={form.regNumber}
             onChangeText={handleRegNumberChange}
             autoCapitalize="characters"
-            maxLength={13}
+            maxLength={13} // Allows for spaces in max length format
           />
-          <Text style={styles.helperText}>Format: State Dist Series Number (e.g. KL 07 AB 1234)</Text>
+          <Text style={styles.helperText}>Format: State Dist Series Number (e.g. KL 07 A 1)</Text>
         </View>
 
         {/* Model */}

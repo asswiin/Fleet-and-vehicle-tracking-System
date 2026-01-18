@@ -1,0 +1,314 @@
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  Modal,
+  FlatList,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useState, useEffect } from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { api } from "../utils/api";
+import { 
+  ChevronLeft, 
+  Save, 
+  ChevronDown, 
+  Calendar, 
+  ShieldCheck, 
+  Cloud, 
+  FileText,
+  CheckCircle2 
+} from "lucide-react-native";
+
+const VEHICLE_TYPES = ["Truck", "Lorry", "Van", "Container"];
+
+const EditVehicleScreen = () => {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ vehicleData: string }>();
+  const [loading, setLoading] = useState(false);
+
+  // Parse initial data
+  let initialData: any = {};
+  try {
+    if (params.vehicleData) initialData = JSON.parse(params.vehicleData);
+  } catch (e) {
+    console.error("Error parsing vehicle data", e);
+  }
+
+  // Form State
+  const [form, setForm] = useState({
+    regNumber: initialData.regNumber || "",
+    model: initialData.model || "",
+    type: initialData.type || "",
+    weight: initialData.capacity?.toString() || initialData.weight?.toString() || "",
+    insuranceDate: initialData.insuranceExpiry || initialData.insuranceDate || "",
+    pollutionDate: initialData.pollutionExpiry || initialData.pollutionDate || "",
+    taxDate: initialData.taxExpiry || initialData.taxDate || "",
+  });
+
+  // UI State
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [datePicker, setDatePicker] = useState<{ show: boolean; field: string | null; value: Date }>({
+    show: false,
+    field: null,
+    value: new Date(),
+  });
+
+  // Helper to handle date changes
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === "android") {
+      setDatePicker((prev) => ({ ...prev, show: false }));
+    }
+
+    if (selectedDate && datePicker.field) {
+      // Keep ISO string for backend, or standard format depending on your DB preference
+      // Here we store ISO string
+      setForm({ ...form, [datePicker.field]: selectedDate.toISOString() });
+    }
+  };
+
+  const openDatePicker = (field: string, currentValue: string) => {
+    const dateValue = currentValue ? new Date(currentValue) : new Date();
+    setDatePicker({ show: true, field, value: dateValue });
+  };
+
+  // Format date for display
+  const displayDate = (isoString: string) => {
+    if (!isoString) return "Select Date";
+    return new Date(isoString).toLocaleDateString("en-GB");
+  };
+
+  const handleUpdate = async () => {
+    if (!form.regNumber || !form.model || !form.type) {
+      Alert.alert("Validation Error", "Reg Number, Model and Type are required.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await api.updateVehicle(initialData._id, form);
+
+      if (response.ok) {
+        Alert.alert("Success", "Vehicle details updated successfully", [
+          {
+            text: "OK",
+            onPress: () => {
+                // Navigate back two steps (to list) or one step (to details)
+                // Using replace to refresh details might be better logic, 
+                // but simple back works if we use useFocusEffect in details/list
+                router.back(); 
+            }
+          },
+        ]);
+      } else {
+        Alert.alert("Error", response.error || "Update failed");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Network error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ChevronLeft size={28} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Edit Vehicle</Text>
+        <View style={{ width: 28 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        
+        {/* Reg Number */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Registration Number</Text>
+          <TextInput
+            style={styles.input}
+            value={form.regNumber}
+            onChangeText={(t) => setForm({ ...form, regNumber: t.toUpperCase() })}
+            placeholder="KL 01 AB 1234"
+          />
+        </View>
+
+        {/* Model */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Model</Text>
+          <TextInput
+            style={styles.input}
+            value={form.model}
+            onChangeText={(t) => setForm({ ...form, model: t })}
+          />
+        </View>
+
+        {/* Type */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Vehicle Type</Text>
+          <TouchableOpacity style={styles.dropdownBtn} onPress={() => setShowTypeModal(true)}>
+            <Text style={styles.inputText}>{form.type || "Select Type"}</Text>
+            <ChevronDown size={20} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Weight */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Weight Capacity (Kg)</Text>
+          <TextInput
+            style={styles.input}
+            value={form.weight}
+            keyboardType="numeric"
+            onChangeText={(t) => setForm({ ...form, weight: t })}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Document Expiry Dates</Text>
+
+        {/* Insurance */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Insurance Expiry</Text>
+          <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker("insuranceDate", form.insuranceDate)}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <ShieldCheck size={18} color="#64748B" style={{ marginRight: 8 }} />
+              <Text style={styles.inputText}>{displayDate(form.insuranceDate)}</Text>
+            </View>
+            <Calendar size={18} color="#64748B" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Pollution */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Pollution Certificate Expiry</Text>
+          <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker("pollutionDate", form.pollutionDate)}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Cloud size={18} color="#64748B" style={{ marginRight: 8 }} />
+              <Text style={styles.inputText}>{displayDate(form.pollutionDate)}</Text>
+            </View>
+            <Calendar size={18} color="#64748B" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Tax */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Road Tax Expiry</Text>
+          <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker("taxDate", form.taxDate)}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FileText size={18} color="#64748B" style={{ marginRight: 8 }} />
+              <Text style={styles.inputText}>{displayDate(form.taxDate)}</Text>
+            </View>
+            <Calendar size={18} color="#64748B" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 20 }} />
+
+        <TouchableOpacity 
+          style={[styles.saveBtn, loading && { opacity: 0.7 }]}
+          onPress={handleUpdate}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.saveBtnText}>Update Vehicle</Text>
+              <Save size={20} color="#fff" style={{ marginLeft: 8 }} />
+            </>
+          )}
+        </TouchableOpacity>
+
+      </ScrollView>
+
+      {/* Date Picker */}
+      {datePicker.show && (
+        <DateTimePicker
+          value={datePicker.value}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={onDateChange}
+        />
+      )}
+
+      {/* Type Modal */}
+      <Modal visible={showTypeModal} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowTypeModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Vehicle Type</Text>
+            <FlatList
+              data={VEHICLE_TYPES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setForm({ ...form, type: item });
+                    setShowTypeModal(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, form.type === item && { color: "#2563EB", fontWeight: "bold" }]}>
+                    {item}
+                  </Text>
+                  {form.type === item && <CheckCircle2 size={18} color="#2563EB" />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
+  header: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    padding: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
+  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  backBtn: { padding: 4 },
+  content: { padding: 20 },
+  inputGroup: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
+  input: {
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, color: "#1E293B",
+  },
+  dropdownBtn: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 12,
+  },
+  inputText: { fontSize: 15, color: "#1E293B" },
+  dateBtn: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 12,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginTop: 10, marginBottom: 15 },
+  saveBtn: {
+    backgroundColor: "#2563EB", flexDirection: "row", justifyContent: "center", alignItems: "center",
+    height: 50, borderRadius: 12, shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+  },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15, color: "#0F172A" },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#F1F5F9", flexDirection: "row", justifyContent: "space-between" },
+  modalItemText: { fontSize: 16, color: "#334155" },
+});
+
+export default EditVehicleScreen;

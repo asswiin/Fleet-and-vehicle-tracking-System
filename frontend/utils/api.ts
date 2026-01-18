@@ -509,6 +509,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+     updateVehicle: (id: string, data: any) =>
+    apiCall<Vehicle>(`/api/vehicles/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
     
   updateVehicleStatus: (id: string, status: string) =>
     apiCall<Vehicle>(`/api/vehicles/${id}/status`, {

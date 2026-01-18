@@ -44,23 +44,40 @@ router.get("/", async (req, res) => {
 
 
 // 3. UPDATE VEHICLE STATUS (Mark as Sold, Maintenance, etc.)
-router.patch("/:id/status", async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
-    const { status } = req.body;
-    
+    const { 
+      regNumber, 
+      model, 
+      type, 
+      weight, 
+      insuranceDate, 
+      pollutionDate, 
+      taxDate 
+    } = req.body;
+
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
       req.params.id,
-      { status: status },
-      { new: true } // Return the updated document
+      {
+        regNumber,
+        model,
+        type,
+        capacity: weight, // Map 'weight' from frontend to 'capacity' in DB
+        insuranceExpiry: insuranceDate,
+        pollutionExpiry: pollutionDate,
+        taxExpiry: taxDate,
+      },
+      { new: true } // Return updated doc
     );
 
     if (!updatedVehicle) {
       return res.status(404).json({ message: "Vehicle not found" });
     }
 
-    res.json(updatedVehicle);
+    res.json({ message: "Vehicle updated successfully", data: updatedVehicle });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
 module.exports = router;

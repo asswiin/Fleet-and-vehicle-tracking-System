@@ -9,17 +9,29 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  TextInput,
+  FlatList,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
-import { ChevronLeft, Phone, CreditCard, Plus } from "lucide-react-native";
+import { ChevronLeft, Phone, CreditCard, Plus, Search, User } from "lucide-react-native";
 import { api, Driver } from "../utils/api";
+
+const FILTER_TABS = ["All", "Available", "On-trip", "Resigned"];
+
+interface StatusStyle {
+  bg: string;
+  text: string;
+  label: string;
+}
 
 const DriversListScreen = () => {
   const router = useRouter();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [selectedTab, setSelectedTab] = useState("All");
 
   const fetchDrivers = async () => {
     try {
@@ -49,149 +61,271 @@ const DriversListScreen = () => {
     fetchDrivers();
   };
 
+  // Filter Logic
+  const filteredDrivers = drivers.filter(driver => {
+    const matchesSearch = 
+      driver.name.toLowerCase().includes(searchText.toLowerCase()) || 
+      driver.mobile.toLowerCase().includes(searchText.toLowerCase()) ||
+      driver.license.toLowerCase().includes(searchText.toLowerCase());
+    
+    let statusMatch = true;
+    if (selectedTab !== "All") {
+      const currentStatus = driver.status || "Available";
+      statusMatch = currentStatus === selectedTab;
+    }
+
+    return matchesSearch && statusMatch;
+  });
+
+  // Helper for Status Badge Styles
+  const getStatusStyles = (status?: string): StatusStyle => {
+    const displayStatus = status || "Available";
+
+    switch(displayStatus) {
+      case 'Available': 
+        return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
+      case 'On-trip': 
+        return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
+      case 'Resigned': 
+        return { bg: '#FEE2E2', text: '#991B1B', label: 'Resigned' };
+      default: 
+        return { bg: '#F1F5F9', text: '#475569', label: status || 'Available' };
+    }
+  };
+
+  const renderItem = ({ item }: { item: Driver }) => {
+    const statusStyle = getStatusStyles(item.status);
+    
+    return (
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => {
+          router.push({
+            pathname: "drivers-details",
+            params: { driver: encodeURIComponent(JSON.stringify(item)) },
+          } as any);
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.avatarContainer}>
+            {item.profilePhoto ? (
+              <Image
+                source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {item.name ? item.name.charAt(0).toUpperCase() : "D"}
+              </Text>
+            )}
+          </View>
+          
+          <View style={styles.driverInfo}>
+            <Text style={styles.driverName}>{item.name}</Text>
+            <View style={styles.driverDetail}>
+              <Phone size={14} color="#64748B" />
+              <Text style={styles.driverDetailText}>{item.mobile}</Text>
+            </View>
+            <View style={styles.driverDetail}>
+              <CreditCard size={14} color="#64748B" />
+              <Text style={styles.driverDetailText}>{item.license}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
+            <Text style={[styles.badgeText, { color: statusStyle.text }]}>
+              {statusStyle.label}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
-      
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <View style={styles.container}>
+        
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backBtn}
-            onPress={() => router.back()}
-          >
-            <ChevronLeft size={24} color="#374151" />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <ChevronLeft size={28} color="#0F172A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Drivers</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 28 }} />
         </View>
 
-        {/* Content */}
-        {loading && !refreshing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={styles.loadingText}>Loading drivers...</Text>
+        {/* Search Bar */}
+        <View style={styles.searchWrapper}>
+          <View style={styles.searchContainer}>
+            <Search size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name, mobile or license"
+              placeholderTextColor="#94A3B8"
+              value={searchText}
+              onChangeText={setSearchText}
+            />
           </View>
-        ) : (
+        </View>
+
+        {/* Filter Tabs */}
+        <View style={styles.tabsWrapper}>
           <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.tabsContainer}
+          >
+            {FILTER_TABS.map((tab) => {
+              const isActive = selectedTab === tab;
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[styles.tab, isActive && styles.activeTab]}
+                  onPress={() => setSelectedTab(tab)}
+                >
+                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Driver List */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
+        ) : (
+          <FlatList
+            data={filteredDrivers}
+            keyExtractor={(item) => item._id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-          >
-            {drivers.length === 0 ? (
+            ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No drivers registered yet</Text>
+                <User size={48} color="#E2E8F0" />
+                <Text style={styles.emptyText}>No drivers found</Text>
                 <Text style={styles.emptySubtext}>
-                  Tap the + button to add your first driver
+                  {searchText || selectedTab !== "All" 
+                    ? "Try adjusting your filters" 
+                    : "Tap the + button to add your first driver"}
                 </Text>
               </View>
-            ) : (
-              drivers.map((driver) => (
-                <TouchableOpacity 
-                  key={driver._id}
-                  style={styles.driverCard}
-                  onPress={() => {
-                    router.push({
-                      pathname: "drivers-details",
-                      params: { driver: encodeURIComponent(JSON.stringify(driver)) },
-                    } as any);
-                  }}
-                >
-                  <View style={styles.driverHeader}>
-                    <View style={styles.avatarContainer}>
-                      {driver.profilePhoto ? (
-                        <Image
-                          source={{ uri: api.getImageUrl(driver.profilePhoto) || undefined }}
-                          style={styles.avatarImage}
-                        />
-                      ) : (
-                        <Text style={styles.avatarText}>
-                          {driver.name ? driver.name.charAt(0).toUpperCase() : "D"}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={styles.driverInfo}>
-                      <Text style={styles.driverName}>{driver.name}</Text>
-                      <View style={styles.driverDetail}>
-                        <Phone size={14} color="#6B7280" />
-                        <Text style={styles.driverDetailText}>{driver.mobile}</Text>
-                      </View>
-                      <View style={styles.driverDetail}>
-                        <CreditCard size={14} color="#6B7280" />
-                        <Text style={styles.driverDetailText}>{driver.license}</Text>
-                      </View>
-                      {driver.address?.city ? (
-                        <Text style={styles.driverLocation}>
-                          {driver.address.city}, {driver.address.state}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
+            }
+          />
         )}
-
-        {/* Floating Add Button */}
-        <TouchableOpacity 
-          style={styles.fabButton}
-          onPress={() => router.push("register-driver" as any)}
-        >
-          <Plus size={28} color="#fff" />
-        </TouchableOpacity>
       </View>
+
+      {/* FAB - Add Driver Button */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => router.push("register-driver" as any)}
+      >
+        <Plus size={32} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
+  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
   container: { flex: 1 },
   header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "#fff",
-    borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#fff",
   },
-  backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 12, fontSize: 14, color: "#6B7280" },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 100 },
-  emptyText: { fontSize: 18, fontWeight: "600", color: "#374151", marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: "#9CA3AF", textAlign: "center" },
-  driverCard: {
-    backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  backBtn: { padding: 4 },
+  searchWrapper: { paddingHorizontal: 20, paddingTop: 12 },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  driverHeader: { flexDirection: "row" },
+  searchInput: { flex: 1, fontSize: 15, color: "#0F172A" },
+  tabsWrapper: { paddingVertical: 12, backgroundColor: "#fff", marginBottom: 12 },
+  tabsContainer: { paddingHorizontal: 20, gap: 8 },
+  tab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+  },
+  activeTab: { backgroundColor: "#4F46E5" },
+  tabText: { color: "#64748B", fontSize: 13, fontWeight: "600" },
+  activeTabText: { color: "#fff" },
+  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardContent: { flexDirection: "row", alignItems: "center" },
   avatarContainer: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: "#2563EB",
-    justifyContent: "center", alignItems: "center", marginRight: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#4F46E5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
   avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    resizeMode: "cover",
+  },
+  avatarText: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  driverInfo: { flex: 1 },
+  driverName: { fontSize: 15, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
+  driverDetail: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  driverDetailText: { fontSize: 13, color: "#64748B", marginLeft: 6 },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  badgeText: { fontSize: 11, fontWeight: "600" },
+  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
+  emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 12, fontWeight: "600" },
+  emptySubtext: { fontSize: 14, color: "#94A3B8", textAlign: "center", marginTop: 4 },
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    resizeMode: "cover",
-  },
-  avatarText: { fontSize: 20, fontWeight: "700", color: "#fff" },
-  driverInfo: { flex: 1 },
-  driverName: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 8 },
-  driverDetail: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
-  driverDetailText: { fontSize: 14, color: "#6B7280", marginLeft: 8 },
-  driverLocation: { fontSize: 13, color: "#9CA3AF", marginTop: 4 },
-  fabButton: {
-    position: "absolute", right: 20, bottom: 20, width: 56, height: 56,
-    borderRadius: 28, backgroundColor: "#2563EB", justifyContent: "center",
-    alignItems: "center", shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+    backgroundColor: "#4F46E5",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
 
