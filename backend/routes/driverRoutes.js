@@ -4,8 +4,31 @@
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const Driver = require("../models/Driver");
 const { sendCredentialsEmail } = require("../utils/emailService"); 
+
+
+// --- MULTER CONFIGURATION ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Ensure upload folder exists to avoid ENOENT
+    const uploadDir = path.join(__dirname, "../uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, "uploads/"); // Ensure this folder exists in your root
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename: driver-TIMESTAMP-random.jpg
+    cb(null, "driver-" + Date.now() + "-" + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage });
+
 
 // POST: Register a new driver
 router.post("/register", async (req, res) => {
@@ -101,36 +124,69 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT: Update Driver Profile
-router.put("/:id", async (req, res) => {
+// --- CONDITIONAL UPLOAD MIDDLEWARE ---
+// Multer cannot parse application/json bodies. We only invoke it when the
+// incoming request is multipart/form-data (image uploads). For JSON bodies we
+// skip Multer so express.json can handle parsing.
+const handleDriverUpload = (req, res, next) => {
+  if (req.is("multipart/form-data")) {
+    return upload.fields([
+      { name: "profilePhoto", maxCount: 1 },
+      { name: "licensePhoto", maxCount: 1 },
+    ])(req, res, next);
+  }
+  return next();
+};
+
+// PUT: Update Driver Profile (supports JSON or multipart with images)
+router.put("/:id", handleDriverUpload, async (req, res) => {
   try {
-    const { name, mobile, email, address } = req.body;
-    
-    // Validate that critical fields aren't empty if provided
-    if (name === "" || mobile === "" || email === "") {
-        return res.status(400).json({ message: "Fields cannot be empty" });
+    const { name, mobile, email } = req.body || {};
+    let { address } = req.body || {};
+
+    // Basic validation
+    if (!name || !mobile || !email) {
+      return res.status(400).json({ message: "Name, Mobile, and Email are required" });
     }
 
-    // Prepare update object (Prevent updating License/DOB/Gender/Role via this route for security)
+    // Parse address when sent as string (FormData)
+    if (typeof address === "string") {
+      try {
+        address = JSON.parse(address);
+      } catch (e) {
+        // keep as raw string if parsing fails
+      }
+    }
+
     const updateData = {
-        name,
-        mobile,
-        email,
-        address
+      name,
+      mobile,
+      email,
     };
 
+    if (address) {
+      updateData.address = address;
+    }
+
+    // Attach uploaded file paths if present
+    if (req.files?.profilePhoto?.[0]) {
+      updateData.profilePhoto = req.files.profilePhoto[0].path.replace(/\\/g, "/");
+    }
+    if (req.files?.licensePhoto?.[0]) {
+      updateData.licensePhoto = req.files.licensePhoto[0].path.replace(/\\/g, "/");
+    }
+
     const updatedDriver = await Driver.findByIdAndUpdate(
-        req.params.id,
-        { $set: updateData },
-        { new: true, runValidators: true }
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
     ).select("-password");
 
     if (!updatedDriver) {
-        return res.status(404).json({ message: "Driver not found" });
+      return res.status(404).json({ message: "Driver not found" });
     }
 
     res.json({ message: "Profile updated successfully", data: updatedDriver });
-
   } catch (err) {
     console.error("Update Driver Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });

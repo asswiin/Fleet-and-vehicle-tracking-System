@@ -1,13 +1,20 @@
 
 
-
-
 // models/Driver.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const driverSchema = new mongoose.Schema(
   {
+
+    profilePhoto: { type: String, 
+      default: "" 
+    },
+
+    licensePhoto: { type: String, 
+      default: ""
+     },
+
     name: { 
       type: String, 
       required: true 
