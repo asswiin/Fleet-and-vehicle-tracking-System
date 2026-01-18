@@ -17,11 +17,11 @@ const sendCredentialsEmail = async (email, name, password,role = "Staff Member")
     const mailOptions = {
       from: '"Logistics Admin" <no-reply@logistics.com>',
       to: email,
-      subject: "Your Manager Account Credentials",
+      subject: `Your ${role === 'driver' ? 'Driver' : 'Manager'} Account Credentials`,
       html: `
         <div style="font-family: sans-serif; padding: 20px;">
           <h2>Hello ${name},</h2>
-          <p>You have been added as a Manager to the Logistics Tracking System.</p>
+          <p>You have been added as a ${role === 'driver' ? 'driver' : 'Manager'} to the Logistics Tracking System.</p>
           <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Password:</strong> ${password}</p>

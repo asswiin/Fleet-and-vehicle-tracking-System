@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StatusBar,
+  Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -95,9 +96,16 @@ const DriverProfileScreen = () => {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {driver?.name ? driver.name.charAt(0).toUpperCase() : "D"}
-            </Text>
+            {driver?.profilePhoto ? (
+              <Image
+                source={{ uri: api.getImageUrl(driver.profilePhoto) || undefined }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {driver?.name ? driver.name.charAt(0).toUpperCase() : "D"}
+              </Text>
+            )}
           </View>
           <Text style={styles.name}>{driver?.name}</Text>
           <Text style={styles.role}>Registered Driver</Text>
@@ -194,6 +202,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: "#2563EB",
     justifyContent: "center", alignItems: "center", marginBottom: 12,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    resizeMode: "cover",
   },
   avatarText: { fontSize: 32, fontWeight: "700", color: "#fff" },
   name: { fontSize: 22, fontWeight: "700", color: "#0F172A", marginBottom: 4 },

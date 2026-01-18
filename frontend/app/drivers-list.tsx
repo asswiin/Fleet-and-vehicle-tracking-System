@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -101,9 +102,16 @@ const DriversListScreen = () => {
                 >
                   <View style={styles.driverHeader}>
                     <View style={styles.avatarContainer}>
-                      <Text style={styles.avatarText}>
-                        {driver.name ? driver.name.charAt(0).toUpperCase() : "D"}
-                      </Text>
+                      {driver.profilePhoto ? (
+                        <Image
+                          source={{ uri: api.getImageUrl(driver.profilePhoto) || undefined }}
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <Text style={styles.avatarText}>
+                          {driver.name ? driver.name.charAt(0).toUpperCase() : "D"}
+                        </Text>
+                      )}
                     </View>
                     <View style={styles.driverInfo}>
                       <Text style={styles.driverName}>{driver.name}</Text>
@@ -166,6 +174,12 @@ const styles = StyleSheet.create({
   avatarContainer: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: "#2563EB",
     justifyContent: "center", alignItems: "center", marginRight: 16,
+  },
+  avatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    resizeMode: "cover",
   },
   avatarText: { fontSize: 20, fontWeight: "700", color: "#fff" },
   driverInfo: { flex: 1 },

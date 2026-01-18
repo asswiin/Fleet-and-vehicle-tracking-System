@@ -30,10 +30,15 @@ const EditDriverProfileScreen = () => {
     if (params.driverData) initialData = JSON.parse(params.driverData);
   } catch(e) { console.error(e); }
 
+  // Strip +91 from mobile if present
+  const cleanMobile = initialData?.mobile?.startsWith('+91') 
+    ? initialData.mobile.substring(3) 
+    : initialData?.mobile || "";
+
   const [form, setForm] = useState({
     name: initialData?.name || "",
     email: initialData?.email || "",
-    mobile: initialData?.mobile || "",
+    mobile: cleanMobile,
     address: {
       house: initialData?.address?.house || "",
       street: initialData?.address?.street || "",
@@ -100,7 +105,7 @@ const EditDriverProfileScreen = () => {
       const formData = new FormData();
       formData.append("name", form.name);
       formData.append("email", form.email);
-      formData.append("mobile", form.mobile);
+      formData.append("mobile", `+91${form.mobile}`);
       formData.append("address", JSON.stringify(form.address));
 
       if (newProfileAsset) {
@@ -193,12 +198,23 @@ const EditDriverProfileScreen = () => {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mobile Number</Text>
-            <TextInput
-              style={styles.input}
-              value={form.mobile}
-              keyboardType="phone-pad"
-              onChangeText={(t) => setForm({...form, mobile: t})}
-            />
+            <View style={styles.phoneInputContainer}>
+              <View style={styles.phonePrefix}>
+                <Text style={styles.phonePrefixText}>+91</Text>
+              </View>
+              <TextInput
+                style={styles.phoneInput}
+                value={form.mobile}
+                keyboardType="phone-pad"
+                maxLength={10}
+                placeholder="Enter 10 digit number"
+                onChangeText={(t) => {
+                  // Only allow digits
+                  const cleaned = t.replace(/[^0-9]/g, '');
+                  setForm({...form, mobile: cleaned});
+                }}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -291,7 +307,13 @@ const EditDriverProfileScreen = () => {
                 style={styles.input}
                 value={form.address.zip}
                 keyboardType="numeric"
-                onChangeText={(t) => updateAddress('zip', t)}
+                maxLength={6}
+                placeholder="6 digits"
+                onChangeText={(t) => {
+                  // Only allow digits
+                  const cleaned = t.replace(/[^0-9]/g, '');
+                  updateAddress('zip', cleaned);
+                }}
               />
             </View>
           </View>
@@ -363,6 +385,34 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1E293B"
+  },
+  phoneInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  phonePrefix: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRightWidth: 1,
+    borderRightColor: "#E2E8F0",
+  },
+  phonePrefixText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  phoneInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#1E293B",
   },
   row: { flexDirection: "row" },
   

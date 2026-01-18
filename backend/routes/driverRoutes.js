@@ -87,7 +87,7 @@ router.post("/register", async (req, res) => {
 
     // 7. Send Email
     try {
-        await sendCredentialsEmail(email, name, randomPassword);
+        await sendCredentialsEmail(email, name, randomPassword, 'driver');
     } catch (emailErr) {
         console.error("Failed to send email:", emailErr);
     }

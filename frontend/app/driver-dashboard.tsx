@@ -8,8 +8,9 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  Image,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { 
   Menu, 
   LogOut, 
@@ -21,17 +22,36 @@ import {
   Banknote, 
   User 
 } from "lucide-react-native";
+import { useState, useCallback } from "react";
+import { api, Driver } from "../utils/api";
 
 const { width } = Dimensions.get("window");
 
 const DriverDashboard = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
-  // Get User Name from Login params or default
-  const driverName = params.userName || "Driver 1";
+  const [driverData, setDriverData] = useState<Driver | null>(null);
+
+  // Prefer fetched driver data; fallback to login param
+  const driverName = (driverData?.name || params.userName || "Driver 1").toString();
   const driverId = params.userId; // Capture the ID
-  const initials = driverName.toString().substring(0, 2).toUpperCase();
+  const initials = driverName.substring(0, 2).toUpperCase();
+
+  const fetchDriver = async () => {
+    if (!driverId) return;
+    try {
+      const res = await api.getDriver(driverId as string);
+      if (res.ok && res.data) setDriverData(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDriver();
+    }, [driverId])
+  );
 
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to log out?", [
@@ -71,7 +91,14 @@ const DriverDashboard = () => {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
+            {driverData?.profilePhoto ? (
+              <Image
+                source={{ uri: api.getImageUrl(driverData.profilePhoto) || undefined }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarText}>{initials}</Text>
+            )}
           </View>
           <View style={styles.profileTextContainer}>
             <Text style={styles.welcomeText}>Welcome back,</Text>
@@ -195,6 +222,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
+  },
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    resizeMode: "cover",
   },
   avatarText: { fontSize: 24, fontWeight: "700", color: "#fff" },
   profileTextContainer: { justifyContent: "center" },
