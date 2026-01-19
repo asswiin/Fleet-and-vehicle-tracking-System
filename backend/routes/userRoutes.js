@@ -1,9 +1,30 @@
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto"); // Built-in Node module for generating passwords
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const User = require("../models/User"); 
 const Driver = require("../models/Driver");// Your User Model
 const { sendCredentialsEmail } = require("../utils/emailService"); // Email utility
+
+// --- MULTER CONFIGURATION FOR USER PROFILE PHOTOS ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Ensure upload folder exists to avoid ENOENT
+    const uploadDir = path.join(__dirname, "../uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, "uploads/"); // Ensure this folder exists in your root
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename: user-TIMESTAMP-random.jpg
+    cb(null, "user-" + Date.now() + "-" + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage });
 
 // ==========================================
 // 1. REGISTER (Initial Admin Setup)
@@ -246,6 +267,102 @@ router.patch("/:id/status", async (req, res) => {
 
   } catch (err) {
     console.error("Update Status Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+router.put("/:id", async (req, res) => {
+  try {
+    const { name, email, phone, place, dob, address } = req.body;
+
+    // Check if user exists
+    let user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (place) user.place = place;
+    if (dob) user.dob = dob;
+    if (address) user.address = address;
+
+    await user.save();
+
+    res.json({ message: "User updated successfully", data: user });
+  } catch (err) {
+    console.error("Update User Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// --- CONDITIONAL UPLOAD MIDDLEWARE FOR USER PROFILE PHOTO ---
+const handleUserUpload = (req, res, next) => {
+  if (req.is("multipart/form-data")) {
+    return upload.fields([
+      { name: "profilePhoto", maxCount: 1 },
+    ])(req, res, next);
+  }
+  return next();
+};
+
+// PUT: Update User Profile with Image Support
+router.put("/:id/profile", handleUserUpload, async (req, res) => {
+  try {
+    const { name, email, phone, place, dob, address } = req.body || {};
+
+    // Check if user exists
+    let user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (place) user.place = place;
+    if (dob) user.dob = dob;
+    if (address) {
+      // Parse address when sent as string (FormData)
+      if (typeof address === "string") {
+        try {
+          user.address = JSON.parse(address);
+        } catch (e) {
+          // Keep existing address if parsing fails
+        }
+      } else {
+        user.address = address;
+      }
+    }
+
+    // Attach uploaded profile photo if present
+    if (req.files?.profilePhoto?.[0]) {
+      user.profilePhoto = req.files.profilePhoto[0].path.replace(/\\/g, "/");
+    }
+
+    await user.save();
+
+    res.json({ message: "Profile updated successfully", data: user });
+  } catch (err) {
+    console.error("Update User Profile Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// PATCH: Update User Status (For Resigning)
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id, 
+      { status: status }, 
+      { new: true }
+    );
+    res.json({ message: "Status updated", data: user });
+  } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });

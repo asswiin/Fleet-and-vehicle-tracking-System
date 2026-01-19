@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TextInput,
   SafeAreaView,
+  Image,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -85,15 +86,22 @@ const ManagersListScreen: React.FC = () => {
       onPress={() => handleManagerClick(item)}
     >
       <View style={styles.cardLeft}>
-        <View style={[styles.avatar, selectedTab === "Resigned" && styles.avatarResigned]}>
-          {selectedTab === "Resigned" ? (
-             <UserX size={24} color="#EF4444" />
-          ) : (
+        {selectedTab === "Resigned" ? (
+          <View style={[styles.avatar, styles.avatarResigned]}>
+            <UserX size={24} color="#EF4444" />
+          </View>
+        ) : item.profilePhoto ? (
+          <Image
+            source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }}
+            style={styles.avatarImage}
+          />
+        ) : (
+          <View style={styles.avatar}>
             <Text style={styles.avatarText}>
               {item.name ? item.name.charAt(0).toUpperCase() : "U"}
             </Text>
-          )}
-        </View>
+          </View>
+        )}
         <View>
           <Text style={[styles.name, selectedTab === "Resigned" && styles.textResigned]}>
             {item.name}
@@ -281,6 +289,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 15,
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+    borderWidth: 1,
+    borderColor: "#E5E7EB"
   },
   avatarResigned: {
     backgroundColor: "#FEE2E2", // Light red bg

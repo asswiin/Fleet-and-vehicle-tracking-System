@@ -6,10 +6,11 @@ import {
   ScrollView, 
   SafeAreaView, 
   Alert, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Image 
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { useState, useCallback } from "react";
 import { api, type User } from "../utils/api"; 
 import { 
   ChevronLeft, 
@@ -17,28 +18,58 @@ import {
   Phone, 
   MapPin, 
   Calendar, 
-  UserX // Changed icon to represent resignation
+  UserX,
+  Edit2 // Import Edit Icon
 } from "lucide-react-native";
 
 const ManagerDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ user: string }>();
-  const [loading, setLoading] = useState(false);
   
-  let user: Partial<User> = {};
-  try {
-    if (params.user) {
-      user = JSON.parse(params.user);
+  const [user, setUser] = useState<Partial<User>>({});
+  const [loading, setLoading] = useState(false);
+
+  // Initial Data Parse
+  useState(() => {
+    try {
+      if (params.user) {
+        setUser(JSON.parse(params.user));
+      }
+    } catch (e) {
+      console.error("Error parsing user data", e);
     }
-  } catch (e) {
-    console.error("Error parsing user data", e);
-  }
+  });
+
+  // Refresh data on focus (after edit)
+  const fetchUserDetails = async () => {
+    if (!user._id) return;
+    try {
+      const response = await api.getUser(user._id);
+      if (response.ok && response.data) {
+        setUser(response.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserDetails();
+    }, [user._id])
+  );
+
+  const handleEdit = () => {
+    router.push({
+      pathname: "edit-manager-profile",
+      params: { userData: JSON.stringify(user) }
+    } as any);
+  };
 
   const getAddressField = (field: keyof NonNullable<User['address']>) => {
     return (user.address && user.address[field]) ? user.address[field] : "-";
   };
 
-  // Helper to determine badge color based on status
   const isResigned = user.status === "Resigned";
 
   const handleResign = async () => {
@@ -55,24 +86,14 @@ const ManagerDetailsScreen = () => {
           onPress: async () => {
             setLoading(true);
             try {
-              // CHANGE: We use updateUser or updateUserStatus instead of deleteUser
-              // This keeps the record in the DB but changes status to 'Resigned'
-              
-              // Depending on your API implementation, use one of these:
-              // Option A (Specific Status Update):
               const response = await api.updateUserStatus(user._id!, "Resigned");
               
-              // Option B (Generic Update - if Option A doesn't exist in your utils/api):
-              // const response = await api.updateUser(user._id!, { status: "Resigned" });
-
               if (response.ok) {
                 Alert.alert("Success", "Manager marked as Resigned", [
                   { text: "OK", onPress: () => router.back() }
                 ]);
               } else {
-                // If backend returns HTML error, response.error might be vague
-                console.error("API Error:", response); 
-                Alert.alert("Error", response.error || "Failed to update status. Check server logs.");
+                Alert.alert("Error", response.error || "Failed to update status.");
               }
             } catch (error) {
               console.error(error);
@@ -96,18 +117,33 @@ const ManagerDetailsScreen = () => {
             <ChevronLeft size={28} color="#0F172A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manager Details</Text>
-          <View style={{ width: 28 }} /> 
+          
+          {/* EDIT BUTTON */}
+          {!isResigned ? (
+            <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
+              <Edit2 size={24} color="#2563EB" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 28 }} />
+          )}
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
           
           {/* Main Profile Card */}
           <View style={styles.profileCard}>
-            <View style={[styles.avatar, isResigned && styles.avatarResigned]}>
-              <Text style={[styles.avatarText, isResigned && styles.avatarTextResigned]}>
-                {user.name?.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            {user.profilePhoto ? (
+              <Image
+                source={{ uri: api.getImageUrl(user.profilePhoto) || undefined }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, isResigned && styles.avatarResigned]}>
+                <Text style={[styles.avatarText, isResigned && styles.avatarTextResigned]}>
+                  {user.name?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <Text style={styles.name}>{user.name}</Text>
             <Text style={styles.role}>Logistics Manager</Text>
             
@@ -184,7 +220,6 @@ const ManagerDetailsScreen = () => {
           </View>
 
           {/* Resign / Delete Button */}
-          {/* Only show if not already resigned */}
           {!isResigned && (
             <TouchableOpacity 
                 style={styles.deleteButton} 
@@ -230,6 +265,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backButton: { padding: 4 },
+  editButton: { padding: 4 },
   content: { padding: 20 },
   
   profileCard: {
@@ -242,7 +278,7 @@ const styles = StyleSheet.create({
   },
   avatar: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: "#E0F2FE",
-    justifyContent: "center", alignItems: "center", marginBottom: 12
+    justifyContent: "center", alignItems: "center", marginBottom: 12, resizeMode: "cover"
   },
   avatarResigned: { backgroundColor: "#FEE2E2" },
   avatarText: { fontSize: 32, fontWeight: "700", color: "#0EA5E9" },

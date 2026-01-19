@@ -51,6 +51,11 @@ const userSchema = new mongoose.Schema(
       district: { type: String, default: "" },
       state: { type: String, default: "" },
     },
+    // Profile photo for manager
+    profilePhoto: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

@@ -209,11 +209,18 @@ const AdminDashboard: React.FC = () => {
                 onPress={() => handleManagerClick(manager)}
               >
                 <View style={styles.listItemLeft}>
-                  <View style={styles.listAvatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                      {manager.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+                  {manager.profilePhoto ? (
+                    <Image
+                      source={{ uri: api.getImageUrl(manager.profilePhoto) || undefined }}
+                      style={styles.listAvatarImage}
+                    />
+                  ) : (
+                    <View style={styles.listAvatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {manager.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
                   <View>
                     <Text style={styles.listItemName}>{manager.name}</Text>
                     <Text style={styles.listItemSub}>{manager.email}</Text>
@@ -359,6 +366,7 @@ const styles = StyleSheet.create({
   listItem: { backgroundColor: "#fff", padding: 16, borderRadius: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   listItemLeft: { flexDirection: "row", alignItems: "center" },
   listAvatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  listAvatarImage: { width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: "#E5E7EB" },
   avatarText: { color: "#64748B", fontWeight: "bold" },
   listItemName: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
   listItemSub: { fontSize: 12, color: "#94A3B8" },
