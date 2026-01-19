@@ -11,12 +11,29 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Modal,
+  FlatList,
+  TouchableWithoutFeedback
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import * as ImagePicker from "expo-image-picker"; // Import ImagePicker
+import * as ImagePicker from "expo-image-picker";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { api, Driver } from "../utils/api";
-import { ChevronLeft, Save, MapPin, Camera, Upload } from "lucide-react-native";
+import { 
+  ChevronLeft, 
+  Save, 
+  MapPin, 
+  Camera, 
+  Upload, 
+  User, 
+  Calendar, 
+  CreditCard,
+  ChevronDown,
+  Check
+} from "lucide-react-native";
+
+const GENDER_OPTIONS = ["Male", "Female", "Other"];
 
 const EditDriverProfileScreen = () => {
   const router = useRouter();
@@ -35,10 +52,14 @@ const EditDriverProfileScreen = () => {
     ? initialData.mobile.substring(3) 
     : initialData?.mobile || "";
 
+  // Form State
   const [form, setForm] = useState({
     name: initialData?.name || "",
     email: initialData?.email || "",
     mobile: cleanMobile,
+    license: initialData?.license || "",
+    gender: initialData?.gender || "",
+    dob: initialData?.dob || "",
     address: {
       house: initialData?.address?.house || "",
       street: initialData?.address?.street || "",
@@ -48,6 +69,10 @@ const EditDriverProfileScreen = () => {
       zip: initialData?.address?.zip || "",
     }
   });
+
+  // UI State
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const [showDobPicker, setShowDobPicker] = useState(false);
 
   // --- IMAGE STATE ---
   const initialProfileUri = initialData?.profilePhoto ? api.getImageUrl(initialData.profilePhoto) : null;
@@ -59,17 +84,15 @@ const EditDriverProfileScreen = () => {
   const [newProfileAsset, setNewProfileAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [newLicenseAsset, setNewLicenseAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
-  // --- IMAGE PICKER FUNCTION ---
+  // --- HANDLERS ---
+  
   const pickImage = async (type: 'profile' | 'license') => {
-    // Request Permissions
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to upload images!');
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions!');
       return;
     }
 
-    // Launch Gallery
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true, 
@@ -79,7 +102,6 @@ const EditDriverProfileScreen = () => {
 
     if (!result.canceled) {
       const asset = result.assets[0];
-      
       if (type === 'profile') {
         setProfileImageUri(asset.uri); 
         setNewProfileAsset(asset);     
@@ -90,12 +112,25 @@ const EditDriverProfileScreen = () => {
     }
   };
 
-  // --- SUBMIT HANDLER ---
+  const handleGenderSelect = (gender: string) => {
+    setForm({ ...form, gender: gender.toLowerCase() });
+    setShowGenderModal(false);
+  };
+
+  const handleDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setShowDobPicker(false);
+    
+    if (selectedDate) {
+      setForm({ ...form, dob: selectedDate.toISOString() });
+    }
+  };
+
   const handleUpdate = async () => {
     if (!initialData?._id) return;
     
-    if (!form.name || !form.email || !form.mobile) {
-      Alert.alert("Error", "Name, Email and Mobile are required.");
+    // Validation
+    if (!form.name || !form.email || !form.mobile || !form.license || !form.gender || !form.dob) {
+      Alert.alert("Error", "All fields including License, Gender, and DOB are required.");
       return;
     }
 
@@ -105,7 +140,10 @@ const EditDriverProfileScreen = () => {
       const formData = new FormData();
       formData.append("name", form.name);
       formData.append("email", form.email);
-      formData.append("mobile", `+91${form.mobile}`);
+      formData.append("mobile", form.mobile.startsWith('+91') ? form.mobile : `+91${form.mobile}`);
+      formData.append("license", form.license);
+      formData.append("gender", form.gender);
+      formData.append("dob", form.dob);
       formData.append("address", JSON.stringify(form.address));
 
       if (newProfileAsset) {
@@ -166,7 +204,7 @@ const EditDriverProfileScreen = () => {
       >
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           
-          {/* --- PROFILE PHOTO SECTION --- */}
+          {/* --- PROFILE PHOTO --- */}
           <View style={styles.profilePhotoContainer}>
             <TouchableOpacity onPress={() => pickImage('profile')} style={styles.avatarWrapper}>
               {profileImageUri ? (
@@ -185,17 +223,65 @@ const EditDriverProfileScreen = () => {
             <Text style={styles.photoHint}>Tap to change profile photo</Text>
           </View>
 
-          <Text style={styles.sectionHeader}>Basic Details</Text>
+          <Text style={styles.sectionHeader}>Personal Information</Text>
           
+          {/* Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              value={form.name}
-              onChangeText={(t) => setForm({...form, name: t})}
-            />
+            <View style={styles.iconInputWrapper}>
+              <User size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.iconInput}
+                value={form.name}
+                onChangeText={(t) => setForm({...form, name: t})}
+              />
+            </View>
           </View>
 
+          {/* Gender */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Gender</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowGenderModal(true)}
+            >
+               <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <User size={20} color="#94A3B8" style={styles.inputIcon} />
+                  <Text style={[styles.dropdownText, !form.gender && { color: "#94A3B8" }]}>
+                    {form.gender ? form.gender.charAt(0).toUpperCase() + form.gender.slice(1) : "Select Gender"}
+                  </Text>
+               </View>
+              <ChevronDown size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+
+          {/* DOB */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date of Birth</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowDobPicker(true)}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Calendar size={20} color="#94A3B8" style={styles.inputIcon} />
+                <Text style={[styles.dropdownText, !form.dob && { color: "#94A3B8" }]}>
+                  {form.dob ? new Date(form.dob).toLocaleDateString('en-GB') : "Select Date"}
+                </Text>
+              </View>
+              <ChevronDown size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+          {showDobPicker && (
+            <DateTimePicker
+              value={form.dob ? new Date(form.dob) : new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDobChange}
+              maximumDate={new Date()}
+            />
+          )}
+
+          {/* Mobile */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mobile Number</Text>
             <View style={styles.phoneInputContainer}>
@@ -207,16 +293,12 @@ const EditDriverProfileScreen = () => {
                 value={form.mobile}
                 keyboardType="phone-pad"
                 maxLength={10}
-                placeholder="Enter 10 digit number"
-                onChangeText={(t) => {
-                  // Only allow digits
-                  const cleaned = t.replace(/[^0-9]/g, '');
-                  setForm({...form, mobile: cleaned});
-                }}
+                onChangeText={(t) => setForm({...form, mobile: t.replace(/[^0-9]/g, '')})}
               />
             </View>
           </View>
 
+          {/* Email */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email Address</Text>
             <TextInput
@@ -228,7 +310,22 @@ const EditDriverProfileScreen = () => {
             />
           </View>
 
-          {/* --- LICENSE PHOTO SECTION --- */}
+          {/* License Number */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>License Number</Text>
+            <View style={styles.iconInputWrapper}>
+              <CreditCard size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.iconInput}
+                value={form.license}
+                autoCapitalize="characters"
+                maxLength={16}
+                onChangeText={(t) => setForm({...form, license: t.toUpperCase()})}
+              />
+            </View>
+          </View>
+
+          {/* --- LICENSE PHOTO --- */}
           <View style={styles.licenseContainer}>
              <Text style={styles.label}>Driving License Photo</Text>
              <TouchableOpacity style={styles.licenseUploadBox} onPress={() => pickImage('license')}>
@@ -240,7 +337,6 @@ const EditDriverProfileScreen = () => {
                     <Text style={styles.uploadText}>Upload License Image</Text>
                   </View>
                 )}
-                {/* Overlay Icon */}
                 <View style={styles.editIconOverlay}>
                    <Camera size={16} color="#2563EB" />
                 </View>
@@ -249,7 +345,7 @@ const EditDriverProfileScreen = () => {
 
           <View style={styles.divider} />
 
-          {/* --- ADDRESS SECTION --- */}
+          {/* --- ADDRESS --- */}
           <View style={styles.sectionHeaderContainer}>
             <MapPin size={18} color="#2563EB" />
             <Text style={styles.sectionHeader}>Address Details</Text>
@@ -308,12 +404,7 @@ const EditDriverProfileScreen = () => {
                 value={form.address.zip}
                 keyboardType="numeric"
                 maxLength={6}
-                placeholder="6 digits"
-                onChangeText={(t) => {
-                  // Only allow digits
-                  const cleaned = t.replace(/[^0-9]/g, '');
-                  updateAddress('zip', cleaned);
-                }}
+                onChangeText={(t) => updateAddress('zip', t.replace(/[^0-9]/g, ''))}
               />
             </View>
           </View>
@@ -339,6 +430,48 @@ const EditDriverProfileScreen = () => {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Gender Modal */}
+      <Modal
+        visible={showGenderModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowGenderModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowGenderModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Gender</Text>
+                  <TouchableOpacity onPress={() => setShowGenderModal(false)}>
+                    <Text style={styles.closeText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={GENDER_OPTIONS}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.modalItem} 
+                      onPress={() => handleGenderSelect(item)}
+                    >
+                      <Text style={[
+                        styles.modalItemText, 
+                        form.gender.toLowerCase() === item.toLowerCase() && styles.selectedModalItemText
+                      ]}>
+                        {item}
+                      </Text>
+                      {form.gender.toLowerCase() === item.toLowerCase() && <Check size={20} color="#0EA5E9" />}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -365,6 +498,44 @@ const styles = StyleSheet.create({
   },
   photoHint: { fontSize: 12, color: '#64748B', marginTop: 8 },
 
+  sectionHeaderContainer: { flexDirection: "row", alignItems: "center", marginTop: 10, marginBottom: 15 },
+  sectionHeader: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 8 },
+  
+  inputGroup: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
+  
+  // Inputs
+  input: {
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1E293B"
+  },
+  iconInputWrapper: {
+    flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
+    borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10, paddingHorizontal: 12,
+  },
+  inputIcon: { marginRight: 10 },
+  iconInput: { flex: 1, paddingVertical: 10, fontSize: 15, color: "#1E293B" },
+
+  // Phone
+  phoneInputContainer: {
+    flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
+    borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10, overflow: "hidden",
+  },
+  phonePrefix: {
+    backgroundColor: "#F1F5F9", paddingHorizontal: 12, paddingVertical: 10,
+    borderRightWidth: 1, borderRightColor: "#E2E8F0",
+  },
+  phonePrefixText: { fontSize: 15, fontWeight: "600", color: "#475569" },
+  phoneInput: { flex: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1E293B" },
+
+  // Dropdown
+  dropdownButton: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0",
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+  },
+  dropdownText: { fontSize: 15, color: "#1E293B" },
+
   // License Photo
   licenseContainer: { marginBottom: 16 },
   licenseUploadBox: { 
@@ -377,53 +548,24 @@ const styles = StyleSheet.create({
   uploadText: { marginTop: 8, color: '#64748B', fontSize: 13, fontWeight: '500' },
   editIconOverlay: { position: 'absolute', top: 10, right: 10, backgroundColor:'#fff', padding:6, borderRadius:20, shadowColor:'#000', shadowOpacity:0.1, elevation:2 },
 
-  sectionHeaderContainer: { flexDirection: "row", alignItems: "center", marginTop: 10, marginBottom: 15 },
-  sectionHeader: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 8 },
-  
-  inputGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
-  input: {
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: "#1E293B"
-  },
-  phoneInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  phonePrefix: {
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRightWidth: 1,
-    borderRightColor: "#E2E8F0",
-  },
-  phonePrefixText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#475569",
-  },
-  phoneInput: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: "#1E293B",
-  },
   row: { flexDirection: "row" },
-  
   divider: { height: 1, backgroundColor: "#E2E8F0", marginVertical: 15 },
-  
   saveBtn: {
     backgroundColor: "#2563EB", flexDirection: "row", justifyContent: "center", alignItems: "center",
     height: 50, borderRadius: 12, shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 4
   },
-  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" }
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  closeText: { color: "#0EA5E9", fontSize: 16, fontWeight: "600" },
+  modalItem: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#F8FAFC" },
+  modalItemText: { fontSize: 16, color: "#334155" },
+  selectedModalItemText: { color: "#0EA5E9", fontWeight: "700" },
 });
 
 export default EditDriverProfileScreen;
