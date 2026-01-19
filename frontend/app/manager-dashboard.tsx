@@ -95,8 +95,9 @@ const ManagerDashboard = () => {
                 </View>
               )}
               <View>
-                <Text style={styles.headerTitle}>Dashboard</Text>
-                <Text style={styles.headerSubtitle}>Welcome back, {displayName}</Text>
+      
+                <Text style={styles.headerSubtitle}>Welcome back, </Text>
+                 <Text style={styles.headerTitle}>{displayName}</Text>
               </View>
             </View>
             <View style={styles.headerRight}>

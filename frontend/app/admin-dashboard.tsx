@@ -141,8 +141,8 @@ const AdminDashboard: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.headerTitle}>Logistics Overview</Text>
+            <Text style={styles.greeting}>Welcome back</Text>
+            <Text style={styles.headerTitle}>Admin</Text>
           </View>
           <View style={styles.profileContainer}>
             <View style={styles.avatar}>
