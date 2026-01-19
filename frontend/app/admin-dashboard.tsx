@@ -23,7 +23,8 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  Phone, // Added Phone icon
+  Phone,
+  IndianRupee, // Added Phone icon
 } from "lucide-react-native";
 
 interface Stats {
@@ -124,7 +125,7 @@ const AdminDashboard: React.FC = () => {
   const handleDriverClick = (driver: Driver) => {
     router.push({
       pathname: "drivers-details" as any,
-      params: { driver: encodeURIComponent(JSON.stringify(driver)) }
+      params: { driver: encodeURIComponent(JSON.stringify(driver)), viewerRole: "admin" }
     });
   };
 
@@ -181,10 +182,10 @@ const AdminDashboard: React.FC = () => {
           
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#DCFCE7" }]}>
-              <DollarSign size={24} color="#22C55E" />
+              <IndianRupee size={24} color="#22C55E" />
             </View>
             <Text style={styles.cardLabel}>Monthly Rev</Text>
-            <Text style={styles.cardValue}>$0</Text>
+            <Text style={styles.cardValue}>₹0</Text>
           </View>
         </View>
 
@@ -255,11 +256,18 @@ const AdminDashboard: React.FC = () => {
                 onPress={() => handleDriverClick(driver)}
               >
                 <View style={styles.listItemLeft}>
-                  <View style={[styles.listAvatarPlaceholder, { backgroundColor: "#FFEDD5" }]}>
-                    <Text style={[styles.avatarText, { color: "#F97316" }]}>
-                      {driver.name ? driver.name.charAt(0).toUpperCase() : "D"}
-                    </Text>
-                  </View>
+                  {driver.profilePhoto ? (
+                    <Image
+                      source={{ uri: api.getImageUrl(driver.profilePhoto) || undefined }}
+                      style={styles.listAvatarImage}
+                    />
+                  ) : (
+                    <View style={[styles.listAvatarPlaceholder, { backgroundColor: "#FFEDD5" }]}>
+                      <Text style={[styles.avatarText, { color: "#F97316" }]}>
+                        {driver.name ? driver.name.charAt(0).toUpperCase() : "D"}
+                      </Text>
+                    </View>
+                  )}
                   <View>
                     <Text style={styles.listItemName}>{driver.name}</Text>
                     <View style={{flexDirection: 'row', alignItems: 'center'}}>
@@ -278,9 +286,7 @@ const AdminDashboard: React.FC = () => {
       </ScrollView>
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddManager}>
-        <Plus size={32} color="#fff" />
-      </TouchableOpacity>
+      {/* FAB removed: Add Manager button will be shown on Managers List screen only */}
 
       {/* Floating Settings Menu */}
       {showSettingsMenu && (
@@ -314,7 +320,7 @@ const AdminDashboard: React.FC = () => {
           style={styles.navItem} 
           onPress={() => {
             setShowSettingsMenu(false);
-            router.push("drivers-list" as any);
+            router.push({ pathname: "drivers-list" as any, params: { userRole: "admin" } } as any);
           }} 
         >
           <Truck size={24} color="#94A3B8" />
@@ -325,7 +331,7 @@ const AdminDashboard: React.FC = () => {
           style={styles.navItem} 
           onPress={() => {
             setShowSettingsMenu(false);
-            router.push("vehicle-list" as any);
+            router.push({ pathname: "vehicle-list" as any, params: { userRole: "admin" } } as any);
           }}
         >
           <Car size={24} color="#94A3B8" />
@@ -346,30 +352,30 @@ const AdminDashboard: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC" },
-  scrollContent: { padding: 20, paddingTop: 60 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  greeting: { fontSize: 14, color: "#64748B", marginBottom: 4 },
-  headerTitle: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
+  scrollContent: { padding: 16, paddingTop: 40 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  greeting: { fontSize: 12, color: "#64748B", marginBottom: 2 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: "#0F172A" },
   profileContainer: { position: 'relative' as const },
   avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff", backgroundColor: "#E2E8F0", justifyContent:'center', alignItems:'center' },
   onlineDot: { position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: "#F8FAFC" },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 24 },
-  card: { width: "48%", backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, alignItems: "flex-start" as const },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16 },
+  card: { width: "48%", backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1, alignItems: "flex-start" as const },
   iconContainer: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  cardLabel: { fontSize: 13, color: "#64748B", marginBottom: 8, fontWeight: "500" },
-  cardValue: { fontSize: 20, fontWeight: "700", color: "#0F172A" },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  cardLabel: { fontSize: 11, color: "#64748B", marginBottom: 6, fontWeight: "500" },
+  cardValue: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
   viewAllText: { color: "#0EA5E9", fontSize: 14, fontWeight: "600" },
   listContainer: { gap: 12 },
   emptyText: { textAlign: "center", color: "#94A3B8", marginTop: 10, marginBottom: 20 },
-  listItem: { backgroundColor: "#fff", padding: 16, borderRadius: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  listItem: { backgroundColor: "#fff", padding: 12, borderRadius: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   listItemLeft: { flexDirection: "row", alignItems: "center" },
   listAvatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 12 },
   listAvatarImage: { width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: "#E5E7EB" },
   avatarText: { color: "#64748B", fontWeight: "bold" },
-  listItemName: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
-  listItemSub: { fontSize: 12, color: "#94A3B8" },
+  listItemName: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
+  listItemSub: { fontSize: 11, color: "#94A3B8" },
   fab: { position: "absolute", bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: "#0EA5E9", justifyContent: "center", alignItems: "center", shadowColor: "#0EA5E9", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6, zIndex: 10 },
   bottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9", zIndex: 20 },
   navItem: { alignItems: "center", justifyContent: "center" },

@@ -185,7 +185,7 @@ const ManagerDashboard = () => {
         
         <TouchableOpacity 
           style={styles.navItem}
-          onPress={() => router.push("drivers-list" as any)}
+          onPress={() => router.push({ pathname: "drivers-list", params: { userRole: "manager" } } as any)}
         >
           <User size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Drivers</Text>
@@ -204,8 +204,8 @@ const ManagerDashboard = () => {
           style={styles.navItem}
           onPress={navigateToProfile}
         >
-          <Settings size={24} color="#9CA3AF" />
-          <Text style={styles.navLabel}>Settings</Text>
+          <User size={24} color="#9CA3AF" />
+          <Text style={styles.navLabel}>Profile</Text>
         </TouchableOpacity>
       </View>
 
@@ -216,17 +216,17 @@ const ManagerDashboard = () => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
   container: { flex: 1 },
-  scrollContent: { padding: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, marginTop: 10 },
+  scrollContent: { padding: 16 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16, marginTop: 5 },
   headerLeft: { flexDirection: "row", alignItems: "center" },
-  avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12, backgroundColor: "#E5E7EB", justifyContent: 'center', alignItems: 'center', resizeMode: 'cover' },
-  headerTitle: { fontSize: 20, fontWeight: "800", color: "#111827" },
-  headerSubtitle: { fontSize: 13, color: "#6B7280" },
-  headerRight: { flexDirection: "row", gap: 16 },
+  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 10, backgroundColor: "#E5E7EB", justifyContent: 'center', alignItems: 'center', resizeMode: 'cover' },
+  headerTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },
+  headerSubtitle: { fontSize: 11, color: "#6B7280" },
+  headerRight: { flexDirection: "row", gap: 12 },
   iconBtn: { position: "relative" as const },
   notificationDot: { position: "absolute", top: -2, right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444", borderWidth: 1.5, borderColor: "#F9FAFB" },
-  statsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30 },
-  statCard: { width: (width - 50) / 2, height: 140, borderRadius: 20, padding: 16, justifyContent: "space-between" },
+  statsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  statCard: { width: (width - 40) / 2, height: 110, borderRadius: 16, padding: 12, justifyContent: "space-between" },
   blueCard: { backgroundColor: "#2563EB" },
   purpleCard: { backgroundColor: "#A855F7" },
   statHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
@@ -234,11 +234,11 @@ const styles = StyleSheet.create({
   statBadgePurple: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   statLabelWhite: { color: "#fff", fontSize: 16, fontWeight: "500" },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 16 },
-  actionGrid: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginBottom: 12 },
+  actionGrid: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
   actionItem: { alignItems: "center", width: "22%" },
-  actionIcon: { width: 56, height: 56, borderRadius: 16, justifyContent: "center", alignItems: "center", marginBottom: 8 },
-  actionLabel: { fontSize: 12, fontWeight: "600", color: "#4B5563" },
+  actionIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 6 },
+  actionLabel: { fontSize: 10, fontWeight: "600", color: "#4B5563" },
   bottomNav: {
     position: "absolute",
     bottom: 0,

@@ -42,8 +42,20 @@ router.get("/", async (req, res) => {
   }
 });
 
+// 3. GET SINGLE VEHICLE BY ID
+router.get("/:id", async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+    res.json(vehicle);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
 
-// 3. UPDATE VEHICLE STATUS (Mark as Sold, Maintenance, etc.)
+// 4. UPDATE VEHICLE STATUS (Mark as Sold, Maintenance, etc.)
 router.put("/:id", async (req, res) => {
   try {
     const { 

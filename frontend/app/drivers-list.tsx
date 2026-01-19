@@ -12,7 +12,7 @@ import {
   TextInput,
   FlatList,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
 import { ChevronLeft, Phone, CreditCard, Plus, Search, User } from "lucide-react-native";
 import { api, Driver } from "../utils/api";
@@ -27,6 +27,8 @@ interface StatusStyle {
 
 const DriversListScreen = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{ userRole: string }>();
+  const userRole = params.userRole || "admin"; // Default to admin: no add button unless manager explicitly passes
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,7 +104,7 @@ const DriversListScreen = () => {
         onPress={() => {
           router.push({
             pathname: "drivers-details",
-            params: { driver: encodeURIComponent(JSON.stringify(item)) },
+            params: { driver: encodeURIComponent(JSON.stringify(item)), viewerRole: userRole },
           } as any);
         }}
         activeOpacity={0.7}
@@ -223,13 +225,15 @@ const DriversListScreen = () => {
         )}
       </View>
 
-      {/* FAB - Add Driver Button */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => router.push("register-driver" as any)}
-      >
-        <Plus size={32} color="#fff" />
-      </TouchableOpacity>
+      {/* FAB - Add Driver Button (Managers only) */}
+      {userRole === "manager" && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => router.push("register-driver" as any)}
+        >
+          <Plus size={32} color="#fff" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };

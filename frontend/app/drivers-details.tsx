@@ -26,7 +26,8 @@ import { api, Driver } from "../utils/api";
 
 const DriverDetailsScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ driver?: string }>();
+  const params = useLocalSearchParams<{ driver?: string; viewerRole?: string }>();
+  const viewerRole = (params.viewerRole as string) || "manager";
   
   const [driver, setDriver] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,10 +115,12 @@ const DriverDetailsScreen = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Details</Text>
         
-        {/* EDIT BUTTON ADDED HERE */}
-        <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
-          <Edit2 size={22} color="#2563EB" />
-        </TouchableOpacity>
+        {/* Edit button visible only for manager/driver viewers */}
+        {(viewerRole === 'manager' || viewerRole === 'driver') && (
+          <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
+            <Edit2 size={22} color="#2563EB" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

@@ -202,14 +202,15 @@ const VehicleListScreen = () => {
         )}
       </View>
 
-      {/* FAB - Add Vehicle Button */}
-      {/* You can hide this for Managers if needed, currently shown for both */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => router.push("register-vehicle" as any)}
-      >
-        <Plus size={32} color="#fff" />
-      </TouchableOpacity>
+      {/* FAB - Add Vehicle Button (Managers only) */}
+      {userRole === "manager" && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => router.push("register-vehicle" as any)}
+        >
+          <Plus size={32} color="#fff" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };

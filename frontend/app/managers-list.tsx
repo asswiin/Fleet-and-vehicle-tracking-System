@@ -194,6 +194,13 @@ const ManagersListScreen: React.FC = () => {
           />
         )}
       </View>
+      {/* FAB - Add Manager Button */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => router.push("add-manager" as any)}
+      >
+        <Text style={styles.fabPlus}>+</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -326,6 +333,24 @@ const styles = StyleSheet.create({
 
   center: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
   emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 10 },
+
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#0EA5E9",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#0EA5E9",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabPlus: { color: "#fff", fontSize: 28, fontWeight: "700", lineHeight: 30 },
 });
 
 export default ManagersListScreen;
