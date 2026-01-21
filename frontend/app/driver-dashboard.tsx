@@ -11,16 +11,16 @@ import {
   Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { 
-  Menu, 
-  LogOut, 
-  Clock, 
-  Bell, 
-  Settings, 
-  LayoutGrid, 
-  Truck, 
-  Banknote, 
-  User 
+import {
+  Menu,
+  LogOut,
+  Clock,
+  Bell,
+  Settings,
+  LayoutGrid,
+  Truck,
+  Banknote,
+  User
 } from "lucide-react-native";
 import { useState, useCallback } from "react";
 import { api, Driver } from "../utils/api";
@@ -60,7 +60,7 @@ const DriverDashboard = () => {
     ]);
   };
 
-   // Navigate to Profile
+  // Navigate to Profile
   const handleProfileClick = () => {
     if (driverId) {
       router.push({
@@ -74,7 +74,7 @@ const DriverDashboard = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton}>
@@ -87,7 +87,7 @@ const DriverDashboard = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
@@ -114,7 +114,7 @@ const DriverDashboard = () => {
 
         {/* Grid Container */}
         <View style={styles.gridContainer}>
-          
+
           {/* Card 1: History */}
           <TouchableOpacity style={styles.card}>
             <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
@@ -185,7 +185,7 @@ const DriverDashboard = () => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  
+
   // Header
   header: {
     flexDirection: "row",

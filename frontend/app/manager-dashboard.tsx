@@ -140,9 +140,9 @@ const ManagerDashboard = () => {
           <View style={styles.actionGrid}>
             <TouchableOpacity style={styles.actionItem}>
               <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
-                <Package size={24} color="#0284C7" />
+                <Truck size={24} color="#0284C7" />
               </View>
-              <Text style={styles.actionLabel}>Parcel</Text>
+              <Text style={styles.actionLabel}>Trips</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionItem}>
@@ -178,9 +178,12 @@ const ManagerDashboard = () => {
           <Text style={[styles.navLabel, { color: "#2563EB" }]}>Home</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
-          <Truck size={24} color="#9CA3AF" />
-          <Text style={styles.navLabel}>Trips</Text>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => router.push("parcel-list" as any)}
+        >
+          <Package size={24} color="#9CA3AF" />
+          <Text style={styles.navLabel}>Parcel</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -190,7 +193,7 @@ const ManagerDashboard = () => {
           <User size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Drivers</Text>
         </TouchableOpacity>
-        
+
          <TouchableOpacity 
           style={styles.navItem}
           onPress={() => router.push({ pathname: "vehicle-list", params: { userRole: "manager" }} as any)}

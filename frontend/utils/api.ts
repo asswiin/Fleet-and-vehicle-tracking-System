@@ -117,6 +117,26 @@ export interface RegisterDriverData {
   };
 }
 
+export interface Parcel {
+  _id: string;
+  trackingId?: string;
+  sender?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+  };
+  recipient?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+  };
+  weight?: number;
+  type?: string;
+  status?: string;
+  paymentAmount?: number;
+  date?: string;
+}
+
 
 // ==========================================
 // 2. Network Configuration
@@ -252,7 +272,13 @@ export const api = {
       return { ok: false, status: 500, data: null, error: error.message };
     }
   },
+  // PARCELS
+  getParcels: () => apiCall<Parcel[]>("/api/parcels"),
+  getParcel: (id: string) => apiCall<Parcel>(`/api/parcels/${id}`),
+  createParcel: (data: any) => apiCall("/api/parcels", { method: "POST", body: JSON.stringify(data) }),
+  updateParcelStatus: (id: string, status: string) =>
+    apiCall(`/api/parcels/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
 };
-
+   
 
 export default api;
