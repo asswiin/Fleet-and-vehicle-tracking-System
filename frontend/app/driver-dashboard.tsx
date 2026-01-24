@@ -19,7 +19,7 @@ import {
   Settings,
   LayoutGrid,
   Truck,
-  Banknote,
+  Clock as PunchIcon,
   User
 } from "lucide-react-native";
 import { useState, useCallback } from "react";
@@ -168,9 +168,16 @@ const DriverDashboard = () => {
           <Text style={styles.navText}>Trips</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
-          <Banknote size={24} color="#94A3B8" />
-          <Text style={styles.navText}>Earnings</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => {
+          if (driverId) {
+            router.push({
+              pathname: "punching",
+              params: { driverId: driverId }
+            } as any);
+          }
+        }}>
+          <PunchIcon size={24} color="#94A3B8" />
+          <Text style={styles.navText}>Punching</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} onPress={handleProfileClick}>

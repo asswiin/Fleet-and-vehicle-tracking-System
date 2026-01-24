@@ -19,7 +19,8 @@ import {
   Calendar,
   Weight,
   FileText,
-  ChevronRight
+  PencilLine,
+  Trash2
 } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
 
@@ -30,6 +31,7 @@ const ParcelDetailsScreen = () => {
   
   const [parcel, setParcel] = useState<Parcel | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadParcelDetails = useCallback(async () => {
@@ -58,21 +60,28 @@ const ParcelDetailsScreen = () => {
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!parcelId) return;
-    
+  };
+
+  const handleDelete = () => {
+    if (!parcelId) return;
     Alert.alert(
-      "Update Status",
-      `Change status to "${newStatus}"?`,
+      "Delete Parcel",
+      "This will permanently remove the parcel.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Update",
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
-            const response = await api.updateParcelStatus(parcelId, newStatus);
+            setDeleting(true);
+            const response = await api.deleteParcel(parcelId);
+            setDeleting(false);
             if (response.ok) {
-              Alert.alert("Success", "Status updated successfully");
-              loadParcelDetails();
+              Alert.alert("Deleted", "Parcel removed", [
+                { text: "OK", onPress: () => router.back() },
+              ]);
             } else {
-              Alert.alert("Error", response.error || "Failed to update status");
+              Alert.alert("Error", response.error || "Failed to delete parcel");
             }
           },
         },
@@ -255,17 +264,18 @@ const ParcelDetailsScreen = () => {
           <Text style={styles.actionsTitle}>Quick Actions</Text>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => handleStatusUpdate("In Transit")}
+            onPress={() => router.push({ pathname: "/edit-parcel", params: { parcelId } })}
           >
-            <Text style={styles.actionButtonText}>Mark as In Transit</Text>
-            <ChevronRight size={18} color="#2563EB" />
+            <Text style={styles.actionButtonText}>Edit Parcel Details</Text>
+            <PencilLine size={18} color="#2563EB" />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleStatusUpdate("Delivered")}
+            style={[styles.actionButton, { borderColor: "#FEE2E2", backgroundColor: "#FEF2F2" }]}
+            onPress={handleDelete}
+            disabled={deleting}
           >
-            <Text style={styles.actionButtonText}>Mark as Delivered</Text>
-            <ChevronRight size={18} color="#2563EB" />
+            <Text style={[styles.actionButtonText, { color: "#DC2626" }]}>{deleting ? "Deleting..." : "Delete Parcel"}</Text>
+            <Trash2 size={18} color="#DC2626" />
           </TouchableOpacity>
         </View>
 

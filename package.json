@@ -1,0 +1,12 @@
+{
+  "name": "fleet-vehicle-tracking-system",
+  "version": "1.0.0",
+  "description": "Fleet and Vehicle Tracking System",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "backend",
+      "frontend"
+    ]
+  }
+}

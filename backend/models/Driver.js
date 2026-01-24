@@ -1,45 +1,21 @@
-
-
 // models/Driver.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const driverSchema = new mongoose.Schema(
   {
-
-    profilePhoto: { type: String, 
-      default: "" 
-    },
-
-    licensePhoto: { type: String, 
-      default: ""
-     },
-
-    name: { 
-      type: String, 
-      required: true 
-    },
-
-    mobile: {
-       type: String, 
-       required: true, 
-       unique: true
-       },
-    
-    // Unique is true here, but it ONLY applies to the 'drivers' collection
+    profilePhoto: { type: String, default: "" },
+    licensePhoto: { type: String, default: "" },
+    name: { type: String, required: true },
+    mobile: { type: String, required: true, unique: true },
     email: { 
-      type: String,
-       required: true, 
-       unique: true, 
-       lowercase: true, 
-       trim: true 
-      },
-    
-    password: {
-       type: String, 
-       required: true 
-      }, // Required for login
-    
+      type: String, 
+      required: true, 
+      unique: true, 
+      lowercase: true, 
+      trim: true 
+    },
+    password: { type: String, required: true },
     license: { type: String, required: true, unique: true },
     gender: { type: String, enum: ["male", "female", "other"], required: true },
     dob: { type: Date, required: true },
@@ -51,15 +27,14 @@ const driverSchema = new mongoose.Schema(
       state: String,
       zip: String,
     },
-    role: { 
-      type: String,
-       default: "driver" 
-      },
+    role: { type: String, default: "driver" },
+    status: { type: String, default: "Active" },
 
-    status: { 
-      type: String, 
-      default: "Active" 
-    },
+    // This field controls the Green/Purple badge in the Admin/Manager dashboard
+    isAvailable: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 );

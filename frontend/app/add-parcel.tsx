@@ -30,6 +30,7 @@ const AddParcelScreen = () => {
   const [form, setForm] = useState({
     senderName: "",
     senderPhone: "",
+    senderEmail: "",
     senderHouse: "",
     senderStreet: "",
     senderCity: "",
@@ -52,6 +53,7 @@ const AddParcelScreen = () => {
     if (
       !form.senderName ||
       !form.senderPhone ||
+      !form.senderEmail ||
       !form.senderHouse ||
       !form.senderStreet ||
       !form.senderCity ||
@@ -77,6 +79,12 @@ const AddParcelScreen = () => {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.senderEmail)) {
+      Alert.alert("Invalid Email", "Please enter a valid sender email address.");
+      return;
+    }
+
     // 3. Payment validation
     const amountNumber = Number(form.paymentAmount);
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
@@ -95,6 +103,7 @@ const AddParcelScreen = () => {
         sender: {
           name: form.senderName,
           phone: `+91${form.senderPhone}`,
+          email: form.senderEmail.trim(),
           address: senderAddress,
         },
         recipient: {
@@ -167,14 +176,31 @@ const AddParcelScreen = () => {
 
             <View style={styles.inputGroupLast}>
               <Text style={styles.label}>PHONE NUMBER</Text>
+              <View style={[styles.input, styles.phoneInputRow]}>
+                <Text style={styles.phonePrefix}>+91</Text>
+                <View style={styles.phoneDivider} />
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="98765 43210"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  value={form.senderPhone}
+                  onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, senderPhone: t }) }}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>EMAIL</Text>
               <TextInput
                 style={styles.input}
-                placeholder="98765 43210"
+                placeholder="name@example.com"
                 placeholderTextColor="#94A3B8"
-                keyboardType="number-pad"
-                maxLength={10}
-                value={form.senderPhone}
-                onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, senderPhone: t }) }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={form.senderEmail}
+                onChangeText={(t) => setForm({ ...form, senderEmail: t })}
               />
             </View>
 
@@ -254,15 +280,19 @@ const AddParcelScreen = () => {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>PHONE NUMBER</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="98765 43210"
-                placeholderTextColor="#94A3B8"
-                keyboardType="number-pad"
-                maxLength={10}
-                value={form.recipientPhone}
-                onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, recipientPhone: t }) }}
-              />
+              <View style={[styles.input, styles.phoneInputRow]}>
+                <Text style={styles.phonePrefix}>+91</Text>
+                <View style={styles.phoneDivider} />
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="98765 43210"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  value={form.recipientPhone}
+                  onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, recipientPhone: t }) }}
+                />
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -427,6 +457,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
     paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: "#1E293B"
   },
+  phoneInputRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 0 },
+  phonePrefix: { color: "#64748B", fontWeight: "700", marginRight: 8 },
+  phoneDivider: { width: 1, height: 24, backgroundColor: "#E2E8F0", marginRight: 10 },
+  phoneInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1E293B" },
   textArea: { height: 100 },
   readOnlyField: { backgroundColor: "#F1F5F9", borderColor: "#E2E8F0" },
   

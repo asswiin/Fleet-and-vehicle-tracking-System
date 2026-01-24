@@ -8,6 +8,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const Driver = require("../models/Driver");
+const PunchRecord = require("../models/PunchRecord");
 const { sendCredentialsEmail } = require("../utils/emailService"); 
 
 
@@ -189,6 +190,134 @@ router.put("/:id", handleDriverUpload, async (req, res) => {
     res.json({ message: "Profile updated successfully", data: updatedDriver });
   } catch (err) {
     console.error("Update Driver Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// POST: Punch Driver (Mark as Available)
+router.post("/:id/punch", async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    const driver = await Driver.findById(driverId);
+    
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    // Determine "Today" (Midnight)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if a record already exists for today
+    const existingRecord = await PunchRecord.findOne({
+      driver: driverId,
+      date: today
+    });
+
+    if (existingRecord) {
+      return res.status(400).json({ message: "You have already punched in today." });
+    }
+
+    // Create new Punch Record
+    const newPunch = new PunchRecord({
+      driver: driverId,
+      name: driver.name,
+      email: driver.email,
+      phone: driver.mobile,
+      date: today,
+      punchIn: new Date(),
+      status: "On-Duty"
+    });
+    await newPunch.save();
+
+    // Update Driver Status for Dashboard
+    driver.isAvailable = true;
+    await driver.save();
+
+    res.json({ 
+      message: "Punch in recorded successfully.", 
+      data: driver 
+    });
+  } catch (err) {
+    console.error("Punch Driver Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// POST: Punch Out (Mark as Unavailable)
+router.post("/:id/punch-out", async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    const driver = await Driver.findById(driverId);
+    
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    // Find the active punch record for today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeRecord = await PunchRecord.findOne({
+      driver: driverId,
+      date: today,
+      punchOut: null // Ensure it hasn't been punched out yet
+    });
+
+    if (!activeRecord) {
+      // Check if they punched out already
+      const completedRecord = await PunchRecord.findOne({
+        driver: driverId,
+        date: today,
+        punchOut: { $ne: null }
+      });
+
+      if (completedRecord) {
+        return res.status(400).json({ message: "You have already punched out today." });
+      }
+      return res.status(400).json({ message: "You haven't punched in today." });
+    }
+
+    // Update Punch Record
+    activeRecord.punchOut = new Date();
+    activeRecord.status = "Completed";
+    await activeRecord.save();
+
+    // Update Driver Status for Dashboard
+    driver.isAvailable = false;
+    await driver.save();
+
+    res.json({ 
+      message: "Punch out recorded successfully.", 
+      data: driver 
+    });
+  } catch (err) {
+    console.error("Punch Out Driver Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// GET: Fetch Punch History
+router.get("/:id/punch-history", async (req, res) => {
+  try {
+    // Fetch records from the separate collection
+    const history = await PunchRecord.find({ driver: req.params.id })
+      .sort({ date: -1 })
+      .limit(30); // Optional: Limit to last 30 entries
+
+    // Map the fields to match what the frontend expects 
+    // (Frontend app/punching.tsx expects: punchInTime, punchOutTime)
+    const formattedHistory = history.map(record => ({
+      date: record.date,
+      punchInTime: record.punchIn,
+      punchOutTime: record.punchOut
+    }));
+
+    res.json({ 
+      data: formattedHistory
+    });
+  } catch (err) {
+    console.error("Get Punch History Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });

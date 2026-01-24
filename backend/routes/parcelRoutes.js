@@ -37,6 +37,26 @@ router.post("/", async (req, res) => {
   }
 });
 
+// PUT update parcel details
+router.put("/:id", async (req, res) => {
+  try {
+    const { trackingId, _id, ...updatePayload } = req.body; // prevent trackingId/_id overwrite
+    const parcel = await Parcel.findByIdAndUpdate(
+      req.params.id,
+      updatePayload,
+      { new: true, runValidators: true }
+    );
+
+    if (!parcel) {
+      return res.status(404).json({ message: "Parcel not found" });
+    }
+
+    res.json({ data: parcel });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // PUT update parcel status
 router.put("/:id/status", async (req, res) => {
   try {
@@ -46,6 +66,19 @@ router.put("/:id/status", async (req, res) => {
       { status },
       { new: true }
     );
+    if (!parcel) {
+      return res.status(404).json({ message: "Parcel not found" });
+    }
+    res.json({ data: parcel });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// DELETE parcel
+router.delete("/:id", async (req, res) => {
+  try {
+    const parcel = await Parcel.findByIdAndDelete(req.params.id);
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });
     }

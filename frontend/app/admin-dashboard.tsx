@@ -270,9 +270,24 @@ const AdminDashboard: React.FC = () => {
                   )}
                   <View>
                     <Text style={styles.listItemName}>{driver.name}</Text>
-                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
                         <Phone size={12} color="#94A3B8" style={{marginRight: 4}} />
                         <Text style={styles.listItemSub}>{driver.mobile}</Text>
+                        <View style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                          backgroundColor: driver.isAvailable ? "#DCFCE7" : "#F3E8FF",
+                          marginLeft: 8
+                        }}>
+                          <Text style={{
+                            fontSize: 10,
+                            fontWeight: "600",
+                            color: driver.isAvailable ? "#22C55E" : "#A855F7"
+                          }}>
+                            {driver.isAvailable ? "Available" : "Offline"}
+                          </Text>
+                        </View>
                     </View>
                   </View>
                 </View>

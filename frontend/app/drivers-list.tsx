@@ -14,10 +14,10 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
-import { ChevronLeft, Phone, CreditCard, Plus, Search, User } from "lucide-react-native";
+import { ChevronLeft, Phone, CreditCard, Plus, Search, User, Clock } from "lucide-react-native";
 import { api, Driver } from "../utils/api";
 
-const FILTER_TABS = ["All", "Available", "On-trip", "Resigned"];
+const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Resigned"];
 
 interface StatusStyle {
   bg: string;
@@ -72,15 +72,29 @@ const DriversListScreen = () => {
     
     let statusMatch = true;
     if (selectedTab !== "All") {
-      const currentStatus = driver.status || "Available";
-      statusMatch = currentStatus === selectedTab;
+      if (selectedTab === "Available") {
+        statusMatch = driver.isAvailable === true;
+      } else if (selectedTab === "Offline") {
+        statusMatch = driver.isAvailable === false;
+      } else {
+        const currentStatus = driver.status || "Available";
+        statusMatch = currentStatus === selectedTab;
+      }
     }
 
     return matchesSearch && statusMatch;
   });
 
   // Helper for Status Badge Styles
-  const getStatusStyles = (status?: string): StatusStyle => {
+  const getStatusStyles = (status?: string, isAvailable?: boolean): StatusStyle => {
+    // Priority: isAvailable takes precedence
+    if (isAvailable === true) {
+      return { bg: '#DCFCE7', text: '#166534', label: 'Punched In' };
+    } else if (isAvailable === false) {
+      return { bg: '#F3E8FF', text: '#6B21A8', label: 'Offline' };
+    }
+
+    // Fall back to status
     const displayStatus = status || "Available";
 
     switch(displayStatus) {
@@ -96,7 +110,7 @@ const DriversListScreen = () => {
   };
 
   const renderItem = ({ item }: { item: Driver }) => {
-    const statusStyle = getStatusStyles(item.status);
+    const statusStyle = getStatusStyles(item.status, item.isAvailable);
     
     return (
       <TouchableOpacity 

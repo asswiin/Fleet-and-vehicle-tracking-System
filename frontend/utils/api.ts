@@ -98,6 +98,12 @@ export interface Driver {
   profilePhoto?: string;
   licensePhoto?: string;
   createdAt?: string;
+  isAvailable?: boolean;
+  punchHistory?: Array<{
+    date: string;
+    punchInTime?: string;
+    punchOutTime?: string;
+  }>;
 }
 
 export interface RegisterDriverData {
@@ -123,6 +129,7 @@ export interface Parcel {
   sender?: {
     name?: string;
     phone?: string;
+    email?: string;
     address?: string;
   };
   recipient?: {
@@ -257,6 +264,9 @@ export const api = {
   getDriver: (id: string) => apiCall(`/api/drivers/${id}`),
   createDriver: (data: any) => apiCall("/api/drivers/register", { method: "POST", body: JSON.stringify(data) }),
   updateDriver: (id: string, data: any) => apiCall(`/api/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  punchDriver: (id: string) => apiCall(`/api/drivers/${id}/punch`, { method: "POST" }),
+  punchOutDriver: (id: string) => apiCall(`/api/drivers/${id}/punch-out`, { method: "POST" }),
+  getPunchHistory: (id: string) => apiCall(`/api/drivers/${id}/punch-history`, { method: "GET" }),
 
   // DRIVER IMAGE UPLOAD (Special Handling)
   updateDriverProfileWithImage: async (id: string, formData: FormData) => {
@@ -276,8 +286,10 @@ export const api = {
   getParcels: () => apiCall<Parcel[]>("/api/parcels"),
   getParcel: (id: string) => apiCall<Parcel>(`/api/parcels/${id}`),
   createParcel: (data: any) => apiCall("/api/parcels", { method: "POST", body: JSON.stringify(data) }),
+  updateParcel: (id: string, data: any) => apiCall(`/api/parcels/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   updateParcelStatus: (id: string, status: string) =>
     apiCall(`/api/parcels/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+  deleteParcel: (id: string) => apiCall(`/api/parcels/${id}`, { method: "DELETE" }),
 };
    
 
