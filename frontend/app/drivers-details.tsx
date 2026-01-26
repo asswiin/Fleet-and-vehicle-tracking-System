@@ -9,6 +9,7 @@ import {
   Image,
   Modal,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -20,8 +21,11 @@ import {
   Home, 
   Calendar, 
   User as UserIcon, 
-  Edit2 // Import Edit Icon
+  Edit2,
+  History,
+  ChevronDown
 } from "lucide-react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { api, Driver } from "../utils/api";
 
 const DriverDetailsScreen = () => {
@@ -32,6 +36,11 @@ const DriverDetailsScreen = () => {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [punchHistory, setPunchHistory] = useState<any[]>([]);
+  const [punchLoading, setPunchLoading] = useState(false);
+  const [showPunchHistory, setShowPunchHistory] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // 1. Initial Parse (Fast load)
   // We use this to show data immediately while waiting for a fresh fetch
@@ -70,9 +79,28 @@ const DriverDetailsScreen = () => {
     }
   };
 
+  const fetchPunchHistory = async () => {
+    if (!driver?._id) return;
+    try {
+      setPunchLoading(true);
+      const res = await api.getPunchHistory(driver._id);
+      if (res.ok && res.data) {
+        const history = Array.isArray(res.data) ? res.data : [];
+        setPunchHistory(history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPunchLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchDriverDetails();
+      if (driver?._id) {
+        fetchPunchHistory();
+      }
     }, [])
   );
 
@@ -84,6 +112,43 @@ const DriverDetailsScreen = () => {
         params: { driverData: JSON.stringify(driver) }
       } as any);
     }
+  };
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (date) {
+      setSelectedDate(date);
+    }
+  };
+
+  const getSelectedMonthRecords = () => {
+    return punchHistory.filter((record) => {
+      const recordDate = new Date(record.date);
+      return (
+        recordDate.getMonth() === selectedDate.getMonth() &&
+        recordDate.getFullYear() === selectedDate.getFullYear()
+      );
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (timeString?: string) => {
+    if (!timeString) return "---";
+    return new Date(timeString).toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   const fullAddress = () => {
@@ -175,6 +240,103 @@ const DriverDetailsScreen = () => {
             <DetailRow icon={<CreditCard size={18} color="#6B7280" />} label="License" value={driver.license || "Not provided"} />
             <DetailRow icon={<Calendar size={18} color="#6B7280" />} label="DOB" value={formattedDob()} />
             <DetailRow icon={<Home size={18} color="#6B7280" />} label="Address" value={fullAddress()} multiline />
+            
+            {/* PUNCH HISTORY SECTION */}
+            <View style={styles.divider} />
+            
+            <TouchableOpacity 
+              style={styles.punchHistoryToggle}
+              onPress={() => {
+                if (!showPunchHistory) {
+                  fetchPunchHistory();
+                }
+                setShowPunchHistory(!showPunchHistory);
+              }}
+            >
+              <View style={styles.punchHistoryHeader}>
+                <History size={20} color="#2563EB" />
+                <Text style={styles.punchHistoryTitle}>Punch History</Text>
+              </View>
+              <ChevronDown 
+                size={20} 
+                color="#64748B" 
+                style={[styles.chevronIcon, showPunchHistory && styles.chevronOpen]}
+              />
+            </TouchableOpacity>
+
+            {showPunchHistory && (
+              <View style={styles.punchHistoryContainer}>
+                {/* Month/Year Selector */}
+                <View style={styles.dateSelector}>
+                  <TouchableOpacity 
+                    style={styles.dateValue} 
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <Calendar size={16} color="#2563EB" />
+                      <Text style={styles.dateValueText}>
+                        {selectedDate.toLocaleDateString("en-IN", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </Text>
+                    </View>
+                    <ChevronDown size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Native Date Picker - Month/Year only */}
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                  />
+                )}
+
+                {/* Punch History Loading */}
+                {punchLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#2563EB" />
+                  </View>
+                ) : (
+                  <View>
+                    {getSelectedMonthRecords().length > 0 ? (
+                      <View style={styles.punchRecordsList}>
+                        <View style={styles.punchTableHeader}>
+                          <Text style={[styles.punchTableText, { flex: 1 }]}>Date</Text>
+                          <Text style={[styles.punchTableText, { flex: 1, textAlign: "center" }]}>Punch In</Text>
+                          <Text style={[styles.punchTableText, { flex: 1, textAlign: "right" }]}>Punch Out</Text>
+                        </View>
+                        
+                        <ScrollView style={styles.punchRecordsScroll} nestedScrollEnabled>
+                          {getSelectedMonthRecords().map((record, index) => (
+                            <View 
+                              key={index} 
+                              style={[styles.punchRecordRow, index % 2 === 0 && styles.punchRecordRowAlt]}
+                            >
+                              <Text style={[styles.punchRecordDate, { flex: 1 }]}>
+                                {formatDate(record.date)}
+                              </Text>
+                              <Text style={[styles.punchRecordTimeIn, { flex: 1, textAlign: "center" }]}>
+                                {formatTime(record.punchInTime)}
+                              </Text>
+                              <Text style={[styles.punchRecordTimeOut, { flex: 1, textAlign: "right" }]}>
+                                {formatTime(record.punchOutTime)}
+                              </Text>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : (
+                      <Text style={styles.noRecordsText}>No punch records for this month</Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
             
             {/* LICENSE PHOTO SECTION */}
             {driver.licensePhoto && (
@@ -295,6 +457,124 @@ const styles = StyleSheet.create({
   },
   statusText: { fontSize: 12, fontWeight: "600" },
   divider: { height: 1, backgroundColor: "#F3F4F6", marginVertical: 20 },
+  
+  // Punch History Styles
+  punchHistoryToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+  },
+  punchHistoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  punchHistoryTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  chevronIcon: {
+    transform: [{rotate: "0deg"}],
+  },
+  chevronOpen: {
+    transform: [{rotate: "180deg"}],
+  },
+  punchHistoryContainer: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  dateSelector: {
+    marginBottom: 12,
+  },
+  dateValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  dateValueText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0F172A",
+    marginHorizontal: 8,
+  },
+  loadingContainer: {
+    paddingVertical: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  punchRecordsList: {
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    marginTop: 8,
+  },
+  punchTableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  punchTableText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  punchRecordsScroll: {
+    maxHeight: 300,
+  },
+  punchRecordRow: {
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    alignItems: "center",
+  },
+  punchRecordRowAlt: {
+    backgroundColor: "#FAFBFC",
+  },
+  punchRecordDate: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0F172A",
+  },
+  punchRecordTime: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  punchRecordTimeIn: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#15803D",
+  },
+  punchRecordTimeOut: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#DC2626",
+  },
+  noRecordsText: {
+    fontSize: 13,
+    color: "#94A3B8",
+    textAlign: "center",
+    paddingVertical: 16,
+    fontStyle: "italic",
+  },
   
   detailRow: { flexDirection: "row", marginBottom: 16 },
   detailIcon: {

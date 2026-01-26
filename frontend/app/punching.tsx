@@ -29,10 +29,10 @@ import { api, Driver } from "../utils/api";
 // 📍 CONFIGURATION
 // ==================================================
 const OFFICE_LOCATION = {
-  latitude: 9.9312, 
-  longitude: 76.2673,
+  latitude: 11.622351,
+  longitude: 76.072485
 };
-const ALLOWED_RADIUS_METERS = 200; 
+const ALLOWED_RADIUS_METERS = 500; 
 // ==================================================
 
 interface PunchRecord {
@@ -57,6 +57,8 @@ const PunchingScreen = () => {
   const [currentAddress, setCurrentAddress] = useState<string>("Fetching location...");
   const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
+  const [distanceToOffice, setDistanceToOffice] = useState<number | null>(null);
+  const [isInsideOffice, setIsInsideOffice] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchDriver();
@@ -126,6 +128,16 @@ const PunchingScreen = () => {
       };
       
       setCurrentCoords(newCoords);
+
+      // Calculate distance to office
+      const distance = getDistanceFromLatLonInMeters(
+        location.coords.latitude,
+        location.coords.longitude,
+        OFFICE_LOCATION.latitude,
+        OFFICE_LOCATION.longitude
+      );
+      setDistanceToOffice(distance);
+      setIsInsideOffice(distance <= ALLOWED_RADIUS_METERS);
 
       // Animate map to new location
       if (mapRef.current) {
@@ -250,6 +262,12 @@ const PunchingScreen = () => {
   const handlePunchOut = async () => {
     if (!driverId) return;
     setPunchLoading(true);
+
+    const isValid = await verifyLocationForPunch();
+    if (!isValid) {
+      setPunchLoading(false);
+      return;
+    }
 
     try {
       const res = await api.punchOutDriver(driverId);
@@ -400,6 +418,34 @@ const PunchingScreen = () => {
           </View>
         )}
 
+        {/* Location Status Card */}
+        {isInsideOffice !== null && isToday(selectedDate) && (
+          <View style={[
+            styles.locationStatusCard,
+            isInsideOffice ? styles.locationInsideCard : styles.locationOutsideCard
+          ]}>
+            <View style={styles.locationStatusContent}>
+              <View style={[
+                styles.locationStatusIcon,
+                isInsideOffice ? styles.locationInsideIcon : styles.locationOutsideIcon
+              ]}>
+                <MapPin size={24} color={isInsideOffice ? "#10B981" : "#EF4444"} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[
+                  styles.locationStatusTitle,
+                  isInsideOffice ? { color: "#10B981" } : { color: "#EF4444" }
+                ]}>
+                  {isInsideOffice ? "Inside Office Range" : "Outside Office Range"}
+                </Text>
+                <Text style={styles.locationStatusDistance}>
+                  {distanceToOffice ? `${Math.round(distanceToOffice)}m away` : "Calculating..."} • {isInsideOffice ? "✓ Can Punch" : "✗ Cannot Punch"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Status Card */}
         <View style={[
           styles.statusCard,
@@ -509,6 +555,49 @@ const styles = StyleSheet.create({
   dateInfo: { alignItems: "center", flex: 1 },
   dateText: { fontSize: 14, fontWeight: "600", color: "#0F172A" },
   todayBadge: { fontSize: 11, fontWeight: "600", color: "#10B981", marginTop: 4 },
+
+  // Location Status Card Styles
+  locationStatusCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+  },
+  locationInsideCard: {
+    backgroundColor: "#ECFDF5",
+    borderLeftColor: "#10B981",
+  },
+  locationOutsideCard: {
+    backgroundColor: "#FEF2F2",
+    borderLeftColor: "#EF4444",
+  },
+  locationStatusContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationStatusIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  locationInsideIcon: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+  },
+  locationOutsideIcon: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+  },
+  locationStatusTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  locationStatusDistance: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "500",
+  },
 
   // Map Styles
   mapCard: {

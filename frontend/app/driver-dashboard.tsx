@@ -171,7 +171,7 @@ const DriverDashboard = () => {
         <TouchableOpacity style={styles.navItem} onPress={() => {
           if (driverId) {
             router.push({
-              pathname: "punching",
+              pathname: "punching-history",
               params: { driverId: driverId }
             } as any);
           }
