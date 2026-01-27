@@ -35,6 +35,12 @@ import {
 
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 
+const KERALA_DISTRICTS = [
+  "Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod",
+  "Kollam", "Kottayam", "Kozhikode", "Malappuram", "Palakkad",
+  "Pathanamthitta", "Thiruvananthapuram", "Thrissur", "Wayanad",
+];
+
 const EditDriverProfileScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ driverData: string }>();
@@ -73,6 +79,7 @@ const EditDriverProfileScreen = () => {
   // UI State
   const [showGenderModal, setShowGenderModal] = useState(false);
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [showDistrictModal, setShowDistrictModal] = useState(false);
 
   // --- IMAGE STATE ---
   const initialProfileUri = initialData?.profilePhoto ? api.getImageUrl(initialData.profilePhoto) : null;
@@ -81,6 +88,7 @@ const EditDriverProfileScreen = () => {
   const [profileImageUri, setProfileImageUri] = useState<string | null>(initialProfileUri);
   const [licenseImageUri, setLicenseImageUri] = useState<string | null>(initialLicenseUri);
 
+  // CHANGED: Store full Asset objects
   const [newProfileAsset, setNewProfileAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [newLicenseAsset, setNewLicenseAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
@@ -104,10 +112,10 @@ const EditDriverProfileScreen = () => {
       const asset = result.assets[0];
       if (type === 'profile') {
         setProfileImageUri(asset.uri); 
-        setNewProfileAsset(asset);     
+        setNewProfileAsset(asset); // Store asset
       } else {
         setLicenseImageUri(asset.uri);
-        setNewLicenseAsset(asset);
+        setNewLicenseAsset(asset); // Store asset
       }
     }
   };
@@ -115,6 +123,14 @@ const EditDriverProfileScreen = () => {
   const handleGenderSelect = (gender: string) => {
     setForm({ ...form, gender: gender.toLowerCase() });
     setShowGenderModal(false);
+  };
+
+  const handleDistrictSelect = (district: string) => {
+    setForm(prev => ({
+      ...prev,
+      address: { ...prev.address, district }
+    }));
+    setShowDistrictModal(false);
   };
 
   const handleDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -125,10 +141,14 @@ const EditDriverProfileScreen = () => {
     }
   };
 
+  const getMaximumDobDate = () => {
+    const today = new Date();
+    return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+  };
+
   const handleUpdate = async () => {
     if (!initialData?._id) return;
     
-    // Validation
     if (!form.name || !form.email || !form.mobile || !form.license || !form.gender || !form.dob) {
       Alert.alert("Error", "All fields including License, Gender, and DOB are required.");
       return;
@@ -147,20 +167,22 @@ const EditDriverProfileScreen = () => {
       formData.append("address", JSON.stringify(form.address));
 
       if (newProfileAsset) {
+        // CHANGED: Use Asset mimeType
         // @ts-ignore
         formData.append("profilePhoto", {
           uri: newProfileAsset.uri,
           name: `profile_${Date.now()}.jpg`,
-          type: "image/jpeg", 
+          type: newProfileAsset.mimeType || "image/jpeg", 
         });
       }
 
       if (newLicenseAsset) {
+        // CHANGED: Use Asset mimeType
         // @ts-ignore
         formData.append("licensePhoto", {
           uri: newLicenseAsset.uri,
           name: `license_${Date.now()}.jpg`,
-          type: "image/jpeg",
+          type: newLicenseAsset.mimeType || "image/jpeg",
         });
       }
 
@@ -277,7 +299,7 @@ const EditDriverProfileScreen = () => {
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDobChange}
-              maximumDate={new Date()}
+              maximumDate={getMaximumDobDate()}
             />
           )}
 
@@ -380,11 +402,18 @@ const EditDriverProfileScreen = () => {
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>District</Text>
-              <TextInput
-                style={styles.input}
-                value={form.address.district}
-                onChangeText={(t) => updateAddress('district', t)}
-              />
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowDistrictModal(true)}
+              >
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <MapPin size={20} color="#94A3B8" style={styles.inputIcon} />
+                  <Text style={[styles.dropdownText, !form.address.district && { color: "#94A3B8" }]}>
+                    {form.address.district || "Select District"}
+                  </Text>
+                </View>
+                <ChevronDown size={18} color="#94A3B8" />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -463,6 +492,47 @@ const EditDriverProfileScreen = () => {
                         {item}
                       </Text>
                       {form.gender.toLowerCase() === item.toLowerCase() && <Check size={20} color="#0EA5E9" />}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* District Modal */}
+      <Modal
+        visible={showDistrictModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDistrictModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowDistrictModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select District</Text>
+                  <TouchableOpacity onPress={() => setShowDistrictModal(false)}>
+                    <Text style={styles.closeText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={KERALA_DISTRICTS}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.modalItem} 
+                      onPress={() => handleDistrictSelect(item)}
+                    >
+                      <Text style={[
+                        styles.modalItemText, 
+                        form.address.district === item && styles.selectedModalItemText
+                      ]}>
+                        {item}
+                      </Text>
+                      {form.address.district === item && <Check size={20} color="#0EA5E9" />}
                     </TouchableOpacity>
                   )}
                 />

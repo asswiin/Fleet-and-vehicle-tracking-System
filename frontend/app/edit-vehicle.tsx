@@ -27,7 +27,7 @@ import {
   CheckCircle2 
 } from "lucide-react-native";
 
-const VEHICLE_TYPES = ["Truck", "Lorry", "Van", "Container"];
+const VEHICLE_TYPES = ["Truck", "Lorry", "Pickups", "Container"];
 
 const EditVehicleScreen = () => {
   const router = useRouter();

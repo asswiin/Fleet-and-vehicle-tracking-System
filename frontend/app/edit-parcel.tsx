@@ -13,7 +13,7 @@ import {
   Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Package, User, MapPin, IndianRupee } from "lucide-react-native";
+import { ArrowLeft, Save, Package, User, MapPin } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
 
 const EditParcelScreen = () => {
@@ -30,14 +30,21 @@ const EditParcelScreen = () => {
     senderName: "",
     senderPhone: "",
     senderEmail: "",
-    senderAddress: "",
+    senderHouse: "",
+    senderStreet: "",
+    senderCity: "",
+    senderDistrict: "",
+    senderState: "Kerala",
     recipientName: "",
     recipientPhone: "",
-    recipientAddress: "",
+    recipientHouse: "",
+    recipientStreet: "",
+    recipientCity: "",
+    recipientDistrict: "",
+    recipientState: "Kerala",
     weight: "",
     parcelType: "",
     paymentAmount: "",
-    status: "Booked",
   });
 
   const normalizePhone = (raw?: string) => {
@@ -60,18 +67,32 @@ const EditParcelScreen = () => {
     if (response.ok && response.data) {
       const p = response.data;
       setParcel(p);
+      const senderAddr = p.sender?.address || "";
+      const recipientAddr = p.recipient?.address || "";
+      
+      // Parse address string to components
+      const senderParts = senderAddr.split(",").map((s: string) => s.trim());
+      const recipientParts = recipientAddr.split(",").map((s: string) => s.trim());
+      
       setForm({
         senderName: p.sender?.name || "",
         senderPhone: normalizePhone(p.sender?.phone),
         senderEmail: p.sender?.email || "",
-        senderAddress: p.sender?.address || "",
+        senderHouse: senderParts[0] || "",
+        senderStreet: senderParts[1] || "",
+        senderCity: senderParts[2] || "",
+        senderDistrict: senderParts[3] || "",
+        senderState: senderParts[4] || "Kerala",
         recipientName: p.recipient?.name || "",
         recipientPhone: normalizePhone(p.recipient?.phone),
-        recipientAddress: p.recipient?.address || "",
+        recipientHouse: recipientParts[0] || "",
+        recipientStreet: recipientParts[1] || "",
+        recipientCity: recipientParts[2] || "",
+        recipientDistrict: recipientParts[3] || "",
+        recipientState: recipientParts[4] || "Kerala",
         weight: p.weight?.toString() || "",
         parcelType: p.type || "",
         paymentAmount: p.paymentAmount?.toString() || "",
-        status: p.status || "Booked",
       });
     } else {
       setError(response.error || "Failed to load parcel");
@@ -84,9 +105,11 @@ const EditParcelScreen = () => {
   }, [loadParcel]);
 
   const validate = () => {
-    if (!form.senderName || !form.senderPhone || !form.senderEmail || !form.senderAddress ||
-        !form.recipientName || !form.recipientPhone || !form.recipientAddress ||
-        !form.weight || !form.parcelType || !form.paymentAmount || !form.status) {
+    if (!form.senderName || !form.senderPhone || !form.senderEmail || !form.senderHouse ||
+        !form.senderStreet || !form.senderCity || !form.senderDistrict ||
+        !form.recipientName || !form.recipientPhone || !form.recipientHouse ||
+        !form.recipientStreet || !form.recipientCity || !form.recipientDistrict ||
+        !form.weight || !form.parcelType || !form.paymentAmount) {
       Alert.alert("Missing Fields", "Please fill in all required fields.");
       return false;
     }
@@ -123,22 +146,24 @@ const EditParcelScreen = () => {
     if (!validate()) return;
     setSubmitting(true);
 
+    const senderAddress = `${form.senderHouse}, ${form.senderStreet}, ${form.senderCity}, ${form.senderDistrict}, ${form.senderState}`;
+    const recipientAddress = `${form.recipientHouse}, ${form.recipientStreet}, ${form.recipientCity}, ${form.recipientDistrict}, ${form.recipientState}`;
+
     const payload = {
       sender: {
         name: form.senderName.trim(),
         phone: `+91${form.senderPhone}`,
         email: form.senderEmail.trim(),
-        address: form.senderAddress.trim(),
+        address: senderAddress,
       },
       recipient: {
         name: form.recipientName.trim(),
         phone: `+91${form.recipientPhone}`,
-        address: form.recipientAddress.trim(),
+        address: recipientAddress,
       },
       weight: Number(form.weight),
       type: form.parcelType.trim(),
       paymentAmount: Number(form.paymentAmount),
-      status: form.status.trim(),
     };
 
     const response = await api.updateParcel(parcelId, payload);
@@ -208,16 +233,16 @@ const EditParcelScreen = () => {
       >
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-          {/* Sender */}
+          {/* Sender Details */}
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}> 
               <User size={18} color="#2563EB" />
             </View>
-            <Text style={styles.sectionTitle}>Sender</Text>
+            <Text style={styles.sectionTitle}>Sender Details</Text>
           </View>
           <View style={styles.card}>
-            <LabeledInput label="Name" value={form.senderName} onChange={(t) => setForm({ ...form, senderName: t })} />
-            <LabeledInput label="Phone" keyboardType="number-pad" maxLength={10} prefixText="+91"
+            <LabeledInput label="Sender Name" value={form.senderName} onChange={(t) => setForm({ ...form, senderName: t })} />
+            <LabeledInput label="Phone Number" keyboardType="number-pad" maxLength={10} prefixText="+91"
               value={form.senderPhone}
               onChange={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, senderPhone: t }); }}
               placeholder="9876543210"
@@ -227,49 +252,89 @@ const EditParcelScreen = () => {
               onChange={(t) => setForm({ ...form, senderEmail: t })}
               placeholder="name@example.com"
             />
-            <LabeledInput label="Address" value={form.senderAddress} onChange={(t) => setForm({ ...form, senderAddress: t })}
-              multiline numberOfLines={3}
-            />
+            <LabeledInput label="House / Flat" value={form.senderHouse} onChange={(t) => setForm({ ...form, senderHouse: t })} />
+            <LabeledInput label="Street" value={form.senderStreet} onChange={(t) => setForm({ ...form, senderStreet: t })} />
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.label}>City</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="City"
+                  placeholderTextColor="#94A3B8"
+                  value={form.senderCity}
+                  onChangeText={(t) => setForm({ ...form, senderCity: t })}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>District</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="District"
+                  placeholderTextColor="#94A3B8"
+                  value={form.senderDistrict}
+                  onChangeText={(t) => setForm({ ...form, senderDistrict: t })}
+                />
+              </View>
+            </View>
           </View>
 
-          {/* Recipient */}
+          {/* Recipient Details */}
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}> 
               <MapPin size={18} color="#D97706" />
             </View>
-            <Text style={styles.sectionTitle}>Recipient</Text>
+            <Text style={styles.sectionTitle}>Recipient Details</Text>
           </View>
           <View style={styles.card}>
-            <LabeledInput label="Name" value={form.recipientName} onChange={(t) => setForm({ ...form, recipientName: t })} />
-            <LabeledInput label="Phone" keyboardType="number-pad" maxLength={10} prefixText="+91"
+            <LabeledInput label="Recipient Name" value={form.recipientName} onChange={(t) => setForm({ ...form, recipientName: t })} />
+            <LabeledInput label="Phone Number" keyboardType="number-pad" maxLength={10} prefixText="+91"
               value={form.recipientPhone}
               onChange={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, recipientPhone: t }); }}
               placeholder="9876543210"
             />
-            <LabeledInput label="Address" value={form.recipientAddress} onChange={(t) => setForm({ ...form, recipientAddress: t })}
-              multiline numberOfLines={3}
-            />
+            <LabeledInput label="House / Flat" value={form.recipientHouse} onChange={(t) => setForm({ ...form, recipientHouse: t })} />
+            <LabeledInput label="Street" value={form.recipientStreet} onChange={(t) => setForm({ ...form, recipientStreet: t })} />
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.label}>City</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="City"
+                  placeholderTextColor="#94A3B8"
+                  value={form.recipientCity}
+                  onChangeText={(t) => setForm({ ...form, recipientCity: t })}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>District</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="District"
+                  placeholderTextColor="#94A3B8"
+                  value={form.recipientDistrict}
+                  onChangeText={(t) => setForm({ ...form, recipientDistrict: t })}
+                />
+              </View>
+            </View>
           </View>
 
-          {/* Parcel */}
+          {/* Parcel Details */}
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}> 
               <Package size={18} color="#166534" />
             </View>
-            <Text style={styles.sectionTitle}>Parcel</Text>
+            <Text style={styles.sectionTitle}>Parcel Details</Text>
           </View>
           <View style={styles.card}>
             <LabeledInput label="Weight (kg)" keyboardType="numeric" value={form.weight}
               onChange={(t) => setForm({ ...form, weight: t })}
               placeholder="0.0"
             />
-            <LabeledInput label="Type" value={form.parcelType} onChange={(t) => setForm({ ...form, parcelType: t })} placeholder="Document" />
+            <LabeledInput label="Parcel Type" value={form.parcelType} onChange={(t) => setForm({ ...form, parcelType: t })} placeholder="Document" />
             <LabeledInput label="Payment Amount (₹)" keyboardType="numeric" value={form.paymentAmount}
               onChange={(t) => setForm({ ...form, paymentAmount: t })}
               placeholder="499"
-              icon={<IndianRupee size={16} color="#94A3B8" />}
             />
-            <LabeledInput label="Status" value={form.status} onChange={(t) => setForm({ ...form, status: t })} placeholder="Booked" />
           </View>
 
           <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.7 }]} disabled={submitting} onPress={handleSubmit}>
@@ -373,7 +438,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputGroup: { marginBottom: 12 },
-  label: { fontSize: 12, color: "#64748B", fontWeight: "700", marginBottom: 6 },
+  label: { fontSize: 12, color: "#64748B", fontWeight: "700", marginBottom: 6, textTransform: "uppercase" },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -384,8 +449,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   inputWrapperMultiline: { alignItems: "flex-start", paddingVertical: 10 },
-  input: { flex: 1, paddingVertical: 10, fontSize: 15, color: "#0F172A" },
+  input: { flex: 1, paddingVertical: 10, fontSize: 15, color: "#0F172A", backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10, paddingHorizontal: 12 },
   inputMultiline: { minHeight: 70, textAlignVertical: "top" },
+  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   submitBtn: {
     height: 52,
     backgroundColor: "#2563EB",

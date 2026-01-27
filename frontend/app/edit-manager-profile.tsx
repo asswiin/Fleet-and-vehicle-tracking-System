@@ -60,7 +60,9 @@ const EditManagerProfileScreen: React.FC = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ userData: string }>();
   const [loading, setLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // CHANGED: Store the full asset object to get mimeType
+  const [selectedAsset, setSelectedAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   // Parse Initial Data
   let initialData: User | null = null;
@@ -88,23 +90,17 @@ const EditManagerProfileScreen: React.FC = () => {
     state: initialData?.address?.state || "Kerala",
   });
 
-  // Calculate 18 Years Ago for validation
   const today = new Date();
   const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
 
-  // Date Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  // Handle Date Object for picker
-  // Try to parse existing DOB string to Date object, else fallback
   const getInitialDate = () => {
     if(formData.dob) {
-       // if format is DD/MM/YYYY
        if(formData.dob.includes('/')) {
          const parts = formData.dob.split('/');
          return new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
        }
-       // if ISO
        const d = new Date(formData.dob);
        if(!isNaN(d.getTime())) return d;
     }
@@ -112,11 +108,8 @@ const EditManagerProfileScreen: React.FC = () => {
   }
   
   const [date, setDate] = useState<Date>(getInitialDate());
-
-  // District Modal State
   const [showDistrictModal, setShowDistrictModal] = useState(false);
 
-  // Handlers
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -124,12 +117,10 @@ const EditManagerProfileScreen: React.FC = () => {
     
     if (selectedDate) {
       setDate(selectedDate);
-      
       const day = selectedDate.getDate().toString().padStart(2, '0');
       const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
       const year = selectedDate.getFullYear();
       const formattedDate = `${day}/${month}/${year}`;
-      
       setFormData({ ...formData, dob: formattedDate }); 
     }
   };
@@ -139,7 +130,6 @@ const EditManagerProfileScreen: React.FC = () => {
     setShowDistrictModal(false);
   };
 
-  // IMAGE PICKER HANDLER
   const handlePickImage = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -152,11 +142,12 @@ const EditManagerProfileScreen: React.FC = () => {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets[0]) {
-        setSelectedImage(result.assets[0].uri);
+        // CHANGED: Store full asset
+        setSelectedAsset(result.assets[0]);
       }
     } catch (error) {
       console.error("Image picker error:", error);
@@ -167,15 +158,13 @@ const EditManagerProfileScreen: React.FC = () => {
   const handleUpdate = async () => {
     if (!initialData?._id) return;
 
-    const { name, email, phone, dob, houseName, street, city, district, state } = formData;
+    const { name, email, phone, houseName, city } = formData;
     
-    // Validation
     if (!name.trim() || !email.trim() || !phone.trim() || !houseName.trim() || !city.trim()) {
       Alert.alert("Missing Information", "Please fill in all required fields.");
       return;
     }
 
-    // Phone Validation
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(phone)) {
       Alert.alert("Invalid Phone", "Number must be 10 digits.");
@@ -185,11 +174,10 @@ const EditManagerProfileScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      // If there's a selected image, use multipart upload
-      if (selectedImage) {
+      if (selectedAsset) {
+        // IMAGE UPLOAD FLOW
         const formDataObj = new FormData();
         
-        // Add fields
         formDataObj.append("name", formData.name);
         formDataObj.append("email", formData.email);
         formDataObj.append("phone", `+91${formData.phone}`);
@@ -203,27 +191,25 @@ const EditManagerProfileScreen: React.FC = () => {
           state: formData.state
         }));
 
-        // Add image file
-        const imageFile = {
-          uri: selectedImage,
-          type: "image/jpeg",
+        // CHANGED: Correct file object construction
+        const fileToUpload = {
+          uri: selectedAsset.uri,
           name: `manager-${Date.now()}.jpg`,
-        } as any;
-        formDataObj.append("profilePhoto", imageFile);
+          type: selectedAsset.mimeType || "image/jpeg", // Use actual mime type
+        };
+        
+        // @ts-ignore
+        formDataObj.append("profilePhoto", fileToUpload);
 
         const response = await api.updateUserProfileWithImage(initialData._id, formDataObj);
 
         if (response.ok) {
-          Alert.alert(
-            "Success",
-            "Profile updated successfully!",
-            [{ text: "OK", onPress: () => router.back() }]
-          );
+          Alert.alert("Success", "Profile updated successfully!", [{ text: "OK", onPress: () => router.back() }]);
         } else {
           Alert.alert("Error", response.error || "Failed to update profile");
         }
       } else {
-        // No image, use standard JSON update
+        // JSON UPDATE FLOW (No image changed)
         const payload = {
           name: formData.name,
           email: formData.email,
@@ -242,11 +228,7 @@ const EditManagerProfileScreen: React.FC = () => {
         const response = await api.updateUser(initialData._id, payload);
 
         if (response.ok) {
-          Alert.alert(
-            "Success",
-            "Profile updated successfully!",
-            [{ text: "OK", onPress: () => router.back() }]
-          );
+          Alert.alert("Success", "Profile updated successfully!", [{ text: "OK", onPress: () => router.back() }]);
         } else {
           Alert.alert("Error", response.error || "Failed to update profile");
         }
@@ -282,10 +264,10 @@ const EditManagerProfileScreen: React.FC = () => {
                 style={styles.profilePhotoContainer}
                 onPress={handlePickImage}
               >
-                {selectedImage || initialData?.profilePhoto ? (
+                {selectedAsset || initialData?.profilePhoto ? (
                   <>
                     <Image
-                      source={{ uri: selectedImage || api.getImageUrl(initialData?.profilePhoto) || undefined }}
+                      source={{ uri: selectedAsset?.uri || api.getImageUrl(initialData?.profilePhoto) || undefined }}
                       style={styles.profilePhoto}
                     />
                     <View style={styles.cameraOverlay}>
@@ -299,10 +281,10 @@ const EditManagerProfileScreen: React.FC = () => {
                   </View>
                 )}
               </TouchableOpacity>
-              {selectedImage && (
+              {selectedAsset && (
                 <TouchableOpacity
                   style={styles.removePhotoBtn}
-                  onPress={() => setSelectedImage(null)}
+                  onPress={() => setSelectedAsset(null)}
                 >
                   <X size={20} color="#EF4444" />
                   <Text style={styles.removePhotoText}>Remove</Text>
@@ -636,7 +618,6 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.7 },
   submitButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

@@ -145,7 +145,10 @@ const ManagerDashboard = () => {
               <Text style={styles.actionLabel}>Trips</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity 
+              style={styles.actionItem}
+              onPress={() => router.push("selecting-parcel" as any)}
+            >
               <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
                 <Navigation size={24} color="#9333EA" />
               </View>

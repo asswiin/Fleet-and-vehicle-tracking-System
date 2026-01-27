@@ -21,16 +21,34 @@ import {
   RefreshCw, 
 } from "lucide-react-native";
 import { useState, useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import * as Location from "expo-location";
-import MapView, { Marker, Circle, PROVIDER_DEFAULT } from "react-native-maps"; // Import Map Components
 import { api, Driver } from "../utils/api";
+
+// Only import react-native-maps on native platforms
+let MapView: any, Marker: any, Circle: any, PROVIDER_DEFAULT: any;
+if (Platform.OS !== 'web') {
+  const maps = require("react-native-maps");
+  MapView = maps.default;
+  Marker = maps.Marker;
+  Circle = maps.Circle;
+  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
+}
+
+type MapViewType = typeof MapView;
 
 // ==================================================
 // 📍 CONFIGURATION
 // ==================================================
 const OFFICE_LOCATION = {
+  latitude: 11.312394,
+  longitude: 75.951408,
+  name: "College Location"
+};
+const WAREHOUSE_LOCATION = {
   latitude: 11.622351,
-  longitude: 76.072485
+  longitude: 76.072485,
+  name: "Home Location"
 };
 const ALLOWED_RADIUS_METERS = 500; 
 // ==================================================
@@ -45,7 +63,7 @@ const PunchingScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const driverId = params.driverId as string;
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapViewType>(null);
 
   const [driverData, setDriverData] = useState<Driver | null>(null);
   const [punchHistory, setPunchHistory] = useState<PunchRecord[]>([]);
@@ -59,6 +77,7 @@ const PunchingScreen = () => {
   const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
   const [distanceToOffice, setDistanceToOffice] = useState<number | null>(null);
   const [isInsideOffice, setIsInsideOffice] = useState<boolean | null>(null);
+  const [nearestLocation, setNearestLocation] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDriver();
@@ -110,6 +129,19 @@ const PunchingScreen = () => {
 
   const deg2rad = (deg: number) => deg * (Math.PI / 180);
 
+  const isWithinAllowedLocation = (lat: number, lon: number): { isAllowed: boolean; location: string | null } => {
+    const distToOffice = getDistanceFromLatLonInMeters(lat, lon, OFFICE_LOCATION.latitude, OFFICE_LOCATION.longitude);
+    const distToWarehouse = getDistanceFromLatLonInMeters(lat, lon, WAREHOUSE_LOCATION.latitude, WAREHOUSE_LOCATION.longitude);
+    
+    const minDistance = Math.min(distToOffice, distToWarehouse);
+    const location = distToOffice < distToWarehouse ? OFFICE_LOCATION.name : WAREHOUSE_LOCATION.name;
+    
+    return {
+      isAllowed: minDistance <= ALLOWED_RADIUS_METERS,
+      location: minDistance <= ALLOWED_RADIUS_METERS ? location : null
+    };
+  };
+
   const getCurrentLocation = async () => {
     setIsLocationLoading(true);
     try {
@@ -129,15 +161,26 @@ const PunchingScreen = () => {
       
       setCurrentCoords(newCoords);
 
-      // Calculate distance to office
-      const distance = getDistanceFromLatLonInMeters(
+      // Calculate distances to both locations
+      const distToOffice = getDistanceFromLatLonInMeters(
         location.coords.latitude,
         location.coords.longitude,
         OFFICE_LOCATION.latitude,
         OFFICE_LOCATION.longitude
       );
-      setDistanceToOffice(distance);
-      setIsInsideOffice(distance <= ALLOWED_RADIUS_METERS);
+      const distToWarehouse = getDistanceFromLatLonInMeters(
+        location.coords.latitude,
+        location.coords.longitude,
+        WAREHOUSE_LOCATION.latitude,
+        WAREHOUSE_LOCATION.longitude
+      );
+      
+      const minDistance = Math.min(distToOffice, distToWarehouse);
+      const nearestLoc = distToOffice < distToWarehouse ? OFFICE_LOCATION.name : WAREHOUSE_LOCATION.name;
+      
+      setDistanceToOffice(minDistance);
+      setNearestLocation(nearestLoc);
+      setIsInsideOffice(minDistance <= ALLOWED_RADIUS_METERS);
 
       // Animate map to new location
       if (mapRef.current) {
@@ -174,17 +217,27 @@ const PunchingScreen = () => {
     try {
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       
-      const distance = getDistanceFromLatLonInMeters(
+      const distToOffice = getDistanceFromLatLonInMeters(
         location.coords.latitude,
         location.coords.longitude,
         OFFICE_LOCATION.latitude,
         OFFICE_LOCATION.longitude
       );
+      
+      const distToWarehouse = getDistanceFromLatLonInMeters(
+        location.coords.latitude,
+        location.coords.longitude,
+        WAREHOUSE_LOCATION.latitude,
+        WAREHOUSE_LOCATION.longitude
+      );
 
-      if (distance > ALLOWED_RADIUS_METERS) {
+      const minDistance = Math.min(distToOffice, distToWarehouse);
+      const location_name = distToOffice < distToWarehouse ? OFFICE_LOCATION.name : WAREHOUSE_LOCATION.name;
+
+      if (minDistance > ALLOWED_RADIUS_METERS) {
         Alert.alert(
           "Out of Range",
-          `You are ${Math.round(distance)}m away from office.\nMust be within ${ALLOWED_RADIUS_METERS}m.`
+          `You are ${Math.round(minDistance)}m away from ${location_name}.\nMust be within ${ALLOWED_RADIUS_METERS}m of either location.`
         );
         return false;
       }
@@ -344,7 +397,7 @@ const PunchingScreen = () => {
         <View style={styles.driverCard}>
           <View style={styles.avatar}>
             {driverData?.profilePhoto ? (
-              <Image source={{ uri: api.getImageUrl(driverData.profilePhoto) }} style={styles.avatarImage} />
+              <Image source={{ uri: api.getImageUrl(driverData.profilePhoto) || "" }} style={styles.avatarImage} />
             ) : (
               <Text style={styles.avatarText}>{initials}</Text>
             )}
@@ -385,19 +438,30 @@ const PunchingScreen = () => {
                     style={styles.map}
                     initialRegion={{
                       ...currentCoords,
-                      latitudeDelta: 0.005,
-                      longitudeDelta: 0.005,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
                     }}
                   >
                     {/* Office Marker */}
-                    <Marker coordinate={OFFICE_LOCATION} title="Office" pinColor="red" />
+                    <Marker coordinate={OFFICE_LOCATION} title={OFFICE_LOCATION.name} pinColor="red" />
                     
-                    {/* Allowed Radius */}
+                    {/* Office Allowed Radius */}
                     <Circle 
                       center={OFFICE_LOCATION} 
                       radius={ALLOWED_RADIUS_METERS} 
-                      fillColor="rgba(37, 99, 235, 0.1)" 
-                      strokeColor="rgba(37, 99, 235, 0.5)" 
+                      fillColor="rgba(239, 68, 68, 0.1)" 
+                      strokeColor="rgba(239, 68, 68, 0.5)" 
+                    />
+
+                    {/* Warehouse Marker */}
+                    <Marker coordinate={WAREHOUSE_LOCATION} title={WAREHOUSE_LOCATION.name} pinColor="orange" />
+                    
+                    {/* Warehouse Allowed Radius */}
+                    <Circle 
+                      center={WAREHOUSE_LOCATION} 
+                      radius={ALLOWED_RADIUS_METERS} 
+                      fillColor="rgba(249, 115, 22, 0.1)" 
+                      strokeColor="rgba(249, 115, 22, 0.5)" 
                     />
 
                     {/* Driver Position */}
@@ -436,10 +500,10 @@ const PunchingScreen = () => {
                   styles.locationStatusTitle,
                   isInsideOffice ? { color: "#10B981" } : { color: "#EF4444" }
                 ]}>
-                  {isInsideOffice ? "Inside Office Range" : "Outside Office Range"}
+                  {isInsideOffice ? "Inside Allowed Area" : "Outside Allowed Area"}
                 </Text>
                 <Text style={styles.locationStatusDistance}>
-                  {distanceToOffice ? `${Math.round(distanceToOffice)}m away` : "Calculating..."} • {isInsideOffice ? "✓ Can Punch" : "✗ Cannot Punch"}
+                  {distanceToOffice ? `${Math.round(distanceToOffice)}m from ${nearestLocation}` : "Calculating..."} • {isInsideOffice ? "✓ Can Punch" : "✗ Cannot Punch"}
                 </Text>
               </View>
             </View>
