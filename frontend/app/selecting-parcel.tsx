@@ -11,9 +11,10 @@ import {
   Alert,
   FlatList,
   StatusBar,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Search, MapPin, Package, CheckCircle2, Circle, Box } from "lucide-react-native";
+import { ArrowLeft, Search, MapPin, Package, CheckCircle2, Circle, Box, X, MapPinIcon, User, Weight, Layers } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
 
 const SelectingParcelScreen = () => {
@@ -24,6 +25,7 @@ const SelectingParcelScreen = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [totalWeight, setTotalWeight] = useState(0);
+  const [selectedParcelDetail, setSelectedParcelDetail] = useState<Parcel | null>(null);
 
   // Fetch parcels
   React.useEffect(() => {
@@ -97,11 +99,12 @@ const SelectingParcelScreen = () => {
     const state = addressParts[4]?.trim() || "---";
 
     return (
-      <TouchableOpacity
-        style={[styles.parcelCard, isSelected && styles.parcelCardSelected]}
-        onPress={() => toggleParcelSelection(item._id, item.weight || 0)}
-      >
-        <View style={styles.checkboxContainer}>
+      <View style={[styles.parcelCard, isSelected && styles.parcelCardSelected]}>
+        {/* Checkbox Circle - Click to Select */}
+        <TouchableOpacity
+          style={styles.checkboxContainer}
+          onPress={() => toggleParcelSelection(item._id, item.weight || 0)}
+        >
           {isSelected ? (
             <View style={styles.checkboxChecked}>
               <CheckCircle2 size={24} color="#2563EB" />
@@ -109,39 +112,45 @@ const SelectingParcelScreen = () => {
           ) : (
             <Circle size={24} color="#D1D5DB" />
           )}
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.parcelInfo}>
-          <Text style={styles.parcelName}>
-            {item.trackingId || "Parcel"}
-          </Text>
-          
-          {/* Destination */}
-          <View style={styles.parcelDetailsRow}>
-            <View style={[styles.detailItem, styles.destinationItem]}>
-              <MapPin size={16} color="#DC2626" style={{ marginRight: 4 }} />
-              <Text style={styles.destinationLabel}>Destination:</Text>
-              <Text style={styles.destinationText} numberOfLines={1}>
-                {city}, {district}, {state}
-              </Text>
+        {/* Parcel Info - Click to View Details */}
+        <TouchableOpacity
+          style={styles.parcelInfoContainer}
+          onPress={() => setSelectedParcelDetail(item)}
+        >
+          <View style={styles.parcelInfo}>
+            <Text style={styles.parcelName}>
+              {item.trackingId || "Parcel"}
+            </Text>
+            
+            {/* Destination */}
+            <View style={styles.parcelDetailsRow}>
+              <View style={[styles.detailItem, styles.destinationItem]}>
+                <MapPin size={16} color="#DC2626" style={{ marginRight: 4 }} />
+                <Text style={styles.destinationLabel}>Destination:</Text>
+                <Text style={styles.destinationText} numberOfLines={1}>
+                  {city}, {district}, {state}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Weight and Type */}
+            <View style={styles.parcelDetailsRow}>
+              <View style={[styles.detailItem, styles.weightItem]}>
+                <Package size={16} color="#059669" style={{ marginRight: 4 }} />
+                <Text style={styles.weightLabel}>Weight:</Text>
+                <Text style={styles.weightText}>{item.weight || "---"} kg</Text>
+              </View>
+              <View style={[styles.detailItem, styles.typeItem]}>
+                <Box size={16} color="#7C3AED" style={{ marginRight: 4 }} />
+                <Text style={styles.typeLabel}>Type:</Text>
+                <Text style={styles.typeText}>{item.type || "---"}</Text>
+              </View>
             </View>
           </View>
-          
-          {/* Weight and Type */}
-          <View style={styles.parcelDetailsRow}>
-            <View style={[styles.detailItem, styles.weightItem]}>
-              <Package size={16} color="#059669" style={{ marginRight: 4 }} />
-              <Text style={styles.weightLabel}>Weight:</Text>
-              <Text style={styles.weightText}>{item.weight || "---"} kg</Text>
-            </View>
-            <View style={[styles.detailItem, styles.typeItem]}>
-              <Box size={16} color="#7C3AED" style={{ marginRight: 4 }} />
-              <Text style={styles.typeLabel}>Type:</Text>
-              <Text style={styles.typeText}>{item.type || "---"}</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -217,6 +226,151 @@ const SelectingParcelScreen = () => {
           <Text style={styles.nextButtonText}>Next →</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Parcel Detail Modal */}
+      <Modal
+        visible={selectedParcelDetail !== null}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedParcelDetail(null)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setSelectedParcelDetail(null)}>
+              <X size={24} color="#1E293B" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Parcel Details</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {selectedParcelDetail && (
+              <>
+                {/* Tracking ID */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Tracking Information</Text>
+                  <View style={styles.detailBox}>
+                    <Text style={styles.detailLabel}>Tracking ID</Text>
+                    <Text style={styles.detailValue}>{selectedParcelDetail.trackingId}</Text>
+                  </View>
+                  <View style={styles.detailBox}>
+                    <Text style={styles.detailLabel}>Status</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: selectedParcelDetail.status === "Booked" ? "#DBEAFE" : "#FEF2F2" }]}>
+                      <Text style={[styles.statusText, { color: selectedParcelDetail.status === "Booked" ? "#0C4A6E" : "#991B1B" }]}>
+                        {selectedParcelDetail.status || "Booked"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Recipient Details */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Recipient Information</Text>
+                  <View style={styles.detailBox}>
+                    <View style={styles.iconRow}>
+                      <User size={18} color="#6366F1" style={{ marginRight: 8 }} />
+                      <Text style={styles.detailLabel}>Recipient Name</Text>
+                    </View>
+                    <Text style={styles.detailValue}>{selectedParcelDetail.recipient?.name || "---"}</Text>
+                  </View>
+                  <View style={styles.detailBox}>
+                    <View style={styles.iconRow}>
+                      <MapPinIcon size={18} color="#DC2626" style={{ marginRight: 8 }} />
+                      <Text style={styles.detailLabel}>Delivery Address</Text>
+                    </View>
+                    <Text style={styles.detailValue}>{selectedParcelDetail.recipient?.address || "---"}</Text>
+                  </View>
+                  {selectedParcelDetail.recipient?.phone && (
+                    <View style={styles.detailBox}>
+                      <Text style={styles.detailLabel}>Phone</Text>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.recipient?.phone}</Text>
+                    </View>
+                  )}
+                  {selectedParcelDetail.recipient?.email && (
+                    <View style={styles.detailBox}>
+                      <Text style={styles.detailLabel}>Email</Text>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.recipient?.email}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Parcel Specifications */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Parcel Specifications</Text>
+                  <View style={styles.specRow}>
+                    <View style={[styles.detailBox, styles.specBox]}>
+                      <View style={styles.iconRow}>
+                        <Weight size={18} color="#059669" style={{ marginRight: 8 }} />
+                        <Text style={styles.detailLabel}>Weight</Text>
+                      </View>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.weight || "---"} kg</Text>
+                    </View>
+                    <View style={[styles.detailBox, styles.specBox]}>
+                      <View style={styles.iconRow}>
+                        <Layers size={18} color="#7C3AED" style={{ marginRight: 8 }} />
+                        <Text style={styles.detailLabel}>Type</Text>
+                      </View>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.type || "---"}</Text>
+                    </View>
+                  </View>
+                  {selectedParcelDetail.dimensions && (
+                    <View style={styles.detailBox}>
+                      <Text style={styles.detailLabel}>Dimensions</Text>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.dimensions}</Text>
+                    </View>
+                  )}
+                  {selectedParcelDetail.fragile && (
+                    <View style={[styles.detailBox, styles.fragileBadge]}>
+                      <Text style={styles.fragileText}>⚠️ FRAGILE - Handle with care</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Additional Details */}
+                {selectedParcelDetail.description && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitle}>Description</Text>
+                    <View style={styles.detailBox}>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.description}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {selectedParcelDetail.specialInstructions && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitle}>Special Instructions</Text>
+                    <View style={[styles.detailBox, styles.instructionBox]}>
+                      <Text style={styles.detailValue}>{selectedParcelDetail.specialInstructions}</Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+          </ScrollView>
+
+          {/* Modal Footer - Selection Button */}
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[
+                styles.selectButton,
+                selectedParcelDetail && selectedParcels.has(selectedParcelDetail._id) && styles.selectButtonSelected
+              ]}
+              onPress={() => {
+                if (selectedParcelDetail) {
+                  toggleParcelSelection(selectedParcelDetail._id, selectedParcelDetail.weight || 0);
+                }
+              }}
+            >
+              <Text style={[
+                styles.selectButtonText,
+                selectedParcelDetail && selectedParcels.has(selectedParcelDetail._id) && styles.selectButtonTextSelected
+              ]}>
+                {selectedParcelDetail && selectedParcels.has(selectedParcelDetail._id) ? "✓ Selected" : "Select Parcel"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -269,6 +423,7 @@ const styles = StyleSheet.create({
   },
   checkboxContainer: { marginRight: 12 },
   checkboxChecked: { width: 24, height: 24, justifyContent: "center", alignItems: "center" },
+  parcelInfoContainer: { flex: 1 },
   parcelInfo: { flex: 1 },
   parcelName: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 6 },
   parcelDetailsRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
@@ -316,6 +471,68 @@ const styles = StyleSheet.create({
   },
   nextButtonDisabled: { opacity: 0.5, backgroundColor: "#94A3B8" },
   nextButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  
+  // Modal Styles
+  modalContainer: { flex: 1, backgroundColor: "#F8FAFC" },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  modalContent: { flex: 1, paddingHorizontal: 16, paddingVertical: 12 },
+  detailSection: { marginBottom: 20 },
+  sectionTitle: { fontSize: 14, fontWeight: "700", color: "#0F172A", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 },
+  detailBox: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  specBox: { flex: 1 },
+  specRow: { flexDirection: "row", gap: 10 },
+  detailLabel: { fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.3 },
+  detailValue: { fontSize: 14, fontWeight: "700", color: "#0F172A", marginTop: 6 },
+  iconRow: { flexDirection: "row", alignItems: "center" },
+  statusBadge: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, alignSelf: "flex-start" },
+  statusText: { fontSize: 12, fontWeight: "600" },
+  fragileBadge: { backgroundColor: "#FEF3C7", borderColor: "#FCD34D" },
+  fragileText: { fontSize: 13, fontWeight: "700", color: "#92400E" },
+  instructionBox: { backgroundColor: "#F0FDF4", borderColor: "#DCFCE7" },
+  modalFooter: {
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  selectButton: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  selectButtonSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  selectButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#374151",
+  },
+  selectButtonTextSelected: {
+    color: "#fff",
+  },
 });
 
 export default SelectingParcelScreen;

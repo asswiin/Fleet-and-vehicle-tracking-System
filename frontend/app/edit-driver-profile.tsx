@@ -58,12 +58,21 @@ const EditDriverProfileScreen = () => {
     ? initialData.mobile.substring(3) 
     : initialData?.mobile || "";
 
+  // Format license with space after first 4 characters
+  const formatLicenseDisplay = (license: string) => {
+    const cleaned = license.toUpperCase().replace(/\s/g, '');
+    if (cleaned.length > 4) {
+      return cleaned.slice(0, 4) + ' ' + cleaned.slice(4);
+    }
+    return cleaned;
+  };
+
   // Form State
   const [form, setForm] = useState({
     name: initialData?.name || "",
     email: initialData?.email || "",
     mobile: cleanMobile,
-    license: initialData?.license || "",
+    license: formatLicenseDisplay(initialData?.license || ""),
     gender: initialData?.gender || "",
     dob: initialData?.dob || "",
     address: {
@@ -146,6 +155,23 @@ const EditDriverProfileScreen = () => {
     return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
   };
 
+  // License formatting with auto-space (same as register-driver)
+  const handleLicenseChange = (text: string) => {
+    // Remove all spaces and convert to uppercase
+    const cleaned = text.toUpperCase().replace(/\s/g, '');
+    
+    // Format: AAXX YYYYYYYYYYY (space after first 4 characters)
+    let formatted = cleaned;
+    if (cleaned.length > 4) {
+      formatted = cleaned.slice(0, 4) + ' ' + cleaned.slice(4);
+    }
+    
+    // Limit to 15 characters (excluding space)
+    if (cleaned.length <= 15) {
+      setForm({ ...form, license: formatted });
+    }
+  };
+
   const handleUpdate = async () => {
     if (!initialData?._id) return;
     
@@ -154,14 +180,53 @@ const EditDriverProfileScreen = () => {
       return;
     }
 
+    // Mobile Validation (10 digits, starts with 6-9)
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(form.mobile)) {
+      Alert.alert("Invalid Phone", "Enter a valid 10-digit phone number starting with 6, 7, 8, or 9.");
+      return;
+    }
+
+    // Email Validation (Allowed Providers)
+    const allowedDomainsRegex = /@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com|icloud\.com|proton\.me|protonmail\.com|zoho\.com|aol\.com|mail\.com|gmx\.com|yandex\.com|rediffmail\.com|yahoo\.co\.in|outlook\.in|live\.com|msn\.com|hey\.com)$/i;
+    const standardEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    
+    if (!standardEmailRegex.test(form.email) || !allowedDomainsRegex.test(form.email)) {
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
+    // License Validation (Format: AA XX YYYY XXXXXXX - Total 15 alphanumeric characters)
+    const cleanLicense = form.license.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const licenseRegex = /^[A-Z]{2}[0-9]{13}$/;
+
+    if (cleanLicense.length !== 15 || !licenseRegex.test(cleanLicense)) {
+      Alert.alert(
+        "Invalid License", 
+        "License must follow format: State(2) RTO(2) Year(4) ID(7).\nExample: MH14 20110062821"
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Check if license already exists for another driver
+      const licenseCheck = await api.checkLicenseExists(cleanLicense, initialData._id);
+      if (licenseCheck.ok && licenseCheck.data?.exists) {
+        setLoading(false);
+        Alert.alert(
+          "License Already Exists", 
+          `This license number is already registered to another driver${licenseCheck.data.driverName ? ` (${licenseCheck.data.driverName})` : ''}.`
+        );
+        return;
+      }
+
       const formData = new FormData();
       formData.append("name", form.name);
       formData.append("email", form.email);
       formData.append("mobile", form.mobile.startsWith('+91') ? form.mobile : `+91${form.mobile}`);
-      formData.append("license", form.license);
+      formData.append("license", cleanLicense); // Send cleaned license
       formData.append("gender", form.gender);
       formData.append("dob", form.dob);
       formData.append("address", JSON.stringify(form.address));
@@ -342,9 +407,14 @@ const EditDriverProfileScreen = () => {
                 value={form.license}
                 autoCapitalize="characters"
                 maxLength={16}
-                onChangeText={(t) => setForm({...form, license: t.toUpperCase()})}
+                placeholder="KL01 20200012345"
+                placeholderTextColor="#94A3B8"
+                onChangeText={handleLicenseChange}
               />
             </View>
+            <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+              Format: State(2) RTO(2) Year(4) ID(7) - e.g., KL01 20200012345
+            </Text>
           </View>
 
           {/* --- LICENSE PHOTO --- */}

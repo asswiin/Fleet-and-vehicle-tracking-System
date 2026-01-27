@@ -104,6 +104,28 @@ router.post("/register", async (req, res) => {
   }
 });
 
+// GET: Check if license exists (for another driver)
+router.get("/check-license/:license", async (req, res) => {
+  try {
+    const { license } = req.params;
+    const { excludeId } = req.query; // Exclude current driver when editing
+
+    const query = { license: license };
+    if (excludeId) {
+      query._id = { $ne: excludeId }; // Exclude the current driver
+    }
+
+    const existingDriver = await Driver.findOne(query);
+    
+    res.json({ 
+      exists: !!existingDriver,
+      driverName: existingDriver?.name || null
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 // GET: Fetch all drivers
 router.get("/", async (req, res) => {
   try {
@@ -142,7 +164,7 @@ const handleDriverUpload = (req, res, next) => {
 // PUT: Update Driver Profile (supports JSON or multipart with images)
 router.put("/:id", handleDriverUpload, async (req, res) => {
   try {
-    const { name, mobile, email } = req.body || {};
+    const { name, mobile, email, license, gender, dob } = req.body || {};
     let { address } = req.body || {};
 
     // Basic validation
@@ -164,6 +186,27 @@ router.put("/:id", handleDriverUpload, async (req, res) => {
       mobile,
       email,
     };
+
+    // Add license if provided
+    if (license) {
+      updateData.license = license;
+    }
+
+    // Add gender if provided (validate it)
+    if (gender) {
+      const validGenders = ["male", "female", "other"];
+      if (validGenders.includes(gender.toLowerCase())) {
+        updateData.gender = gender.toLowerCase();
+      }
+    }
+
+    // Add DOB if provided
+    if (dob) {
+      const dobDate = new Date(dob);
+      if (!Number.isNaN(dobDate.getTime())) {
+        updateData.dob = dobDate;
+      }
+    }
 
     if (address) {
       updateData.address = address;

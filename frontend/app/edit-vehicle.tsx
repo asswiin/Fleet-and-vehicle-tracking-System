@@ -61,6 +61,68 @@ const EditVehicleScreen = () => {
     value: new Date(),
   });
 
+  // Handle Registration Number Input with Formatting
+  const handleRegNumberChange = (text: string) => {
+    // 1. Clean input: Remove non-alphanumeric, convert to uppercase
+    let cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    // 2. Limit Raw Length (State(2)+Dist(2)+Series(2)+Num(4) = Max 10 chars)
+    if (cleaned.length > 10) {
+      cleaned = cleaned.substring(0, 10);
+    }
+
+    let formatted = "";
+
+    // 3. Construct the formatted string
+    
+    // Part 1: State (First 2 chars)
+    if (cleaned.length > 0) {
+      formatted = cleaned.substring(0, 2);
+    }
+
+    // Part 2: District (Next 2 chars)
+    if (cleaned.length >= 3) {
+      formatted += " " + cleaned.substring(2, 4);
+    }
+
+    // Part 3: Series (1 or 2 Letters) & Number (1 to 4 Digits)
+    if (cleaned.length >= 5) {
+      const remaining = cleaned.substring(4);
+      
+      // Regex separates Letters (Series) from Digits (Number)
+      const match = remaining.match(/^([A-Z]*)([0-9]*)$/);
+
+      if (match) {
+        const series = match[1]; // Captured letters
+        const number = match[2]; // Captured numbers
+
+        // Add space before Series if series exists
+        if (series.length > 0) {
+          formatted += " " + series;
+        }
+
+        // Add space before Number if number exists
+        if (number.length > 0) {
+           formatted += " " + number;
+        }
+      } else {
+        formatted += " " + remaining;
+      }
+    }
+
+    setForm({ ...form, regNumber: formatted });
+  };
+
+  const validateRegNumber = (reg: string): boolean => {
+    // Format: 
+    // ^[A-Z]{2}    -> 2 Letters (State)
+    // \s[0-9]{2}   -> Space + 2 Numbers (District)
+    // \s[A-Z]{1,2} -> Space + 1 or 2 Letters (Series)
+    // \s[0-9]{1,4} -> Space + 1 to 4 Numbers (Unique ID)
+    const regex = /^[A-Z]{2}\s[0-9]{2}\s[A-Z]{1,2}\s[0-9]{1,4}$/;
+    return regex.test(reg);
+  };
+
   // Helper to handle date changes
   const onDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === "android") {
@@ -91,9 +153,30 @@ const EditVehicleScreen = () => {
       return;
     }
 
+    if (!validateRegNumber(form.regNumber)) {
+      Alert.alert("Invalid Registration Number", "Please enter a valid registration number in format: KL 01 AB 1234");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Check if registration number already exists for a different vehicle
+      const vehiclesResponse = await api.getVehicles();
+      if (vehiclesResponse.ok && vehiclesResponse.data) {
+        const isDuplicate = vehiclesResponse.data.some(
+          (vehicle: any) => 
+            vehicle.regNumber === form.regNumber && 
+            vehicle._id !== initialData._id // Exclude current vehicle
+        );
+
+        if (isDuplicate) {
+          Alert.alert("Registration Number Already Exists", "This registration number is already registered for another vehicle.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const response = await api.updateVehicle(initialData._id, form);
 
       if (response.ok) {
@@ -136,8 +219,9 @@ const EditVehicleScreen = () => {
           <TextInput
             style={styles.input}
             value={form.regNumber}
-            onChangeText={(t) => setForm({ ...form, regNumber: t.toUpperCase() })}
+            onChangeText={handleRegNumberChange}
             placeholder="KL 01 AB 1234"
+            maxLength={13}
           />
         </View>
 

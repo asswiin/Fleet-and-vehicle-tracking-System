@@ -24,16 +24,7 @@ import { useState, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import { api, Driver } from "../utils/api";
-
-// Only import react-native-maps on native platforms
-let MapView: any, Marker: any, Circle: any, PROVIDER_DEFAULT: any;
-if (Platform.OS !== 'web') {
-  const maps = require("react-native-maps");
-  MapView = maps.default;
-  Marker = maps.Marker;
-  Circle = maps.Circle;
-  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
-}
+import { MapView, Marker, Circle, PROVIDER_DEFAULT, isMapAvailable, WebMapFallback } from "../components/MapViewWrapper";
 
 type MapViewType = typeof MapView;
 
@@ -431,7 +422,9 @@ const PunchingScreen = () => {
              </View>
              
              <View style={styles.mapContainer}>
-                {currentCoords ? (
+                {!isMapAvailable ? (
+                  <WebMapFallback style={styles.map} />
+                ) : currentCoords ? (
                   <MapView
                     ref={mapRef}
                     provider={PROVIDER_DEFAULT}

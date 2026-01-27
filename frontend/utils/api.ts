@@ -267,6 +267,8 @@ export const api = {
   punchDriver: (id: string) => apiCall(`/api/drivers/${id}/punch`, { method: "POST" }),
   punchOutDriver: (id: string) => apiCall(`/api/drivers/${id}/punch-out`, { method: "POST" }),
   getPunchHistory: (id: string) => apiCall(`/api/drivers/${id}/punch-history`, { method: "GET" }),
+  checkLicenseExists: (license: string, excludeId?: string) => 
+    apiCall(`/api/drivers/check-license/${license}${excludeId ? `?excludeId=${excludeId}` : ''}`),
 
   // DRIVER IMAGE UPLOAD (Special Handling)
   updateDriverProfileWithImage: async (id: string, formData: FormData) => {

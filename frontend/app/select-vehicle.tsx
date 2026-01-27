@@ -159,6 +159,7 @@ const SelectVehicleScreen = () => {
     const capacity = getVehicleCapacity(item);
     const bestMatch = getBestMatch();
     const isBestMatch = item._id === bestMatch;
+    const remainingSpace = capacity - totalWeight;
 
     return (
       <View style={[styles.vehicleCard, isSelected && styles.vehicleCardSelected]}>
@@ -176,6 +177,18 @@ const SelectVehicleScreen = () => {
             <Text style={styles.vehicleName}>{item.regNumber}</Text>
             <Text style={styles.vehicleDetails}>{item.model} • {item.type}</Text>
             <Text style={styles.vehicleCapacity}>Max Capacity: {capacity}kg</Text>
+          </View>
+        </View>
+
+        <View style={styles.capacityBreakdown}>
+          <View style={styles.breakdownItem}>
+            <Text style={styles.breakdownLabel}>Load</Text>
+            <Text style={styles.breakdownValue}>{totalWeight.toFixed(1)}kg</Text>
+          </View>
+          <View style={styles.breakdownDivider} />
+          <View style={styles.breakdownItem}>
+            <Text style={styles.breakdownLabel}>Available Space</Text>
+            <Text style={styles.breakdownValueAvailable}>{remainingSpace.toFixed(1)}kg</Text>
           </View>
         </View>
 
@@ -230,7 +243,7 @@ const SelectVehicleScreen = () => {
         <Shield size={20} color="#2563EB" />
         <View style={styles.tripLoadInfo}>
           <Text style={styles.tripLoadTitle}>Trip Load: {totalWeight.toFixed(1)}kg</Text>
-          <Text style={styles.tripLoadSubtitle}>Showing vehicles with capacity > {totalWeight.toFixed(1)}kg</Text>
+          <Text style={styles.tripLoadSubtitle}>Showing vehicles with capacity {'>'} {totalWeight.toFixed(1)}kg</Text>
         </View>
       </View>
 
@@ -370,6 +383,43 @@ const styles = StyleSheet.create({
   vehicleName: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   vehicleDetails: { fontSize: 14, color: "#64748B", marginTop: 2 },
   vehicleCapacity: { fontSize: 12, color: "#059669", fontWeight: "600", marginTop: 4 },
+  capacityBreakdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  breakdownItem: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  breakdownValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#F59E0B",
+  },
+  breakdownValueAvailable: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#10B981",
+  },
+  breakdownDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "#D1D5DB",
+  },
   selectButton: {
     backgroundColor: "#fff",
     borderWidth: 1,
