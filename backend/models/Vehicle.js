@@ -12,11 +12,18 @@ const vehicleSchema = new mongoose.Schema(
     pollutionExpiry: { type: String, default: "" },
     taxExpiry: { type: String, default: "" },
 
-    // Status (Active, Maintenance, etc.)
-    status: { type: String, default: "Active" },
+    // Status (Active, On-trip, Maintenance, In-Service, Sold)
+    status: { 
+      type: String, 
+      enum: ["Active", "On-trip", "Maintenance", "In-Service", "Sold"],
+      default: "Active" 
+    },
     
-    // Optional: Link to a driver later
-    driverId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }
+    // Track current trip ID
+    currentTripId: { type: String, default: null },
+    
+    // Optional: Link to a driver
+    driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", default: null }
   },
   { timestamps: true }
 );

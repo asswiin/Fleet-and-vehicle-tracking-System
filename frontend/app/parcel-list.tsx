@@ -96,6 +96,12 @@ const ParcelListScreen = () => {
           <Text style={styles.metaText}>{item.weight ? `${item.weight} kg` : "--"} • {item.type || "Parcel"}</Text>
           <Text style={styles.dateText}>{item.date ? new Date(item.date).toLocaleDateString() : "--"}</Text>
         </View>
+
+        {item.tripId && (
+          <View style={styles.tripInfoBanner}>
+            <Text style={styles.tripInfoText}>🚚 Trip: {item.tripId}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -215,6 +221,20 @@ const styles = StyleSheet.create({
   statusTextDelivered: { color: "#15803D" },
   statusInTransit: { backgroundColor: "#FEF3C7", borderColor: "#FDE68A" },
   statusTextInTransit: { color: "#D97706" },
+  tripInfoBanner: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  tripInfoText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1E40AF",
+  },
   errorBox: {
     backgroundColor: "#FEF2F2",
     borderColor: "#FECACA",

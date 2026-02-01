@@ -38,7 +38,9 @@ export interface Vehicle {
   model: string;
   type: string;
   weight?: string;
-  status?: "Active" | "Sold" | "On-trip" | "In-Service";
+  capacity?: string;
+  status?: "Active" | "Sold" | "On-trip" | "In-Service" | "Maintenance";
+  currentTripId?: string;
   insuranceDate?: string;
   pollutionDate?: string;
   taxDate?: string;
@@ -99,6 +101,8 @@ export interface Driver {
   licensePhoto?: string;
   createdAt?: string;
   isAvailable?: boolean;
+  driverStatus?: "Active" | "On-trip" | "Off-duty";
+  currentTripId?: string;
   punchHistory?: Array<{
     date: string;
     punchInTime?: string;
@@ -142,6 +146,36 @@ export interface Parcel {
   status?: string;
   paymentAmount?: number;
   date?: string;
+  tripId?: string;
+  assignedDriver?: string;
+  assignedVehicle?: string;
+}
+
+export interface Notification {
+  _id: string;
+  driverId: string;
+  vehicleId: {
+    _id: string;
+    regNumber: string;
+    model: string;
+    type: string;
+  };
+  parcelIds: Array<{
+    _id: string;
+    trackingId: string;
+    recipient: {
+      name: string;
+      address: string;
+    };
+    weight: number;
+  }>;
+  tripId: string;
+  type: string;
+  status: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  expiresAt: string;
 }
 
 
@@ -149,16 +183,9 @@ export interface Parcel {
 // 2. Network Configuration
 // ==========================================
 
-const getApiUrl = (): string => {
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ipAddress = hostUri.split(':')[0];
-    return `http://${ipAddress}:5000`; 
-  }
-  return "http://localhost:5000";
-};
-
-const API_BASE_URL = getApiUrl();
+// Use local backend for development, deployed URL for production
+// const API_BASE_URL = "https://fleet-vehicle-backend.vercel.app";
+const API_BASE_URL = "http://localhost:5000"; // Local backend for testing
 console.log("🚀 API Base URL:", API_BASE_URL);
 
 // 2. Helper to handle responses safely
@@ -292,6 +319,33 @@ export const api = {
   updateParcelStatus: (id: string, status: string) =>
     apiCall(`/api/parcels/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
   deleteParcel: (id: string) => apiCall(`/api/parcels/${id}`, { method: "DELETE" }),
+
+  // NOTIFICATIONS
+  createNotification: (data: {
+    driverId: string;
+    vehicleId: string;
+    parcelIds: string[];
+    tripId: string;
+    message: string;
+  }) => apiCall("/api/notifications", { method: "POST", body: JSON.stringify(data) }),
+  
+  getDriverNotifications: (driverId: string) => 
+    apiCall<Notification[]>(`/api/notifications/driver/${driverId}`),
+  
+  getUnreadNotificationCount: (driverId: string) => 
+    apiCall<{ count: number }>(`/api/notifications/driver/${driverId}/unread-count`),
+  
+  getNotification: (id: string) => 
+    apiCall<Notification>(`/api/notifications/${id}`),
+  
+  markNotificationAsRead: (id: string) => 
+    apiCall(`/api/notifications/${id}/read`, { method: "PATCH" }),
+  
+  updateNotificationStatus: (id: string, status: string) => 
+    apiCall(`/api/notifications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  
+  deleteNotification: (id: string) => 
+    apiCall(`/api/notifications/${id}`, { method: "DELETE" }),
 };
    
 

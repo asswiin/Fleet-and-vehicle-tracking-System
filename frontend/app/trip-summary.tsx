@@ -79,21 +79,29 @@ const TripSummaryScreen = () => {
 
     setAssigning(true);
     try {
-      // Update vehicle status to "On-trip"
-      const vehicleUpdate = await api.updateVehicleStatus(vehicleId, "On-trip");
-
-      if (!vehicleUpdate.ok) {
-        Alert.alert("Error", "Failed to update vehicle status");
-        setAssigning(false);
-        return;
-      }
-
-      // Update each parcel status to "Assigned"
+      // Update each parcel status to "Assigned" (pending driver acceptance)
       for (const parcel of parcels) {
         await api.updateParcelStatus(parcel._id, "Assigned");
       }
 
-      Alert.alert("Success", "Trip assigned successfully!", [
+      // Create notification for the driver
+      // NOTE: Vehicle and driver status will be updated to "On-trip" when driver ACCEPTS the trip
+      const tripId = `TR-${Date.now().toString().slice(-6)}-X`;
+      const notificationRes = await api.createNotification({
+        driverId,
+        vehicleId,
+        parcelIds,
+        tripId,
+        message: `New trip assigned with ${parcelIds.length} parcel(s). Vehicle: ${vehicle?.regNumber || 'N/A'}`,
+      });
+
+      if (!notificationRes.ok) {
+        Alert.alert("Error", "Failed to send notification to driver");
+        setAssigning(false);
+        return;
+      }
+
+      Alert.alert("Success", "Trip assigned successfully! Driver has been notified.\n\nVehicle and driver status will change to 'On-trip' when the driver accepts.", [
         {
           text: "OK",
           onPress: () => {
@@ -109,6 +117,8 @@ const TripSummaryScreen = () => {
     }
   };
 
+
+ 
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>

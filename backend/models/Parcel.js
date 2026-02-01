@@ -22,6 +22,11 @@ const parcelSchema = new mongoose.Schema(
     status: { type: String, default: "Booked" }, // Booked, In Transit, Delivered, etc.
     paymentAmount: { type: Number, required: true },
     date: { type: Date, default: Date.now },
+    
+    // Trip assignment fields
+    tripId: { type: String, default: null },
+    assignedDriver: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", default: null },
+    assignedVehicle: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", default: null },
   },
   { timestamps: true }
 );

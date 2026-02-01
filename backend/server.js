@@ -20,6 +20,7 @@ app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/vehicles",require("./routes/vehicleRoutes"));
 app.use("/api/drivers", require("./routes/driverRoutes"));
 app.use("/api/parcels", require("./routes/parcelRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 const PORT = process.env.PORT || 5000;
 

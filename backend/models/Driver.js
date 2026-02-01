@@ -34,6 +34,19 @@ const driverSchema = new mongoose.Schema(
     isAvailable: {
       type: Boolean,
       default: false
+    },
+    
+    // Driver status for trip tracking (Active, On-trip, Off-duty)
+    driverStatus: {
+      type: String,
+      enum: ["Active", "On-trip", "Off-duty"],
+      default: "Active"
+    },
+    
+    // Track current trip
+    currentTripId: {
+      type: String,
+      default: null
     }
   },
   { timestamps: true }

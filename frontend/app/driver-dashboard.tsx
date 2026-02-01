@@ -31,6 +31,7 @@ const DriverDashboard = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [driverData, setDriverData] = useState<Driver | null>(null);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   // Prefer fetched driver data; fallback to login param
   const driverName = (driverData?.name || params.userName || "Driver 1").toString();
@@ -47,9 +48,22 @@ const DriverDashboard = () => {
     }
   };
 
+  const fetchNotificationCount = async () => {
+    if (!driverId) return;
+    try {
+      const res = await api.getUnreadNotificationCount(driverId as string);
+      if (res.ok && res.data) {
+        setNotificationCount(res.data.count);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchDriver();
+      fetchNotificationCount();
     }, [driverId])
   );
 
@@ -103,6 +117,12 @@ const DriverDashboard = () => {
           <View style={styles.profileTextContainer}>
             <Text style={styles.welcomeText}>Welcome back,</Text>
             <Text style={styles.driverName}>{driverName}</Text>
+            {driverData?.driverStatus === "On-trip" && (
+              <View style={styles.onTripBadge}>
+                <Truck size={12} color="#fff" />
+                <Text style={styles.onTripText}>On Trip</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -125,13 +145,25 @@ const DriverDashboard = () => {
           </TouchableOpacity>
 
           {/* Card 2: Alerts */}
-          <TouchableOpacity style={styles.card}>
+          <TouchableOpacity 
+            style={styles.card}
+            onPress={() => {
+              if (driverId) {
+                router.push({
+                  pathname: "trip-notifications",
+                  params: { driverId: driverId }
+                } as any);
+              }
+            }}
+          >
             <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
               <Bell size={24} color="#D97706" />
-              <View style={styles.notificationDot} />
+              {notificationCount > 0 && <View style={styles.notificationDot} />}
             </View>
             <Text style={styles.cardTitle}>Alerts</Text>
-            <Text style={styles.cardSubtitle}>3 new messages</Text>
+            <Text style={styles.cardSubtitle}>
+              {notificationCount > 0 ? `${notificationCount} new trip${notificationCount > 1 ? 's' : ''}` : 'No new alerts'}
+            </Text>
           </TouchableOpacity>
 
           {/* Card 3: SOS */}
@@ -240,6 +272,22 @@ const styles = StyleSheet.create({
   profileTextContainer: { justifyContent: "center" },
   welcomeText: { fontSize: 14, color: "#64748B", marginBottom: 4 },
   driverName: { fontSize: 22, fontWeight: "700", color: "#0F172A" },
+  onTripBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#10B981",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  onTripText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#fff",
+    marginLeft: 4,
+  },
 
   // Quick Actions Header
   sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 20 },

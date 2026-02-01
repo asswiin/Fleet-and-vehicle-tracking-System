@@ -71,18 +71,19 @@ const SelectVehicleScreen = () => {
         console.log(`🚛 Fetching vehicles for total parcel weight: ${totalWeight}kg`);
         console.log(`📋 Total vehicles from database: ${response.data.length}`);
         
-        // Filter vehicles that are Active and have capacity GREATER THAN total weight
+        // Filter vehicles that are Active (NOT On-trip) and have capacity GREATER THAN total weight
         const availableVehicles = response.data.filter((v: Vehicle) => {
           const isActive = v.status === "Active";
+          const isNotOnTrip = v.status !== "On-trip";
           const vehicleCapacity = getVehicleCapacity(v);
           const hasEnoughCapacity = vehicleCapacity > totalWeight; // STRICT GREATER THAN (not >=)
           
           console.log(`🔍 Vehicle ${v.regNumber}:`);
-          console.log(`   - Status: ${v.status} (Active: ${isActive})`);
+          console.log(`   - Status: ${v.status} (Active: ${isActive}, Not On-trip: ${isNotOnTrip})`);
           console.log(`   - Database capacity: ${v.capacity || "not set"}`);
           console.log(`   - Calculated capacity: ${vehicleCapacity}kg`);
           console.log(`   - Required capacity: >${totalWeight}kg`);
-          console.log(`   - Suitable: ${hasEnoughCapacity}`);
+          console.log(`   - Suitable: ${isActive && hasEnoughCapacity}`);
           
           return isActive && hasEnoughCapacity;
         });

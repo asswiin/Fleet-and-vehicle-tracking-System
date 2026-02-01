@@ -92,4 +92,29 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// 5. UPDATE VEHICLE STATUS ONLY (PATCH)
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    const updatedVehicle = await Vehicle.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedVehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    res.json({ message: "Vehicle status updated successfully", data: updatedVehicle });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 module.exports = router;
