@@ -184,8 +184,8 @@ export interface Notification {
 // ==========================================
 
 // Use local backend for development, deployed URL for production
-// const API_BASE_URL = "https://fleet-vehicle-backend.vercel.app";
-const API_BASE_URL = "http://localhost:5000"; // Local backend for testing
+const API_BASE_URL = "https://fleet-vehicle-backend.vercel.app";
+// const API_BASE_URL = "http://172.20.10.5:5000"; // Local IP for testing
 console.log("🚀 API Base URL:", API_BASE_URL);
 
 // 2. Helper to handle responses safely
