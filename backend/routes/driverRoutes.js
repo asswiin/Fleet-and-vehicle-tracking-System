@@ -247,15 +247,16 @@ router.post("/:id/punch", async (req, res) => {
       return res.status(404).json({ message: "Driver not found" });
     }
 
-    // Use client's local date if provided, otherwise fallback to server date
-    // This fixes timezone issues where server UTC date differs from client's local date
+    // Use client's local date components to create the correct date
+    // This fixes timezone issues where server UTC differs from client's local time
     let today;
-    if (req.body.clientDate) {
-      today = new Date(req.body.clientDate);
+    if (req.body.localDate) {
+      const { year, month, day } = req.body.localDate;
+      today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
     } else {
       today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
     }
-    today.setHours(0, 0, 0, 0);
 
     // Check if a record already exists for today
     const existingRecord = await PunchRecord.findOne({
@@ -303,15 +304,16 @@ router.post("/:id/punch-out", async (req, res) => {
       return res.status(404).json({ message: "Driver not found" });
     }
 
-    // Use client's local date if provided, otherwise fallback to server date
-    // This fixes timezone issues where server UTC date differs from client's local date
+    // Use client's local date components to create the correct date
+    // This fixes timezone issues where server UTC differs from client's local time
     let today;
-    if (req.body.clientDate) {
-      today = new Date(req.body.clientDate);
+    if (req.body.localDate) {
+      const { year, month, day } = req.body.localDate;
+      today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
     } else {
       today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
     }
-    today.setHours(0, 0, 0, 0);
 
     const activeRecord = await PunchRecord.findOne({
       driver: driverId,

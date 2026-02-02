@@ -143,7 +143,36 @@ const PunchingScreen = () => {
         return;
       }
 
-      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      // Use Balanced accuracy with timeout for faster location fetch
+      // High accuracy can take 30+ seconds on some devices
+      let location;
+      try {
+        location = await Promise.race([
+          Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 10
+          }),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Location timeout')), 10000)
+          )
+        ]);
+      } catch (timeoutError) {
+        // If balanced accuracy times out, try with lower accuracy
+        console.log("Trying with lower accuracy...");
+        location = await Location.getLastKnownPositionAsync();
+        if (!location) {
+          location = await Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.Low 
+          });
+        }
+      }
+      
+      if (!location) {
+        setCurrentAddress("Could not get location");
+        setIsLocationLoading(false);
+        return;
+      }
       
       const newCoords = {
         latitude: location.coords.latitude,
@@ -206,7 +235,33 @@ const PunchingScreen = () => {
 
   const verifyLocationForPunch = async (): Promise<boolean> => {
     try {
-      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      // Use Balanced accuracy with timeout for faster verification
+      let location;
+      try {
+        location = await Promise.race([
+          Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 10
+          }),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Location timeout')), 10000)
+          )
+        ]);
+      } catch (timeoutError) {
+        // Fallback to last known position or low accuracy
+        location = await Location.getLastKnownPositionAsync();
+        if (!location) {
+          location = await Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.Low 
+          });
+        }
+      }
+      
+      if (!location) {
+        Alert.alert("GPS Error", "Could not get your location. Please try again.");
+        return false;
+      }
       
       const distToOffice = getDistanceFromLatLonInMeters(
         location.coords.latitude,
@@ -245,11 +300,18 @@ const PunchingScreen = () => {
     if (!d2String) return false;
     const date1 = new Date(d1);
     const date2 = new Date(d2String);
-    return (
-      date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate()
-    );
+    
+    // Compare using local date components to handle timezone differences properly
+    // Both dates are compared in their local representation
+    const d1Year = date1.getFullYear();
+    const d1Month = date1.getMonth();
+    const d1Day = date1.getDate();
+    
+    const d2Year = date2.getFullYear();
+    const d2Month = date2.getMonth();
+    const d2Day = date2.getDate();
+    
+    return d1Year === d2Year && d1Month === d2Month && d1Day === d2Day;
   };
 
   const isPunchedInOnDate = (date: Date): boolean => {

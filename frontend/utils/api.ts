@@ -291,8 +291,33 @@ export const api = {
   getDriver: (id: string) => apiCall(`/api/drivers/${id}`),
   createDriver: (data: any) => apiCall("/api/drivers/register", { method: "POST", body: JSON.stringify(data) }),
   updateDriver: (id: string, data: any) => apiCall(`/api/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  punchDriver: (id: string) => apiCall(`/api/drivers/${id}/punch`, { method: "POST" }),
-  punchOutDriver: (id: string) => apiCall(`/api/drivers/${id}/punch-out`, { method: "POST" }),
+  punchDriver: (id: string) => {
+    // Send client's LOCAL date components to fix timezone issues
+    // Using year/month/day ensures the server stores the correct date
+    const now = new Date();
+    const localDate = {
+      year: now.getFullYear(),
+      month: now.getMonth(), // 0-indexed
+      day: now.getDate()
+    };
+    return apiCall(`/api/drivers/${id}/punch`, { 
+      method: "POST", 
+      body: JSON.stringify({ localDate }) 
+    });
+  },
+  punchOutDriver: (id: string) => {
+    // Send client's LOCAL date components to fix timezone issues
+    const now = new Date();
+    const localDate = {
+      year: now.getFullYear(),
+      month: now.getMonth(), // 0-indexed
+      day: now.getDate()
+    };
+    return apiCall(`/api/drivers/${id}/punch-out`, { 
+      method: "POST", 
+      body: JSON.stringify({ localDate }) 
+    });
+  },
   getPunchHistory: (id: string) => apiCall(`/api/drivers/${id}/punch-history`, { method: "GET" }),
   checkLicenseExists: (license: string, excludeId?: string) => 
     apiCall(`/api/drivers/check-license/${license}${excludeId ? `?excludeId=${excludeId}` : ''}`),
