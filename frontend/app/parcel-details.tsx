@@ -20,7 +20,9 @@ import {
   Weight,
   FileText,
   PencilLine,
-  Trash2
+  Trash2,
+  Truck,
+  UserCheck
 } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
 
@@ -90,21 +92,33 @@ const ParcelDetailsScreen = () => {
   };
 
   const renderStatus = (status?: string) => {
-    const label = status || "Pending";
-    const isDelivered = label === "Delivered";
-    const isInTransit = label === "In Transit";
+    const label = status || "Booked";
+    
+    let bgColor = '#EFF6FF';
+    let textColor = '#1D4ED8';
+    let borderColor = '#DBEAFE';
+    
+    switch(label) {
+      case 'Booked': 
+        bgColor = '#EFF6FF'; textColor = '#1D4ED8'; borderColor = '#DBEAFE';
+        break;
+      case 'Assigned': 
+        bgColor = '#F3E8FF'; textColor = '#7C3AED'; borderColor = '#DDD6FE';
+        break;
+      case 'In Transit': 
+        bgColor = '#FEF3C7'; textColor = '#D97706'; borderColor = '#FDE68A';
+        break;
+      case 'Delivered': 
+        bgColor = '#ECFDF3'; textColor = '#15803D'; borderColor = '#BBF7D0';
+        break;
+      case 'Cancelled': 
+        bgColor = '#FEE2E2'; textColor = '#DC2626'; borderColor = '#FECACA';
+        break;
+    }
     
     return (
-      <View style={[
-        styles.statusBadge, 
-        isDelivered && styles.statusDelivered,
-        isInTransit && styles.statusInTransit
-      ]}>
-        <Text style={[
-          styles.statusText, 
-          isDelivered && styles.statusTextDelivered,
-          isInTransit && styles.statusTextInTransit
-        ]}>
+      <View style={[styles.statusBadge, { backgroundColor: bgColor, borderColor: borderColor }]}>
+        <Text style={[styles.statusText, { color: textColor }]}>
           {label}
         </Text>
       </View>
@@ -258,6 +272,42 @@ const ParcelDetailsScreen = () => {
             </View>
           </View>
         </View>
+
+        {/* Trip Assignment Info - Show if parcel is assigned to a trip */}
+        {parcel.tripId && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
+                <Truck size={18} color="#2563EB" />
+              </View>
+              <Text style={styles.sectionTitle}>Trip Assignment</Text>
+            </View>
+            <View style={styles.tripCard}>
+              <View style={styles.tripHeader}>
+                <Truck size={20} color="#2563EB" />
+                <Text style={styles.tripId}>{parcel.tripId}</Text>
+                <View style={styles.tripStatusBadge}>
+                  <Text style={styles.tripStatusText}>
+                    {parcel.status === "In Transit" ? "🚚 En Route" : 
+                     parcel.status === "Delivered" ? "✓ Completed" : "📦 Assigned"}
+                  </Text>
+                </View>
+              </View>
+              {parcel.assignedDriver && (
+                <View style={styles.tripDetailRow}>
+                  <UserCheck size={14} color="#64748B" />
+                  <Text style={styles.tripDetailLabel}>Driver Assigned</Text>
+                </View>
+              )}
+              {parcel.assignedVehicle && (
+                <View style={styles.tripDetailRow}>
+                  <Truck size={14} color="#64748B" />
+                  <Text style={styles.tripDetailLabel}>Vehicle Assigned</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Status Update Actions */}
         <View style={styles.section}>
@@ -437,10 +487,47 @@ const styles = StyleSheet.create({
     borderColor: "#DBEAFE",
   },
   statusText: { color: "#1D4ED8", fontSize: 12, fontWeight: "700" },
-  statusDelivered: { backgroundColor: "#ECFDF3", borderColor: "#BBF7D0" },
-  statusTextDelivered: { color: "#15803D" },
-  statusInTransit: { backgroundColor: "#FEF3C7", borderColor: "#FDE68A" },
-  statusTextInTransit: { color: "#D97706" },
+  tripCard: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  tripHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  tripId: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E40AF",
+    marginLeft: 10,
+    flex: 1,
+  },
+  tripStatusBadge: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  tripStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1E40AF",
+  },
+  tripDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 8,
+  },
+  tripDetailLabel: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "600",
+  },
   errorTitle: {
     fontSize: 18,
     fontWeight: "700",

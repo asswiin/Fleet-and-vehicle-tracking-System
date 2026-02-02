@@ -10,7 +10,13 @@ export default function RootLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: "Login",
+          title: "Home",
+        }}
+      />
+      <Stack.Screen
+        name="role-selection"
+        options={{
+          title: "Select Role",
         }}
       />
       <Stack.Screen

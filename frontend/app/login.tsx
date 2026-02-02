@@ -11,12 +11,26 @@ import {
   ScrollView,
 } from "react-native";
 import { useState, FC } from "react";
-import { useRouter } from "expo-router";
-import { Lock, User, Eye, EyeOff } from "lucide-react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { Lock, User, Eye, EyeOff, MapPin, ArrowLeft } from "lucide-react-native";
 import { api } from "../utils/api";
+
+// Project configuration - Kozhikode district, Mukkam branch
+const PROJECT_DISTRICT = "Kozhikode";
+const PROJECT_BRANCH = "Mukkam";
 
 const LoginScreen: FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    role: string;
+    state: string;
+    district: string;
+    branch: string;
+  }>();
+
+  const selectedRole = params.role || "";
+  const selectedDistrict = params.district || "";
+  const selectedBranch = params.branch || "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,9 +53,37 @@ const LoginScreen: FC = () => {
         // Capture User ID (handle _id or id)
         const userId = data._id || data.id;
 
+        // Validate role matches the selected role from role-selection
+        if (selectedRole && data?.role !== selectedRole) {
+          Alert.alert(
+            "Access Denied",
+            `You selected "${selectedRole}" but your account is registered as "${data?.role}". Please go back and select the correct role.`
+          );
+          setLoading(false);
+          return;
+        }
+
         if (data?.role === "admin") {
+          // Admin access: Check if selected district matches Kozhikode for this project
+          if (selectedDistrict !== PROJECT_DISTRICT) {
+            Alert.alert(
+              "Access Denied",
+              `This application is configured for ${PROJECT_DISTRICT} district. You selected ${selectedDistrict}. Please contact the administrator for ${selectedDistrict} district.`
+            );
+            setLoading(false);
+            return;
+          }
           router.replace({ pathname: "admin-dashboard" as any });
         } else if (data?.role === "manager") {
+          // Manager access: Check district AND branch
+          if (selectedDistrict !== PROJECT_DISTRICT || selectedBranch.toLowerCase() !== PROJECT_BRANCH.toLowerCase()) {
+            Alert.alert(
+              "Access Denied",
+              `This application is configured for ${PROJECT_DISTRICT} district, ${PROJECT_BRANCH} branch. You selected ${selectedDistrict} district, ${selectedBranch} branch. Please contact the administrator for your location.`
+            );
+            setLoading(false);
+            return;
+          }
           router.replace({
             pathname: "manager-dashboard" as any,
             // Pass Name AND ID
@@ -49,6 +91,15 @@ const LoginScreen: FC = () => {
           });
         } 
         else if (data?.role === "driver") {
+          // Driver access: Check district AND branch
+          if (selectedDistrict !== PROJECT_DISTRICT || selectedBranch.toLowerCase() !== PROJECT_BRANCH.toLowerCase()) {
+            Alert.alert(
+              "Access Denied",
+              `This application is configured for ${PROJECT_DISTRICT} district, ${PROJECT_BRANCH} branch. You selected ${selectedDistrict} district, ${selectedBranch} branch. Please contact the administrator for your location.`
+            );
+            setLoading(false);
+            return;
+          }
           router.replace({
             pathname: "driver-dashboard" as any, 
             params: { userName: data.name, userId: userId },
@@ -84,6 +135,19 @@ const LoginScreen: FC = () => {
             </View>
             <Text style={styles.brandSubtitle}>COURIER SERVICE</Text>
           </View>
+
+          {/* Show selected location info */}
+          {selectedRole && (
+            <View style={styles.locationInfo}>
+              <View style={styles.locationRow}>
+                <MapPin size={16} color="#312E81" />
+                <Text style={styles.locationText}>
+                  {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} - Kerala, {selectedDistrict}
+                  {selectedBranch ? `, ${selectedBranch}` : ""}
+                </Text>
+              </View>
+            </View>
+          )}
 
           <View style={styles.formContainer}>
             <View style={styles.inputGroup}>
@@ -140,6 +204,16 @@ const LoginScreen: FC = () => {
                 <Text style={styles.loginButtonText}>Login</Text>
               )}
             </TouchableOpacity>
+
+            {/* Back Button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.replace("role-selection" as any)}
+              disabled={loading}
+            >
+              <ArrowLeft size={18} color="#64748B" />
+              <Text style={styles.backButtonText}>Change Role/Location</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -158,6 +232,9 @@ const styles = StyleSheet.create({
   brandBlueBig: { color: "#312E81", fontSize: 26, fontWeight: "800", fontStyle: "italic" },
   brandAmpersand: { color: "#312E81", fontSize: 24, fontStyle: "italic", fontFamily: Platform.OS === 'ios' ? 'Times New Roman' : 'serif' },
   brandSubtitle: { color: "#312E81", fontSize: 18, fontWeight: "600", textTransform: "uppercase", marginBottom: 2 },
+  locationInfo: { backgroundColor: "#EEF2FF", borderRadius: 8, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: "#C7D2FE" },
+  locationRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  locationText: { marginLeft: 8, fontSize: 14, color: "#312E81", fontWeight: "600" },
   formContainer: { width: "100%" },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: "600", color: "#1E293B", marginBottom: 8 },
@@ -168,6 +245,8 @@ const styles = StyleSheet.create({
   loginButton: { backgroundColor: "#312E81", height: 50, borderRadius: 8, justifyContent: "center", alignItems: "center", marginTop: 10, shadowColor: "#312E81", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   disabledButton: { opacity: 0.7 },
   loginButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  backButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 16, paddingVertical: 8 },
+  backButtonText: { color: "#64748B", fontSize: 14, fontWeight: "500", marginLeft: 6 },
 });
 
 export default LoginScreen;

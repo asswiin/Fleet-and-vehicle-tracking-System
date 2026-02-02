@@ -73,9 +73,16 @@ const DriversListScreen = () => {
     let statusMatch = true;
     if (selectedTab !== "All") {
       if (selectedTab === "Available") {
-        statusMatch = driver.isAvailable === true;
+        // Available = punched in AND not on a trip
+        statusMatch = driver.isAvailable === true && driver.driverStatus !== "On-trip";
       } else if (selectedTab === "Offline") {
-        statusMatch = driver.isAvailable === false;
+        // Offline = not punched in (and not on trip or resigned)
+        statusMatch = driver.isAvailable === false && driver.driverStatus !== "On-trip" && driver.status !== "Resigned";
+      } else if (selectedTab === "On-trip") {
+        // On-trip = driverStatus is On-trip
+        statusMatch = driver.driverStatus === "On-trip";
+      } else if (selectedTab === "Resigned") {
+        statusMatch = driver.status === "Resigned";
       } else {
         const currentStatus = driver.status || "Available";
         statusMatch = currentStatus === selectedTab;
@@ -86,31 +93,27 @@ const DriversListScreen = () => {
   });
 
   // Helper for Status Badge Styles
-  const getStatusStyles = (status?: string, isAvailable?: boolean): StatusStyle => {
-    // Priority: isAvailable takes precedence
-    if (isAvailable === true) {
-      return { bg: '#DCFCE7', text: '#166534', label: 'Punched In' };
-    } else if (isAvailable === false) {
-      return { bg: '#F3E8FF', text: '#6B21A8', label: 'Offline' };
+  const getStatusStyles = (driver: Driver): StatusStyle => {
+    // Priority 1: Check if driver is On-trip
+    if (driver.driverStatus === "On-trip") {
+      return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
     }
-
-    // Fall back to status
-    const displayStatus = status || "Available";
-
-    switch(displayStatus) {
-      case 'Available': 
-        return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
-      case 'On-trip': 
-        return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
-      case 'Resigned': 
-        return { bg: '#FEE2E2', text: '#991B1B', label: 'Resigned' };
-      default: 
-        return { bg: '#F1F5F9', text: '#475569', label: status || 'Available' };
+    
+    // Priority 2: Check if resigned
+    if (driver.status === "Resigned") {
+      return { bg: '#FEE2E2', text: '#991B1B', label: 'Resigned' };
+    }
+    
+    // Priority 3: Check availability (punched in/out)
+    if (driver.isAvailable === true) {
+      return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
+    } else {
+      return { bg: '#F3E8FF', text: '#6B21A8', label: 'Offline' };
     }
   };
 
   const renderItem = ({ item }: { item: Driver }) => {
-    const statusStyle = getStatusStyles(item.status, item.isAvailable);
+    const statusStyle = getStatusStyles(item);
     
     return (
       <TouchableOpacity 
@@ -134,6 +137,10 @@ const DriversListScreen = () => {
               <Text style={styles.avatarText}>
                 {item.name ? item.name.charAt(0).toUpperCase() : "D"}
               </Text>
+            )}
+            {/* On-trip indicator dot */}
+            {item.driverStatus === "On-trip" && (
+              <View style={styles.onTripDot} />
             )}
           </View>
           
@@ -308,6 +315,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    position: "relative",
   },
   avatarImage: {
     width: 48,
@@ -316,6 +324,17 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   avatarText: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  onTripDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#2563EB",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
   driverInfo: { flex: 1 },
   driverName: { fontSize: 15, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
   driverDetail: { flexDirection: "row", alignItems: "center", marginBottom: 4 },

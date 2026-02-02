@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 
 const App = () => {
-  return <Redirect href={"login" as any} />;
+  return <Redirect href={"role-selection" as any} />;
 };
 
 export default App;

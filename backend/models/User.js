@@ -56,6 +56,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // District for location-based access control
+    district: {
+      type: String,
+      default: "",
+    },
+    // Branch for manager/driver access control
+    branch: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

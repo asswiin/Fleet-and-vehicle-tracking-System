@@ -47,6 +47,17 @@ const driverSchema = new mongoose.Schema(
     currentTripId: {
       type: String,
       default: null
+    },
+    
+    // District for location-based access control
+    district: {
+      type: String,
+      default: "",
+    },
+    // Branch for driver access control
+    branch: {
+      type: String,
+      default: "",
     }
   },
   { timestamps: true }

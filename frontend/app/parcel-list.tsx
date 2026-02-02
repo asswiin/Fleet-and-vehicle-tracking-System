@@ -8,16 +8,29 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
+  FlatList,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { Package, ArrowLeft, Plus, MapPin, User } from "lucide-react-native";
+import { Package, ArrowLeft, Plus, MapPin, User, Search, Truck } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
+
+const FILTER_TABS = ["All", "Booked", "Assigned", "In Transit", "Delivered"];
+
+interface StatusStyle {
+  bg: string;
+  text: string;
+  borderColor: string;
+  label: string;
+}
 
 const ParcelListScreen = () => {
   const router = useRouter();
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const [selectedTab, setSelectedTab] = useState("All");
 
   const loadParcels = useCallback(async () => {
     setLoading(true);
@@ -38,23 +51,59 @@ const ParcelListScreen = () => {
     }, [loadParcels])
   );
 
+  // Filter Logic
+  const filteredParcels = parcels.filter(parcel => {
+    const matchesSearch = 
+      (parcel.trackingId?.toLowerCase() || "").includes(searchText.toLowerCase()) ||
+      (parcel.sender?.name?.toLowerCase() || "").includes(searchText.toLowerCase()) ||
+      (parcel.recipient?.name?.toLowerCase() || "").includes(searchText.toLowerCase()) ||
+      (parcel.recipient?.address?.toLowerCase() || "").includes(searchText.toLowerCase());
+    
+    let statusMatch = true;
+    if (selectedTab !== "All") {
+      const currentStatus = parcel.status || "Booked";
+      statusMatch = currentStatus === selectedTab;
+    }
+
+    return matchesSearch && statusMatch;
+  });
+
+  // Get counts for tabs
+  const getStatusCount = (status: string) => {
+    if (status === "All") return parcels.length;
+    return parcels.filter(p => (p.status || "Booked") === status).length;
+  };
+
+  // Helper for Status Badge Styles
+  const getStatusStyles = (status?: string): StatusStyle => {
+    const label = status || "Booked";
+    
+    switch(label) {
+      case 'Booked': 
+        return { bg: '#EFF6FF', text: '#1D4ED8', borderColor: '#DBEAFE', label: 'Booked' };
+      case 'Assigned': 
+        return { bg: '#F3E8FF', text: '#7C3AED', borderColor: '#DDD6FE', label: 'Assigned' };
+      case 'In Transit': 
+        return { bg: '#FEF3C7', text: '#D97706', borderColor: '#FDE68A', label: 'In Transit' };
+      case 'Delivered': 
+        return { bg: '#ECFDF3', text: '#15803D', borderColor: '#BBF7D0', label: 'Delivered' };
+      case 'Cancelled': 
+        return { bg: '#FEE2E2', text: '#DC2626', borderColor: '#FECACA', label: 'Cancelled' };
+      default: 
+        return { bg: '#F1F5F9', text: '#475569', borderColor: '#E2E8F0', label: label };
+    }
+  };
+
   const renderStatus = (status?: string) => {
-    const label = status || "Pending";
-    const isDelivered = label === "Delivered";
-    const isInTransit = label === "In Transit";
+    const statusStyle = getStatusStyles(status);
     
     return (
       <View style={[
         styles.statusBadge, 
-        isDelivered && styles.statusDelivered,
-        isInTransit && styles.statusInTransit
+        { backgroundColor: statusStyle.bg, borderColor: statusStyle.borderColor }
       ]}>
-        <Text style={[
-          styles.statusText, 
-          isDelivered && styles.statusTextDelivered,
-          isInTransit && styles.statusTextInTransit
-        ]}>
-          {label}
+        <Text style={[styles.statusText, { color: statusStyle.text }]}>
+          {statusStyle.label}
         </Text>
       </View>
     );
@@ -116,32 +165,76 @@ const ParcelListScreen = () => {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView
+      {/* Search Bar */}
+      <View style={styles.searchWrapper}>
+        <View style={styles.searchContainer}>
+          <Search size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by tracking ID, sender, recipient..."
+            placeholderTextColor="#94A3B8"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
+      </View>
+
+      {/* Filter Tabs */}
+      <View style={styles.tabsWrapper}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {FILTER_TABS.map((tab) => {
+            const isActive = selectedTab === tab;
+            const count = getStatusCount(tab);
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, isActive && styles.activeTab]}
+                onPress={() => setSelectedTab(tab)}
+              >
+                <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+                  {tab} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      <FlatList
+        data={filteredParcels}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => renderParcelCard(item)}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadParcels} />}
         showsVerticalScrollIndicator={false}
-      >
-        {loading && parcels.length === 0 ? (
-          <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
-        ) : null}
-
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {!loading && !error && parcels.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Package size={48} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>No parcels yet</Text>
-            <Text style={styles.emptySubtitle}>Tap + to add a new consignment.</Text>
-          </View>
-        ) : (
-          parcels.map(renderParcelCard)
-        )}
-        <View style={{ height: 120 }} />
-      </ScrollView>
+        ListHeaderComponent={
+          loading && parcels.length === 0 ? (
+            <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
+          ) : error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          !loading && !error ? (
+            <View style={styles.emptyState}>
+              <Package size={48} color="#94A3B8" />
+              <Text style={styles.emptyTitle}>
+                {selectedTab === "All" ? "No parcels yet" : `No ${selectedTab.toLowerCase()} parcels`}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {selectedTab === "All" ? "Tap + to add a new consignment." : "Try selecting a different filter."}
+              </Text>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={<View style={{ height: 120 }} />}
+      />
 
       <TouchableOpacity
         style={styles.fab}
@@ -168,6 +261,38 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 6 },
   headerTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
+  searchWrapper: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    backgroundColor: "#fff" 
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  searchInput: { flex: 1, fontSize: 14, color: "#0F172A" },
+  tabsWrapper: { 
+    paddingVertical: 8, 
+    backgroundColor: "#fff", 
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  tabsContainer: { paddingHorizontal: 16, gap: 8 },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+  },
+  activeTab: { backgroundColor: "#2563EB" },
+  tabText: { color: "#64748B", fontSize: 13, fontWeight: "600" },
+  activeTabText: { color: "#fff" },
   content: { padding: 16 },
   card: {
     backgroundColor: "#fff",
@@ -217,10 +342,6 @@ const styles = StyleSheet.create({
     borderColor: "#DBEAFE",
   },
   statusText: { color: "#1D4ED8", fontSize: 11, fontWeight: "700" },
-  statusDelivered: { backgroundColor: "#ECFDF3", borderColor: "#BBF7D0" },
-  statusTextDelivered: { color: "#15803D" },
-  statusInTransit: { backgroundColor: "#FEF3C7", borderColor: "#FDE68A" },
-  statusTextInTransit: { color: "#D97706" },
   tripInfoBanner: {
     backgroundColor: "#EFF6FF",
     paddingHorizontal: 12,

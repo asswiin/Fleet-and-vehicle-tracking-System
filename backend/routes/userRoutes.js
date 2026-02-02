@@ -96,6 +96,8 @@ router.post("/login", async (req, res) => {
             name: user.name,  
             email: user.email,
             role: user.role,
+            district: user.district || "",
+            branch: user.branch || "",
           },
         });
       }
@@ -115,6 +117,8 @@ router.post("/login", async (req, res) => {
             name: driver.name,
             email: driver.email,
             role: "driver", // Explicitly identify as driver
+            district: driver.district || "",
+            branch: driver.branch || "",
           },
         });
       }
