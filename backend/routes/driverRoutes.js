@@ -247,8 +247,14 @@ router.post("/:id/punch", async (req, res) => {
       return res.status(404).json({ message: "Driver not found" });
     }
 
-    // Determine "Today" (Midnight)
-    const today = new Date();
+    // Use client's local date if provided, otherwise fallback to server date
+    // This fixes timezone issues where server UTC date differs from client's local date
+    let today;
+    if (req.body.clientDate) {
+      today = new Date(req.body.clientDate);
+    } else {
+      today = new Date();
+    }
     today.setHours(0, 0, 0, 0);
 
     // Check if a record already exists for today
@@ -297,8 +303,14 @@ router.post("/:id/punch-out", async (req, res) => {
       return res.status(404).json({ message: "Driver not found" });
     }
 
-    // Find the active punch record for today
-    const today = new Date();
+    // Use client's local date if provided, otherwise fallback to server date
+    // This fixes timezone issues where server UTC date differs from client's local date
+    let today;
+    if (req.body.clientDate) {
+      today = new Date(req.body.clientDate);
+    } else {
+      today = new Date();
+    }
     today.setHours(0, 0, 0, 0);
 
     const activeRecord = await PunchRecord.findOne({
