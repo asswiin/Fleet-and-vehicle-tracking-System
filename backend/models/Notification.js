@@ -16,29 +16,6 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Parcel",
     }],
-    // Delivery locations for each parcel (selected by manager on map)
-    deliveryLocations: [{
-      parcelId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Parcel",
-      },
-      latitude: {
-        type: Number,
-        required: false,
-      },
-      longitude: {
-        type: Number,
-        required: false,
-      },
-      address: {
-        type: String,
-        required: false,
-      },
-      order: {
-        type: Number,
-        default: 0,
-      },
-    }],
     tripId: {
       type: String,
       required: true,
