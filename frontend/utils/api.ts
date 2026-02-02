@@ -169,6 +169,13 @@ export interface Notification {
     };
     weight: number;
   }>;
+  deliveryLocations?: Array<{
+    parcelId: string;
+    latitude: number;
+    longitude: number;
+    address: string;
+    order: number;
+  }>;
   tripId: string;
   type: string;
   status: string;
@@ -352,6 +359,13 @@ export const api = {
     parcelIds: string[];
     tripId: string;
     message: string;
+    deliveryLocations?: Array<{
+      parcelId: string;
+      latitude: number;
+      longitude: number;
+      address: string;
+      order: number;
+    }>;
   }) => apiCall("/api/notifications", { method: "POST", body: JSON.stringify(data) }),
   
   getDriverNotifications: (driverId: string) => 
