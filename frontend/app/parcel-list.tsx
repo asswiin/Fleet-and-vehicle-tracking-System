@@ -15,7 +15,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Package, ArrowLeft, Plus, MapPin, User, Search, Truck } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
 
-const FILTER_TABS = ["All", "Booked", "Assigned", "In Transit", "Delivered"];
+const FILTER_TABS = ["All", "Booked", "Pending", "Confirmed", "In Transit", "Delivered"];
 
 interface StatusStyle {
   bg: string;
@@ -81,6 +81,10 @@ const ParcelListScreen = () => {
     switch(label) {
       case 'Booked': 
         return { bg: '#EFF6FF', text: '#1D4ED8', borderColor: '#DBEAFE', label: 'Booked' };
+      case 'Pending': 
+        return { bg: '#FFF7ED', text: '#C2410C', borderColor: '#FFEDD5', label: 'Pending' };
+      case 'Confirmed': 
+        return { bg: '#F0FDF4', text: '#166534', borderColor: '#DCFCE7', label: 'Confirmed' };
       case 'Assigned': 
         return { bg: '#F3E8FF', text: '#7C3AED', borderColor: '#DDD6FE', label: 'Assigned' };
       case 'In Transit': 

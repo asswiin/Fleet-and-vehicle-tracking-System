@@ -79,9 +79,9 @@ const TripSummaryScreen = () => {
 
     setAssigning(true);
     try {
-      // Update each parcel status to "Assigned" (pending driver acceptance)
+      // Update each parcel status to "Pending" (waiting for driver acceptance)
       for (const parcel of parcels) {
-        await api.updateParcelStatus(parcel._id, "Assigned");
+        await api.updateParcelStatus(parcel._id, "Pending");
       }
 
       // Create notification for the driver
@@ -101,7 +101,7 @@ const TripSummaryScreen = () => {
         return;
       }
 
-      Alert.alert("Success", "Trip assigned successfully! Driver has been notified.\n\nVehicle and driver status will change to 'On-trip' when the driver accepts.", [
+      Alert.alert("Success", "Trip assigned successfully! Driver has been notified.\n\nParcels are now in 'Pending' status. When the driver accepts, status will change to 'Confirmed'.", [
         {
           text: "OK",
           onPress: () => {

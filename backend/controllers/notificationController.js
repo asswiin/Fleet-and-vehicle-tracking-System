@@ -159,17 +159,17 @@ exports.updateNotificationStatus = async (req, res) => {
         driverId: notification.driverId._id,
       });
 
-      // Update driver availability and status to "On-trip"
+      // Update driver availability and status to "Accepted" (not On-trip yet)
       await Driver.findByIdAndUpdate(notification.driverId._id, {
-        isAvailable: false, // Driver is now on a trip
-        driverStatus: "On-trip", // Set driver status to On-trip
+        isAvailable: false, // Driver is now assigned to a trip
+        driverStatus: "Accepted", // Set driver status to Accepted
         currentTripId: notification.tripId,
       });
 
-      // Update all parcels to "In Transit" and add trip info
+      // Update all parcels to "Confirmed" (not In Transit yet)
       for (const parcel of notification.parcelIds) {
         await Parcel.findByIdAndUpdate(parcel._id, {
-          status: "In Transit",
+          status: "Confirmed",
           tripId: notification.tripId,
           assignedDriver: notification.driverId._id,
           assignedVehicle: notification.vehicleId._id,

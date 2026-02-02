@@ -68,7 +68,7 @@ const TripConfirmationScreen = () => {
       if (response.ok) {
         Alert.alert(
           "Trip Accepted! ✓", 
-          `Vehicle and driver status updated.\n${notification.parcelIds.length} parcel(s) marked as "In Transit".\n\nYou can now start your journey.`, 
+          `Your status is now "Accepted".\n${notification.parcelIds.length} parcel(s) marked as "Confirmed".\n\nYou can now start your journey.`, 
           [
             {
               text: "OK",

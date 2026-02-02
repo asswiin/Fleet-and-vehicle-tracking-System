@@ -17,7 +17,7 @@ import { useState, useCallback } from "react";
 import { ChevronLeft, Phone, CreditCard, Plus, Search, User, Clock } from "lucide-react-native";
 import { api, Driver } from "../utils/api";
 
-const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Resigned"];
+const FILTER_TABS = ["All", "Available", "Offline", "Accepted", "On-trip", "Resigned"];
 
 interface StatusStyle {
   bg: string;
@@ -73,11 +73,14 @@ const DriversListScreen = () => {
     let statusMatch = true;
     if (selectedTab !== "All") {
       if (selectedTab === "Available") {
-        // Available = punched in AND not on a trip
-        statusMatch = driver.isAvailable === true && driver.driverStatus !== "On-trip";
+        // Available = punched in AND not on a trip or accepted
+        statusMatch = driver.isAvailable === true && driver.driverStatus !== "On-trip" && driver.driverStatus !== "Accepted";
       } else if (selectedTab === "Offline") {
-        // Offline = not punched in (and not on trip or resigned)
-        statusMatch = driver.isAvailable === false && driver.driverStatus !== "On-trip" && driver.status !== "Resigned";
+        // Offline = not punched in (and not on trip, accepted or resigned)
+        statusMatch = driver.isAvailable === false && driver.driverStatus !== "On-trip" && driver.driverStatus !== "Accepted" && driver.status !== "Resigned";
+      } else if (selectedTab === "Accepted") {
+        // Accepted = driver has accepted a trip but not yet started
+        statusMatch = driver.driverStatus === "Accepted";
       } else if (selectedTab === "On-trip") {
         // On-trip = driverStatus is On-trip
         statusMatch = driver.driverStatus === "On-trip";
@@ -99,12 +102,17 @@ const DriversListScreen = () => {
       return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
     }
     
-    // Priority 2: Check if resigned
+    // Priority 2: Check if driver has Accepted a trip
+    if (driver.driverStatus === "Accepted") {
+      return { bg: '#FEF3C7', text: '#D97706', label: 'Accepted' };
+    }
+    
+    // Priority 3: Check if resigned
     if (driver.status === "Resigned") {
       return { bg: '#FEE2E2', text: '#991B1B', label: 'Resigned' };
     }
     
-    // Priority 3: Check availability (punched in/out)
+    // Priority 4: Check availability (punched in/out)
     if (driver.isAvailable === true) {
       return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
     } else {

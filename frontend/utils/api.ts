@@ -101,7 +101,7 @@ export interface Driver {
   licensePhoto?: string;
   createdAt?: string;
   isAvailable?: boolean;
-  driverStatus?: "Active" | "On-trip" | "Off-duty";
+  driverStatus?: "Active" | "Accepted" | "On-trip" | "Off-duty";
   currentTripId?: string;
   punchHistory?: Array<{
     date: string;
