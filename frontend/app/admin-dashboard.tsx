@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
 import React from "react";
 import { api } from "../utils/api";
@@ -36,6 +36,11 @@ interface Stats {
 
 const AdminDashboard: React.FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // Get role selection params for logout
+  const selectedRole = params.role || "admin";
+  const selectedDistrict = params.district || "";
 
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<User[]>([]);
@@ -107,7 +112,14 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     setShowSettingsMenu(false);
-    router.replace("/"); 
+    router.replace({
+      pathname: "login" as any,
+      params: {
+        role: selectedRole,
+        state: "Kerala",
+        district: selectedDistrict,
+      },
+    }); 
   };
 
   const handleAddManager = () => {

@@ -37,6 +37,11 @@ const DriverDashboard = () => {
   const driverName = (driverData?.name || params.userName || "Driver 1").toString();
   const driverId = params.userId; // Capture the ID
   const initials = driverName.substring(0, 2).toUpperCase();
+  
+  // Get role selection params for logout
+  const selectedRole = params.role || "driver";
+  const selectedDistrict = params.district || "";
+  const selectedBranch = params.branch || "";
 
   const fetchDriver = async () => {
     if (!driverId) return;
@@ -70,7 +75,15 @@ const DriverDashboard = () => {
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: () => router.replace("login" as any) },
+      { text: "Log Out", style: "destructive", onPress: () => router.replace({
+        pathname: "login" as any,
+        params: {
+          role: selectedRole,
+          state: "Kerala",
+          district: selectedDistrict,
+          branch: selectedBranch,
+        },
+      }) },
     ]);
   };
 

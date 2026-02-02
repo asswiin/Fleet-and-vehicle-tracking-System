@@ -73,7 +73,13 @@ const LoginScreen: FC = () => {
             setLoading(false);
             return;
           }
-          router.replace({ pathname: "admin-dashboard" as any });
+          router.replace({ 
+            pathname: "admin-dashboard" as any,
+            params: { 
+              role: selectedRole,
+              district: selectedDistrict,
+            },
+          });
         } else if (data?.role === "manager") {
           // Manager access: Check district AND branch
           if (selectedDistrict !== PROJECT_DISTRICT || selectedBranch.toLowerCase() !== PROJECT_BRANCH.toLowerCase()) {
@@ -87,7 +93,13 @@ const LoginScreen: FC = () => {
           router.replace({
             pathname: "manager-dashboard" as any,
             // Pass Name AND ID
-            params: { userName: data.name, userId: userId },
+            params: { 
+              userName: data.name, 
+              userId: userId,
+              role: selectedRole,
+              district: selectedDistrict,
+              branch: selectedBranch,
+            },
           });
         } 
         else if (data?.role === "driver") {
@@ -102,7 +114,13 @@ const LoginScreen: FC = () => {
           }
           router.replace({
             pathname: "driver-dashboard" as any, 
-            params: { userName: data.name, userId: userId },
+            params: { 
+              userName: data.name, 
+              userId: userId,
+              role: selectedRole,
+              district: selectedDistrict,
+              branch: selectedBranch,
+            },
           });
         } else {
           Alert.alert("Access Denied", "Role not recognized.");

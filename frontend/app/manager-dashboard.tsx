@@ -8,6 +8,7 @@ import {
   StatusBar,
   Dimensions,
   Image,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
@@ -24,7 +25,8 @@ import {
   Car,
   Settings,
   ArrowUpRight,
-  LayoutGrid
+  LayoutGrid,
+  LogOut,
 } from "lucide-react-native";
 import { api } from "../utils/api";
 import type { User as UserType } from "../utils/api";
@@ -38,6 +40,12 @@ const ManagerDashboard = () => {
   // Dynamic Name & ID
   const displayName = params.userName || "Manager";
   const userId = params.userId;
+  
+  // Get role selection params for logout
+  const selectedRole = params.role || "manager";
+  const selectedDistrict = params.district || "";
+  const selectedBranch = params.branch || "";
+  
   const [managerData, setManagerData] = useState<UserType | null>(null);
 
   // Fetch Manager Details
@@ -68,6 +76,21 @@ const ManagerDashboard = () => {
     } else {
       console.warn("User ID missing, cannot navigate to profile.");
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Sign Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log Out", style: "destructive", onPress: () => router.replace({
+        pathname: "login" as any,
+        params: {
+          role: selectedRole,
+          state: "Kerala",
+          district: selectedDistrict,
+          branch: selectedBranch,
+        },
+      }) },
+    ]);
   };
 
   return (
@@ -107,6 +130,9 @@ const ManagerDashboard = () => {
               <TouchableOpacity style={styles.iconBtn}>
                 <Bell size={24} color="#374151" />
                 <View style={styles.notificationDot} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
+                <LogOut size={24} color="#EF4444" />
               </TouchableOpacity>
             </View>
           </View>
