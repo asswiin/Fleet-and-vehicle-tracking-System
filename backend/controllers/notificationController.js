@@ -2,6 +2,7 @@ const Notification = require("../models/Notification");
 const Driver = require("../models/Driver");
 const Vehicle = require("../models/Vehicle");
 const Parcel = require("../models/Parcel");
+const Trip = require("../models/Trip");
 
 // Create a new notification (trip assignment)
 exports.createNotification = async (req, res) => {
@@ -154,6 +155,15 @@ exports.updateNotificationStatus = async (req, res) => {
     await notification.save();
 
     if (status === "accepted") {
+      // Update the Trip status to "accepted"
+      await Trip.findOneAndUpdate(
+        { tripId: notification.tripId },
+        { 
+          status: "accepted",
+          acceptedAt: new Date()
+        }
+      );
+
       // Update vehicle status to "Trip Confirmed" (not On-trip yet - that's when driver starts)
       await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
         status: "Trip Confirmed",
@@ -178,6 +188,12 @@ exports.updateNotificationStatus = async (req, res) => {
         });
       }
     } else if (status === "declined") {
+      // Update the Trip status to "declined"
+      await Trip.findOneAndUpdate(
+        { tripId: notification.tripId },
+        { status: "declined" }
+      );
+
       // Driver declined - revert all statuses back
       
       // Update vehicle status back to "Active"
