@@ -18,8 +18,23 @@ import {
   Package,
   CheckCircle,
   AlertCircle,
+  MapPin,
+  Navigation,
 } from "lucide-react-native";
 import { api, type Vehicle, type Driver, type Parcel } from "../utils/api";
+
+interface DeliveryLocation {
+  parcelId: string;
+  latitude: number;
+  longitude: number;
+  order: number;
+}
+
+interface StartLocation {
+  latitude: number;
+  longitude: number;
+  address: string;
+}
 
 const TripSummaryScreen = () => {
   const router = useRouter();
@@ -29,6 +44,14 @@ const TripSummaryScreen = () => {
   const totalWeight = parseFloat((params.totalWeight as string) || "0");
   const vehicleId = (params.vehicleId as string) || "";
   const driverId = (params.driverId as string) || "";
+  
+  // Parse delivery locations from params
+  const deliveryLocations: DeliveryLocation[] = params.deliveryLocations 
+    ? JSON.parse(params.deliveryLocations as string) 
+    : [];
+  const startLocation: StartLocation | null = params.startLocation 
+    ? JSON.parse(params.startLocation as string) 
+    : null;
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [driver, setDriver] = useState<Driver | null>(null);
@@ -58,9 +81,32 @@ const TripSummaryScreen = () => {
       // Fetch all parcels
       const parcelsRes = await api.getParcels();
       if (parcelsRes.ok && parcelsRes.data) {
-        const selectedParcels = parcelsRes.data.filter((p: Parcel) =>
+        let selectedParcels = parcelsRes.data.filter((p: Parcel) =>
           parcelIds.includes(p._id)
         );
+        
+        // Merge delivery location data with parcels and sort by order
+        if (deliveryLocations.length > 0) {
+          selectedParcels = selectedParcels.map((parcel: Parcel) => {
+            const locationData = deliveryLocations.find(loc => loc.parcelId === parcel._id);
+            return {
+              ...parcel,
+              deliveryLocation: locationData ? {
+                latitude: locationData.latitude,
+                longitude: locationData.longitude,
+                order: locationData.order,
+              } : undefined,
+            };
+          });
+          
+          // Sort parcels by delivery order
+          selectedParcels.sort((a: Parcel, b: Parcel) => {
+            const orderA = a.deliveryLocation?.order || 999;
+            const orderB = b.deliveryLocation?.order || 999;
+            return orderA - orderB;
+          });
+        }
+        
         setParcels(selectedParcels);
       }
     } catch (error) {
@@ -79,12 +125,19 @@ const TripSummaryScreen = () => {
 
     setAssigning(true);
     try {
-      // Update each parcel status to "Pending" (waiting for driver acceptance)
+      // Update each parcel status to "Pending" and add delivery location
       for (const parcel of parcels) {
         await api.updateParcelStatus(parcel._id, "Pending");
+        
+        // Update parcel with delivery location if available
+        if (parcel.deliveryLocation) {
+          await api.updateParcel(parcel._id, {
+            deliveryLocation: parcel.deliveryLocation,
+          });
+        }
       }
 
-      // Create notification for the driver
+      // Create notification for the driver with location data
       // NOTE: Vehicle and driver status will be updated to "On-trip" when driver ACCEPTS the trip
       const tripId = `TR-${Date.now().toString().slice(-6)}-X`;
       const notificationRes = await api.createNotification({
@@ -93,6 +146,8 @@ const TripSummaryScreen = () => {
         parcelIds,
         tripId,
         message: `New trip assigned with ${parcelIds.length} parcel(s). Vehicle: ${vehicle?.regNumber || 'N/A'}`,
+        deliveryLocations: deliveryLocations,
+        startLocation: startLocation,
       });
 
       if (!notificationRes.ok) {
@@ -204,6 +259,59 @@ const TripSummaryScreen = () => {
           </View>
         )}
 
+        {/* Delivery Route Section */}
+        {deliveryLocations.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MapPin size={20} color="#2563EB" />
+              <Text style={styles.sectionTitle}>Delivery Route ({parcels.length} stops)</Text>
+            </View>
+            <View style={styles.card}>
+              {/* Starting Point */}
+              {startLocation && (
+                <>
+                  <View style={styles.cardRow}>
+                    <View style={styles.routeItemLeft}>
+                      <View style={[styles.routeOrderBadge, { backgroundColor: '#10B981' }]}>
+                        <Navigation size={12} color="#fff" />
+                      </View>
+                      <Text style={styles.routeLabel}>Start</Text>
+                    </View>
+                    <Text style={styles.routeAddress} numberOfLines={1}>
+                      {startLocation.address}
+                    </Text>
+                  </View>
+                  <View style={styles.divider} />
+                </>
+              )}
+              
+              {/* Delivery Stops */}
+              {parcels.map((parcel, index) => (
+                <React.Fragment key={parcel._id}>
+                  <View style={styles.cardRow}>
+                    <View style={styles.routeItemLeft}>
+                      <View style={[styles.routeOrderBadge, { backgroundColor: '#2563EB' }]}>
+                        <Text style={styles.routeOrderText}>
+                          {parcel.deliveryLocation?.order || index + 1}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.routeLabel}>
+                          {parcel.trackingId || `Stop ${index + 1}`}
+                        </Text>
+                        <Text style={styles.routeRecipient}>
+                          {parcel.recipient?.name || 'Unknown'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  {index < parcels.length - 1 && <View style={styles.divider} />}
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Parcels Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -214,17 +322,30 @@ const TripSummaryScreen = () => {
             {parcels.map((parcel, index) => (
               <View key={parcel._id} style={styles.parcelItem}>
                 <View style={styles.parcelContent}>
-                  <View style={styles.parcelNumber}>
-                    <Text style={styles.parcelNumberText}>{index + 1}</Text>
+                  <View style={[styles.parcelNumber, { backgroundColor: parcel.deliveryLocation ? '#2563EB' : '#64748B' }]}>
+                    <Text style={styles.parcelNumberText}>
+                      {parcel.deliveryLocation?.order || index + 1}
+                    </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.parcelId}>
                       {parcel.trackingId || parcel._id.slice(-8)}
                     </Text>
+                    {parcel.recipient?.name && (
+                      <Text style={styles.parcelRecipient}>
+                        To: {parcel.recipient.name}
+                      </Text>
+                    )}
                     {parcel.weight && (
                       <Text style={styles.parcelWeight}>
                         Weight: {parcel.weight}kg
                       </Text>
+                    )}
+                    {parcel.deliveryLocation && (
+                      <View style={styles.locationBadge}>
+                        <MapPin size={12} color="#10B981" />
+                        <Text style={styles.locationBadgeText}>Location set</Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -378,10 +499,60 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#0F172A",
   },
+  parcelRecipient: {
+    fontSize: 12,
+    color: "#2563EB",
+    marginTop: 2,
+    fontWeight: "500",
+  },
   parcelWeight: {
     fontSize: 12,
     color: "#64748B",
     marginTop: 2,
+  },
+  locationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  locationBadgeText: {
+    fontSize: 11,
+    color: "#10B981",
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  routeItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  routeOrderBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  routeOrderText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  routeLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0F172A",
+  },
+  routeRecipient: {
+    fontSize: 11,
+    color: "#64748B",
+  },
+  routeAddress: {
+    fontSize: 12,
+    color: "#64748B",
+    flex: 1,
+    textAlign: "right",
   },
   confirmationBadge: {
     flexDirection: "row",

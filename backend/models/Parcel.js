@@ -27,6 +27,13 @@ const parcelSchema = new mongoose.Schema(
     tripId: { type: String, default: null },
     assignedDriver: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", default: null },
     assignedVehicle: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", default: null },
+    
+    // Delivery location coordinates
+    deliveryLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      order: { type: Number }, // Delivery order in the trip
+    },
   },
   { timestamps: true }
 );

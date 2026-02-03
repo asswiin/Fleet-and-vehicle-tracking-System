@@ -6,7 +6,7 @@ const Parcel = require("../models/Parcel");
 // Create a new notification (trip assignment)
 exports.createNotification = async (req, res) => {
   try {
-    const { driverId, vehicleId, parcelIds, tripId, message } = req.body;
+    const { driverId, vehicleId, parcelIds, tripId, message, deliveryLocations, startLocation } = req.body;
 
     // Validate driver exists
     const driver = await Driver.findById(driverId);
@@ -28,6 +28,8 @@ exports.createNotification = async (req, res) => {
       message: message || `New trip assigned: ${tripId}`,
       type: "trip_assignment",
       status: "pending",
+      deliveryLocations: deliveryLocations || [],
+      startLocation: startLocation || null,
     });
 
     await notification.save();
@@ -36,7 +38,7 @@ exports.createNotification = async (req, res) => {
     const populatedNotification = await Notification.findById(notification._id)
       .populate("driverId", "name mobile")
       .populate("vehicleId", "regNumber model type")
-      .populate("parcelIds", "trackingId recipient weight");
+      .populate("parcelIds", "trackingId recipient weight deliveryLocation");
 
     res.status(201).json(populatedNotification);
   } catch (error) {
@@ -55,7 +57,7 @@ exports.getDriverNotifications = async (req, res) => {
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
       .populate("vehicleId", "regNumber model type")
-      .populate("parcelIds", "trackingId recipient weight")
+      .populate("parcelIds", "trackingId recipient weight deliveryLocation")
       .sort({ createdAt: -1 });
 
     res.json(notifications);
@@ -92,7 +94,7 @@ exports.getNotification = async (req, res) => {
     const notification = await Notification.findById(id)
       .populate("driverId", "name mobile email")
       .populate("vehicleId", "regNumber model type weight")
-      .populate("parcelIds", "trackingId recipient weight type");
+      .populate("parcelIds", "trackingId recipient weight type deliveryLocation");
 
     if (!notification) {
       return res.status(404).json({ message: "Notification not found" });
@@ -180,7 +182,7 @@ exports.updateNotificationStatus = async (req, res) => {
     // Return updated notification
     const updatedNotification = await Notification.findById(id)
       .populate("vehicleId", "regNumber model type status")
-      .populate("parcelIds", "trackingId recipient weight status")
+      .populate("parcelIds", "trackingId recipient weight status deliveryLocation")
       .populate("driverId", "name isAvailable");
 
     res.json(updatedNotification);

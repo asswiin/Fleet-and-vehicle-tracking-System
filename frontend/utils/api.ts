@@ -148,6 +148,12 @@ export interface Parcel {
   date?: string;
   tripId?: string;
   assignedDriver?: string;
+  // Delivery location coordinates
+  deliveryLocation?: {
+    latitude?: number;
+    longitude?: number;
+    order?: number;
+  };
   assignedVehicle?: string;
 }
 
@@ -168,6 +174,11 @@ export interface Notification {
       address: string;
     };
     weight: number;
+    deliveryLocation?: {
+      latitude?: number;
+      longitude?: number;
+      order?: number;
+    };
   }>;
   tripId: string;
   type: string;
@@ -176,6 +187,18 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   expiresAt: string;
+  // Delivery route information
+  deliveryLocations?: Array<{
+    parcelId: string;
+    latitude: number;
+    longitude: number;
+    order: number;
+  }>;
+  startLocation?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
 }
 
 
@@ -352,6 +375,17 @@ export const api = {
     parcelIds: string[];
     tripId: string;
     message: string;
+    deliveryLocations?: Array<{
+      parcelId: string;
+      latitude: number;
+      longitude: number;
+      order: number;
+    }>;
+    startLocation?: {
+      latitude: number;
+      longitude: number;
+      address: string;
+    } | null;
   }) => apiCall("/api/notifications", { method: "POST", body: JSON.stringify(data) }),
   
   getDriverNotifications: (driverId: string) => 

@@ -38,6 +38,34 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Delivery locations for the trip
+    deliveryLocations: [{
+      parcelId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Parcel",
+      },
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
+      order: {
+        type: Number,
+      },
+    }],
+    // Starting point for the trip
+    startLocation: {
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
+      address: {
+        type: String,
+      },
+    },
     expiresAt: {
       type: Date,
       default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now

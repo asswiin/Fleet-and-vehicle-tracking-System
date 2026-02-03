@@ -106,9 +106,9 @@ const AssignTripScreen = () => {
       return;
     }
 
-    // Navigate to the next screen or complete trip assignment
+    // Navigate to location selection screen to view/set delivery locations on map
     router.push({
-      pathname: "/trip-summary",
+      pathname: "/select-location",
       params: {
         parcelIds: JSON.stringify(parcelIds),
         totalWeight: totalWeight.toString(),
