@@ -177,37 +177,6 @@ const TripAssignmentDetailScreen = () => {
   const deliveryLocations = notification.deliveryLocations || [];
   const startLocation = notification.startLocation;
 
-  // Build delivery locations from parcels if notification doesn't have them
-  const getEffectiveDeliveryLocations = () => {
-    // First try notification's deliveryLocations
-    if (deliveryLocations.length > 0) {
-      return deliveryLocations;
-    }
-    
-    // Fallback: build from individual parcel deliveryLocation fields
-    const locationsFromParcels: Array<{
-      parcelId: string;
-      latitude: number;
-      longitude: number;
-      order: number;
-    }> = [];
-    
-    notification.parcelIds?.forEach((parcel, index) => {
-      if (parcel.deliveryLocation?.latitude && parcel.deliveryLocation?.longitude) {
-        locationsFromParcels.push({
-          parcelId: parcel._id,
-          latitude: parcel.deliveryLocation.latitude,
-          longitude: parcel.deliveryLocation.longitude,
-          order: parcel.deliveryLocation.order || index + 1,
-        });
-      }
-    });
-    
-    return locationsFromParcels;
-  };
-
-  const effectiveDeliveryLocations = getEffectiveDeliveryLocations();
-
   // Calculate map region to fit all markers
   const getMapRegion = () => {
     const allCoords: { latitude: number; longitude: number }[] = [];
@@ -216,7 +185,7 @@ const TripAssignmentDetailScreen = () => {
       allCoords.push({ latitude: startLocation.latitude, longitude: startLocation.longitude });
     }
     
-    effectiveDeliveryLocations.forEach((loc) => {
+    deliveryLocations.forEach((loc) => {
       if (loc.latitude && loc.longitude) {
         allCoords.push({ latitude: loc.latitude, longitude: loc.longitude });
       }
@@ -253,25 +222,11 @@ const TripAssignmentDetailScreen = () => {
 
   // Get location for a specific parcel
   const getParcelLocation = (parcelId: string) => {
-    // First check effectiveDeliveryLocations
-    const fromNotification = effectiveDeliveryLocations.find(loc => loc.parcelId === parcelId);
-    if (fromNotification) return fromNotification;
-    
-    // Fallback: check parcel's own deliveryLocation
-    const parcel = notification.parcelIds?.find(p => p._id === parcelId);
-    if (parcel?.deliveryLocation?.latitude && parcel?.deliveryLocation?.longitude) {
-      return {
-        parcelId: parcel._id,
-        latitude: parcel.deliveryLocation.latitude,
-        longitude: parcel.deliveryLocation.longitude,
-        order: parcel.deliveryLocation.order || 1,
-      };
-    }
-    return undefined;
+    return deliveryLocations.find(loc => loc.parcelId === parcelId);
   };
 
   // Check if we have location data
-  const hasLocationData = effectiveDeliveryLocations.length > 0;
+  const hasLocationData = deliveryLocations.length > 0;
 
   // Focus map on a specific parcel location
   const focusOnParcel = (parcelId: string) => {
@@ -393,7 +348,7 @@ const TripAssignmentDetailScreen = () => {
                   )}
                   
                   {/* Delivery Location Markers */}
-                  {effectiveDeliveryLocations.map((location, index) => {
+                  {deliveryLocations.map((location, index) => {
                     const parcel = notification.parcelIds?.find(p => p._id === location.parcelId);
                     const isFocused = focusedParcelId === location.parcelId;
                     return (
@@ -442,7 +397,7 @@ const TripAssignmentDetailScreen = () => {
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: "#2563EB" }]} />
-                  <Text style={styles.legendText}>Stops ({effectiveDeliveryLocations.length})</Text>
+                  <Text style={styles.legendText}>Stops ({deliveryLocations.length})</Text>
                 </View>
               </View>
             )}
