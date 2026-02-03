@@ -86,10 +86,10 @@ const TripAssignmentDetailScreen = () => {
       if (response.ok) {
         Alert.alert(
           "Trip Accepted! ✓",
-          `You have accepted this trip.\n\nVehicle: ${notification.vehicleId?.regNumber}\nParcels: ${notification.parcelIds?.length || 0}\n\n✅ Your status is now "On-trip"\n✅ Vehicle status updated to "On-trip"\n\nYou can now start your journey.`,
+          `You have accepted this trip.\n\nVehicle: ${notification.vehicleId?.regNumber}\nParcels: ${notification.parcelIds?.length || 0}\n\n✅ Your status is now "Accepted"\n✅ Vehicle status: "Trip Confirmed"\n✅ Parcels status: "Confirmed"\n\nYou can start the trip when ready.`,
           [
             {
-              text: "Start Trip",
+              text: "OK",
               onPress: () => {
                 router.push({
                   pathname: "/driver-dashboard",

@@ -154,21 +154,21 @@ exports.updateNotificationStatus = async (req, res) => {
     await notification.save();
 
     if (status === "accepted") {
-      // Update vehicle status to "On-trip"
+      // Update vehicle status to "Trip Confirmed" (not On-trip yet - that's when driver starts)
       await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
-        status: "On-trip",
+        status: "Trip Confirmed",
         currentTripId: notification.tripId,
         driverId: notification.driverId._id,
       });
 
-      // Update driver availability and status to "Accepted" (not On-trip yet)
+      // Update driver availability and status to "Accepted"
       await Driver.findByIdAndUpdate(notification.driverId._id, {
-        isAvailable: false, // Driver is now assigned to a trip
-        driverStatus: "Accepted", // Set driver status to Accepted
+        isAvailable: false,
+        driverStatus: "Accepted",
         currentTripId: notification.tripId,
       });
 
-      // Update all parcels to "Confirmed" (not In Transit yet)
+      // Update all parcels to "Confirmed"
       for (const parcel of notification.parcelIds) {
         await Parcel.findByIdAndUpdate(parcel._id, {
           status: "Confirmed",
@@ -177,13 +177,39 @@ exports.updateNotificationStatus = async (req, res) => {
           assignedVehicle: notification.vehicleId._id,
         });
       }
+    } else if (status === "declined") {
+      // Driver declined - revert all statuses back
+      
+      // Update vehicle status back to "Active"
+      await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
+        status: "Active",
+        currentTripId: null,
+        driverId: null,
+      });
+
+      // Update driver status back to "Active" and available
+      await Driver.findByIdAndUpdate(notification.driverId._id, {
+        isAvailable: true,
+        driverStatus: "Active",
+        currentTripId: null,
+      });
+
+      // Update all parcels back to "Booked" and remove assignments
+      for (const parcel of notification.parcelIds) {
+        await Parcel.findByIdAndUpdate(parcel._id, {
+          status: "Booked",
+          tripId: null,
+          assignedDriver: null,
+          assignedVehicle: null,
+        });
+      }
     }
 
     // Return updated notification
     const updatedNotification = await Notification.findById(id)
       .populate("vehicleId", "regNumber model type status")
       .populate("parcelIds", "trackingId recipient weight status")
-      .populate("driverId", "name isAvailable");
+      .populate("driverId", "name isAvailable driverStatus");
 
     res.json(updatedNotification);
   } catch (error) {
