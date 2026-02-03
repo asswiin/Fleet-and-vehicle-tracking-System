@@ -12,10 +12,24 @@ import {
   FlatList,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { Package, ArrowLeft, Plus, MapPin, User, Search, Truck } from "lucide-react-native";
+import { Package, ArrowLeft, Plus, MapPin, User, Search, Truck, UserCheck } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
 
 const FILTER_TABS = ["All", "Booked", "Pending", "Confirmed", "In Transit", "Delivered"];
+
+// Helper to get driver name from populated or string
+const getDriverName = (driver: Parcel['assignedDriver']) => {
+  if (!driver) return null;
+  if (typeof driver === 'string') return null;
+  return driver.name;
+};
+
+// Helper to get vehicle reg number from populated or string
+const getVehicleRegNumber = (vehicle: Parcel['assignedVehicle']) => {
+  if (!vehicle) return null;
+  if (typeof vehicle === 'string') return null;
+  return vehicle.regNumber;
+};
 
 interface StatusStyle {
   bg: string;
@@ -153,6 +167,30 @@ const ParcelListScreen = () => {
         {item.tripId && (
           <View style={styles.tripInfoBanner}>
             <Text style={styles.tripInfoText}>🚚 Trip: {item.tripId}</Text>
+          </View>
+        )}
+
+        {/* Show Driver, Vehicle and Destination for non-Booked parcels */}
+        {item.status && item.status !== "Booked" && (getDriverName(item.assignedDriver) || getVehicleRegNumber(item.assignedVehicle) || item.recipient?.address) && (
+          <View style={styles.assignmentInfo}>
+            {getDriverName(item.assignedDriver) && (
+              <View style={styles.assignmentRow}>
+                <UserCheck size={12} color="#16A34A" />
+                <Text style={styles.assignmentText}>Driver: {getDriverName(item.assignedDriver)}</Text>
+              </View>
+            )}
+            {getVehicleRegNumber(item.assignedVehicle) && (
+              <View style={styles.assignmentRow}>
+                <Truck size={12} color="#2563EB" />
+                <Text style={styles.assignmentText}>Vehicle: {getVehicleRegNumber(item.assignedVehicle)}</Text>
+              </View>
+            )}
+            {item.recipient?.address && (
+              <View style={styles.assignmentRow}>
+                <MapPin size={12} color="#D97706" />
+                <Text style={styles.assignmentText} numberOfLines={1}>To: {item.recipient.address}</Text>
+              </View>
+            )}
           </View>
         )}
       </TouchableOpacity>
@@ -359,6 +397,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#1E40AF",
+  },
+  assignmentInfo: {
+    backgroundColor: "#F0FDF4",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    gap: 6,
+  },
+  assignmentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  assignmentText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#166534",
+    flex: 1,
   },
   errorBox: {
     backgroundColor: "#FEF2F2",

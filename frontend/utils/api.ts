@@ -147,14 +147,30 @@ export interface Parcel {
   paymentAmount?: number;
   date?: string;
   tripId?: string;
-  assignedDriver?: string;
+  // Can be string ID or populated object
+  assignedDriver?: string | {
+    _id: string;
+    name: string;
+    mobile?: string;
+    email?: string;
+    profilePhoto?: string;
+    driverStatus?: string;
+  };
   // Delivery location coordinates
   deliveryLocation?: {
     latitude?: number;
     longitude?: number;
     order?: number;
+    locationName?: string;
   };
-  assignedVehicle?: string;
+  // Can be string ID or populated object
+  assignedVehicle?: string | {
+    _id: string;
+    regNumber: string;
+    model?: string;
+    type?: string;
+    status?: string;
+  };
 }
 
 export interface Notification {

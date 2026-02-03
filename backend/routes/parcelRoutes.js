@@ -5,7 +5,10 @@ const Parcel = require("../models/Parcel");
 // GET all parcels
 router.get("/", async (req, res) => {
   try {
-    const parcels = await Parcel.find().sort({ createdAt: -1 });
+    const parcels = await Parcel.find()
+      .populate("assignedDriver", "name mobile email profilePhoto")
+      .populate("assignedVehicle", "regNumber model type")
+      .sort({ createdAt: -1 });
     res.json({ data: parcels });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -15,7 +18,9 @@ router.get("/", async (req, res) => {
 // GET single parcel by ID
 router.get("/:id", async (req, res) => {
   try {
-    const parcel = await Parcel.findById(req.params.id);
+    const parcel = await Parcel.findById(req.params.id)
+      .populate("assignedDriver", "name mobile email profilePhoto driverStatus")
+      .populate("assignedVehicle", "regNumber model type status");
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });
     }

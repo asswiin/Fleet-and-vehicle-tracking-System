@@ -22,9 +22,25 @@ import {
   PencilLine,
   Trash2,
   Truck,
-  UserCheck
+  UserCheck,
+  Phone,
+  Navigation
 } from "lucide-react-native";
 import { api, type Parcel } from "../utils/api";
+
+// Helper to get driver info from populated or string
+const getDriverInfo = (driver: Parcel['assignedDriver']) => {
+  if (!driver) return null;
+  if (typeof driver === 'string') return { _id: driver, name: 'Assigned' };
+  return driver;
+};
+
+// Helper to get vehicle info from populated or string
+const getVehicleInfo = (vehicle: Parcel['assignedVehicle']) => {
+  if (!vehicle) return null;
+  if (typeof vehicle === 'string') return { _id: vehicle, regNumber: 'Assigned' };
+  return vehicle;
+};
 
 const ParcelDetailsScreen = () => {
   const router = useRouter();
@@ -293,18 +309,95 @@ const ParcelDetailsScreen = () => {
                   </Text>
                 </View>
               </View>
-              {parcel.assignedDriver && (
-                <View style={styles.tripDetailRow}>
-                  <UserCheck size={14} color="#64748B" />
-                  <Text style={styles.tripDetailLabel}>Driver Assigned</Text>
+              
+              {/* Driver Details */}
+              {getDriverInfo(parcel.assignedDriver) && (
+                <View style={styles.assignmentSection}>
+                  <View style={styles.assignmentHeader}>
+                    <UserCheck size={16} color="#16A34A" />
+                    <Text style={styles.assignmentTitle}>Assigned Driver</Text>
+                  </View>
+                  <View style={styles.assignmentCard}>
+                    <Text style={styles.assignmentName}>{getDriverInfo(parcel.assignedDriver)?.name}</Text>
+                    {getDriverInfo(parcel.assignedDriver)?.mobile && (
+                      <View style={styles.assignmentRow}>
+                        <Phone size={12} color="#64748B" />
+                        <Text style={styles.assignmentDetail}>{getDriverInfo(parcel.assignedDriver)?.mobile}</Text>
+                      </View>
+                    )}
+                    {getDriverInfo(parcel.assignedDriver)?.driverStatus && (
+                      <View style={[styles.driverStatusBadge, 
+                        getDriverInfo(parcel.assignedDriver)?.driverStatus === "On-trip" 
+                          ? styles.onTripBadge 
+                          : styles.activeBadge
+                      ]}>
+                        <Text style={styles.driverStatusText}>
+                          {getDriverInfo(parcel.assignedDriver)?.driverStatus}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
-              {parcel.assignedVehicle && (
-                <View style={styles.tripDetailRow}>
-                  <Truck size={14} color="#64748B" />
-                  <Text style={styles.tripDetailLabel}>Vehicle Assigned</Text>
+
+              {/* Vehicle Details */}
+              {getVehicleInfo(parcel.assignedVehicle) && (
+                <View style={styles.assignmentSection}>
+                  <View style={styles.assignmentHeader}>
+                    <Truck size={16} color="#2563EB" />
+                    <Text style={styles.assignmentTitle}>Assigned Vehicle</Text>
+                  </View>
+                  <View style={styles.assignmentCard}>
+                    <Text style={styles.assignmentName}>{getVehicleInfo(parcel.assignedVehicle)?.regNumber}</Text>
+                    {getVehicleInfo(parcel.assignedVehicle)?.model && (
+                      <Text style={styles.assignmentDetail}>
+                        {getVehicleInfo(parcel.assignedVehicle)?.model} • {getVehicleInfo(parcel.assignedVehicle)?.type}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               )}
+
+              {/* Delivery Destination */}
+              {parcel.recipient?.address && (
+                <View style={styles.assignmentSection}>
+                  <View style={styles.assignmentHeader}>
+                    <Navigation size={16} color="#D97706" />
+                    <Text style={styles.assignmentTitle}>Delivery Destination</Text>
+                  </View>
+                  <View style={styles.destinationCard}>
+                    <MapPin size={16} color="#D97706" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.destinationName}>{parcel.recipient?.name}</Text>
+                      <Text style={styles.destinationAddress}>{parcel.recipient?.address}</Text>
+                      {parcel.deliveryLocation?.latitude && parcel.deliveryLocation?.longitude && (
+                        <Text style={styles.coordsText}>
+                          📍 {parcel.deliveryLocation.latitude.toFixed(4)}, {parcel.deliveryLocation.longitude.toFixed(4)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Show Destination for non-Booked parcels without trip */}
+        {!parcel.tripId && parcel.status !== "Booked" && parcel.recipient?.address && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
+                <Navigation size={18} color="#D97706" />
+              </View>
+              <Text style={styles.sectionTitle}>Delivery Destination</Text>
+            </View>
+            <View style={styles.destinationOnlyCard}>
+              <MapPin size={18} color="#D97706" />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.destinationName}>{parcel.recipient?.name}</Text>
+                <Text style={styles.destinationAddress}>{parcel.recipient?.address}</Text>
+              </View>
             </View>
           </View>
         )}
@@ -527,6 +620,105 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     fontWeight: "600",
+  },
+  assignmentSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#DBEAFE",
+  },
+  assignmentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  assignmentTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  assignmentCard: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  assignmentName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+  assignmentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  assignmentDetail: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  driverStatusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  onTripBadge: {
+    backgroundColor: "#DCFCE7",
+  },
+  activeBadge: {
+    backgroundColor: "#DBEAFE",
+  },
+  driverStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  destinationCard: {
+    backgroundColor: "#FFFBEB",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  destinationOnlyCard: {
+    backgroundColor: "#FFFBEB",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  destinationName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#92400E",
+    marginBottom: 4,
+  },
+  destinationAddress: {
+    fontSize: 13,
+    color: "#78350F",
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  coordsText: {
+    fontSize: 11,
+    color: "#D97706",
+    fontWeight: "600",
+    marginTop: 6,
+    fontFamily: "monospace",
   },
   errorTitle: {
     fontSize: 18,
