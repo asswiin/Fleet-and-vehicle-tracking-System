@@ -193,6 +193,7 @@ export interface Notification {
     latitude: number;
     longitude: number;
     order: number;
+    locationName?: string;
   }>;
   startLocation?: {
     latitude: number;

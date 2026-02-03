@@ -28,6 +28,7 @@ interface DeliveryLocation {
   latitude: number;
   longitude: number;
   order: number;
+  locationName?: string;
 }
 
 interface StartLocation {
@@ -286,13 +287,15 @@ const TripSummaryScreen = () => {
               )}
               
               {/* Delivery Stops */}
-              {parcels.map((parcel, index) => (
+              {parcels.map((parcel, index) => {
+                const locationData = deliveryLocations.find(loc => loc.parcelId === parcel._id);
+                return (
                 <React.Fragment key={parcel._id}>
                   <View style={styles.cardRow}>
                     <View style={styles.routeItemLeft}>
                       <View style={[styles.routeOrderBadge, { backgroundColor: '#2563EB' }]}>
                         <Text style={styles.routeOrderText}>
-                          {parcel.deliveryLocation?.order || index + 1}
+                          {locationData?.order || index + 1}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
@@ -304,10 +307,16 @@ const TripSummaryScreen = () => {
                         </Text>
                       </View>
                     </View>
+                    <View style={styles.routeDestination}>
+                      <MapPin size={12} color="#059669" />
+                      <Text style={styles.routeDestinationText} numberOfLines={1}>
+                        {locationData?.locationName || 'Location set'}
+                      </Text>
+                    </View>
                   </View>
                   {index < parcels.length - 1 && <View style={styles.divider} />}
                 </React.Fragment>
-              ))}
+              );})}
             </View>
           </View>
         )}
@@ -319,12 +328,14 @@ const TripSummaryScreen = () => {
             <Text style={styles.sectionTitle}>Parcels ({parcels.length})</Text>
           </View>
           <View style={styles.parcelsList}>
-            {parcels.map((parcel, index) => (
+            {parcels.map((parcel, index) => {
+              const locationData = deliveryLocations.find(loc => loc.parcelId === parcel._id);
+              return (
               <View key={parcel._id} style={styles.parcelItem}>
                 <View style={styles.parcelContent}>
-                  <View style={[styles.parcelNumber, { backgroundColor: parcel.deliveryLocation ? '#2563EB' : '#64748B' }]}>
+                  <View style={[styles.parcelNumber, { backgroundColor: locationData ? '#2563EB' : '#64748B' }]}>
                     <Text style={styles.parcelNumberText}>
-                      {parcel.deliveryLocation?.order || index + 1}
+                      {locationData?.order || index + 1}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
@@ -341,16 +352,18 @@ const TripSummaryScreen = () => {
                         Weight: {parcel.weight}kg
                       </Text>
                     )}
-                    {parcel.deliveryLocation && (
+                    {locationData && (
                       <View style={styles.locationBadge}>
                         <MapPin size={12} color="#10B981" />
-                        <Text style={styles.locationBadgeText}>Location set</Text>
+                        <Text style={styles.locationBadgeText}>
+                          {locationData.locationName || 'Location set'}
+                        </Text>
                       </View>
                     )}
                   </View>
                 </View>
               </View>
-            ))}
+            );})}
           </View>
         </View>
 
@@ -547,6 +560,22 @@ const styles = StyleSheet.create({
   routeRecipient: {
     fontSize: 11,
     color: "#64748B",
+  },
+  routeDestination: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+    marginLeft: 8,
+  },
+  routeDestinationText: {
+    fontSize: 11,
+    color: "#059669",
+    fontWeight: "600",
+    maxWidth: 80,
   },
   routeAddress: {
     fontSize: 12,

@@ -28,10 +28,13 @@ import {
   Edit3,
   Check,
 } from "lucide-react-native";
-import { MapView, Marker, PROVIDER_DEFAULT, isMapAvailable } from "../components/MapViewWrapper.native";
+import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "../components/MapViewWrapper.native";
 import { api, type Parcel } from "../utils/api";
 
 const { width, height } = Dimensions.get("window");
+
+// Google Directions API Key - Replace with your actual API key
+const GOOGLE_DIRECTIONS_API_KEY = "YOUR_GOOGLE_DIRECTIONS_API_KEY";
 
 interface LocationPoint {
   parcelId: string;
@@ -42,6 +45,7 @@ interface LocationPoint {
   longitude: number;
   order: number;
   isLocationSet: boolean;
+  locationName?: string;
 }
 
 // Predefined locations for search (Kerala, India region)
@@ -95,6 +99,10 @@ const SelectLocationScreen = () => {
   const [selectedParcelIndex, setSelectedParcelIndex] = useState<number | null>(null);
   const [tempSelectedCoords, setTempSelectedCoords] = useState<{latitude: number, longitude: number, name?: string} | null>(null);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
+
+  // Route coordinates for drawing the actual road path
+  const [routeCoordinates, setRouteCoordinates] = useState<{latitude: number, longitude: number}[]>([]);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
   // Default map region (Kerala, India)
   const [region, setRegion] = useState({
@@ -187,7 +195,7 @@ const SelectLocationScreen = () => {
   const handleMarkerPress = (location: LocationPoint) => {
     Alert.alert(
       `📦 ${location.trackingId}`,
-      `Recipient: ${location.recipientName}\n\nAddress: ${location.address}`,
+      `Recipient: ${location.recipientName}\n\nDelivery Location: ${location.locationName || 'Not set'}\n\nAddress: ${location.address}`,
       [{ text: "OK" }]
     );
   };
@@ -257,6 +265,7 @@ const SelectLocationScreen = () => {
       latitude: tempSelectedCoords.latitude,
       longitude: tempSelectedCoords.longitude,
       isLocationSet: true,
+      locationName: tempSelectedCoords.name || `${tempSelectedCoords.latitude.toFixed(4)}, ${tempSelectedCoords.longitude.toFixed(4)}`,
     };
     setLocations(updatedLocations);
     setShowLocationModal(false);
@@ -321,6 +330,7 @@ const SelectLocationScreen = () => {
       latitude: loc.latitude,
       longitude: loc.longitude,
       order: loc.order,
+      locationName: loc.locationName || "Unknown Location",
     }));
 
     router.push({
@@ -353,6 +363,95 @@ const SelectLocationScreen = () => {
     const colors = ['#DC2626', '#EA580C', '#D97706', '#CA8A04', '#65A30D', '#16A34A', '#0D9488', '#0891B2', '#2563EB', '#7C3AED'];
     return colors[(order - 1) % colors.length];
   };
+
+  // Decode Google's encoded polyline string
+  const decodePolyline = (encoded: string): {latitude: number, longitude: number}[] => {
+    const points: {latitude: number, longitude: number}[] = [];
+    let index = 0, lat = 0, lng = 0;
+
+    while (index < encoded.length) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.push({
+        latitude: lat / 1e5,
+        longitude: lng / 1e5,
+      });
+    }
+    return points;
+  };
+
+  // Fetch route from Google Directions API
+  const fetchRoute = async (waypoints: {latitude: number, longitude: number}[]) => {
+    if (waypoints.length < 2) {
+      setRouteCoordinates([]);
+      return;
+    }
+
+    setIsLoadingRoute(true);
+    try {
+      const origin = `${waypoints[0].latitude},${waypoints[0].longitude}`;
+      const destination = `${waypoints[waypoints.length - 1].latitude},${waypoints[waypoints.length - 1].longitude}`;
+      
+      // Build waypoints string for intermediate stops
+      let waypointsParam = '';
+      if (waypoints.length > 2) {
+        const intermediateWaypoints = waypoints.slice(1, -1);
+        waypointsParam = `&waypoints=${intermediateWaypoints.map(w => `${w.latitude},${w.longitude}`).join('|')}`;
+      }
+
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}${waypointsParam}&key=${GOOGLE_DIRECTIONS_API_KEY}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.routes.length > 0) {
+        const route = data.routes[0];
+        const points = decodePolyline(route.overview_polyline.points);
+        setRouteCoordinates(points);
+      } else {
+        // Fallback to straight lines if API fails
+        console.log('Directions API failed, using straight lines:', data.status);
+        setRouteCoordinates(waypoints);
+      }
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      // Fallback to straight lines
+      setRouteCoordinates(waypoints);
+    } finally {
+      setIsLoadingRoute(false);
+    }
+  };
+
+  // Update route when locations change
+  useEffect(() => {
+    const setLocs = locations.filter(loc => loc.isLocationSet).sort((a, b) => a.order - b.order);
+    if (setLocs.length > 0) {
+      const waypoints = [
+        { latitude: startLocation.latitude, longitude: startLocation.longitude },
+        ...setLocs.map(loc => ({ latitude: loc.latitude, longitude: loc.longitude }))
+      ];
+      fetchRoute(waypoints);
+    } else {
+      setRouteCoordinates([]);
+    }
+  }, [locations, startLocation]);
 
   if (loading) {
     return (
@@ -413,6 +512,16 @@ const SelectLocationScreen = () => {
               pinColor="#10B981"
             />
 
+            {/* Route Polyline - Shows the actual road path */}
+            {routeCoordinates.length > 1 && (
+              <Polyline
+                coordinates={routeCoordinates}
+                strokeColor="#2563EB"
+                strokeWidth={4}
+                lineDashPattern={[0]}
+              />
+            )}
+
             {/* Delivery Location Markers - Only show set locations */}
             {locations.filter(loc => loc.isLocationSet).map((location) => (
               <Marker
@@ -421,8 +530,8 @@ const SelectLocationScreen = () => {
                   latitude: location.latitude,
                   longitude: location.longitude,
                 }}
-                title={`${location.order}. ${location.trackingId}`}
-                description={`${location.recipientName}`}
+                title={`${location.order}. ${location.trackingId} - ${location.locationName || 'Location'}`}
+                description={`To: ${location.recipientName}`}
                 onPress={() => handleMarkerPress(location)}
               >
                 <View style={[styles.customMarker, { backgroundColor: getMarkerColor(location.order) }]}>
@@ -488,9 +597,11 @@ const SelectLocationScreen = () => {
                   {location.address}
                 </Text>
                 {location.isLocationSet ? (
-                  <View style={styles.statusRow}>
-                    <MapPin size={12} color="#10B981" />
-                    <Text style={styles.statusText}>Location set ✓</Text>
+                  <View style={styles.locationSetRow}>
+                    <MapPin size={14} color="#10B981" />
+                    <Text style={styles.locationNameText} numberOfLines={1}>
+                      {location.locationName || 'Location set'}
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.statusRow}>
@@ -885,6 +996,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#10B981",
     fontWeight: "500",
+  },
+  locationSetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    alignSelf: "flex-start",
+  },
+  locationNameText: {
+    fontSize: 12,
+    color: "#059669",
+    fontWeight: "600",
+    maxWidth: 120,
   },
   statusBadge: {
     padding: 8,

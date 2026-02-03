@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ArrowLeft, Bell, Clock, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, Bell, Clock, ChevronRight, MapPin, Package } from "lucide-react-native";
 import { api, Notification } from "../utils/api";
 
 const TripNotificationsScreen = () => {
@@ -74,6 +74,27 @@ const TripNotificationsScreen = () => {
                 </View>
               </View>
               <Text style={styles.message}>{item.message}</Text>
+              
+              {/* Parcels and Weight Info */}
+              {item.parcelIds && item.parcelIds.length > 0 && (
+                <View style={styles.infoRow}>
+                  <Package size={14} color="#64748B" />
+                  <Text style={styles.infoText}>
+                    {item.parcelIds.length} parcel(s) • {item.parcelIds.reduce((sum, p) => sum + (p.weight || 0), 0).toFixed(1)}kg
+                  </Text>
+                </View>
+              )}
+              
+              {/* Destination Info */}
+              {item.parcelIds && item.parcelIds.length > 0 && (
+                <View style={styles.destinationContainer}>
+                  <MapPin size={14} color="#2563EB" />
+                  <Text style={styles.destinationText} numberOfLines={2}>
+                    {item.parcelIds.map(p => p.recipient?.address || 'Unknown').join(' → ')}
+                  </Text>
+                </View>
+              )}
+              
               <View style={styles.cardFooter}>
                 <Clock size={14} color="#94A3B8" />
                 <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</Text>
@@ -93,12 +114,25 @@ const styles = StyleSheet.create({
   cardPending: { borderColor: "#3B82F6", borderLeftWidth: 4 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   tripId: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-  message: { fontSize: 14, color: "#64748B", marginBottom: 12 },
+  message: { fontSize: 14, color: "#64748B", marginBottom: 8 },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  infoText: { fontSize: 13, color: "#64748B" },
+  destinationContainer: { 
+    flexDirection: "row", 
+    alignItems: "flex-start", 
+    gap: 6, 
+    backgroundColor: "#EFF6FF", 
+    padding: 10, 
+    borderRadius: 8,
+    marginBottom: 12 
+  },
+  destinationText: { fontSize: 13, color: "#1E40AF", flex: 1, fontWeight: "500" },
   cardFooter: { flexDirection: "row", alignItems: "center", gap: 6 },
   date: { fontSize: 12, color: "#94A3B8" },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   badgePending: { backgroundColor: "#EFF6FF" },
   badgeDone: { backgroundColor: "#F1F5F9" },
+  badgeText: {},
   textPending: { fontSize: 10, fontWeight: "700", color: "#2563EB" },
   textDone: { fontSize: 10, fontWeight: "700", color: "#64748B" },
 });

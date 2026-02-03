@@ -53,6 +53,9 @@ const notificationSchema = new mongoose.Schema(
       order: {
         type: Number,
       },
+      locationName: {
+        type: String,
+      },
     }],
     // Starting point for the trip
     startLocation: {
