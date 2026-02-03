@@ -6,7 +6,7 @@ const Parcel = require("../models/Parcel");
 // Create a new notification (trip assignment)
 exports.createNotification = async (req, res) => {
   try {
-    const { driverId, vehicleId, parcelIds, tripId, message } = req.body;
+    const { driverId, vehicleId, parcelIds, tripId, message, deliveryLocations, startLocation } = req.body;
 
     // Validate driver exists
     const driver = await Driver.findById(driverId);
@@ -28,6 +28,8 @@ exports.createNotification = async (req, res) => {
       message: message || `New trip assigned: ${tripId}`,
       type: "trip_assignment",
       status: "pending",
+      deliveryLocations: deliveryLocations || [],
+      startLocation: startLocation || null,
     });
 
     await notification.save();

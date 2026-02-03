@@ -222,7 +222,13 @@ const TripAssignmentDetailScreen = () => {
 
   // Get location for a specific parcel
   const getParcelLocation = (parcelId: string) => {
-    return deliveryLocations.find(loc => loc.parcelId === parcelId);
+    return deliveryLocations.find(loc => {
+      // Handle both string and ObjectId comparisons
+      const locParcelId = typeof loc.parcelId === 'object' 
+        ? (loc.parcelId as any)._id || (loc.parcelId as any).toString() 
+        : loc.parcelId;
+      return locParcelId === parcelId || String(locParcelId) === String(parcelId);
+    });
   };
 
   // Check if we have location data
