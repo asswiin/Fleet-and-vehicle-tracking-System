@@ -506,6 +506,9 @@ export const api = {
   updateTripStatus: (id: string, status: string) => 
     apiCall(`/api/trips/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
+  startJourney: (tripId: string) => 
+    apiCall(`/api/trips/${tripId}/start-journey`, { method: "POST" }),
+
   updateDeliveryStatus: (tripId: string, parcelId: string, deliveryStatus: string, notes?: string) => 
     apiCall(`/api/trips/${tripId}/delivery/${parcelId}`, { 
       method: "PATCH", 

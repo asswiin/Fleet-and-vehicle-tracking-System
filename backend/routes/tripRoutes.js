@@ -20,6 +20,9 @@ router.get("/driver/:driverId", tripController.getTripsByDriver);
 // Get active trip for a driver
 router.get("/driver/:driverId/active", tripController.getActiveTrip);
 
+// Start journey - begins the trip and updates all statuses
+router.post("/:id/start-journey", tripController.startJourney);
+
 // Update trip status
 router.patch("/:id/status", tripController.updateTripStatus);
 

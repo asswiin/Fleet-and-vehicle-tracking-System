@@ -199,6 +199,74 @@ exports.updateTripStatus = async (req, res) => {
   }
 };
 
+// Start journey - updates trip status to in-progress and changes driver, vehicle, and parcel statuses to "On-trip"
+exports.startJourney = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the trip
+    const trip = await Trip.findById(id);
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // Check if trip is in accepted status
+    if (trip.status !== "accepted") {
+      return res.status(400).json({ 
+        message: "Trip must be in 'accepted' status to start the journey",
+        currentStatus: trip.status 
+      });
+    }
+
+    // Update trip status to in-progress
+    trip.status = "in-progress";
+    trip.startedAt = new Date();
+    await trip.save();
+
+    // Update driver status to On-trip
+    await Driver.findByIdAndUpdate(trip.driverId, { 
+      driverStatus: "On-trip",
+      currentTripId: trip.tripId
+    });
+
+    // Update vehicle status to On-trip
+    await Vehicle.findByIdAndUpdate(trip.vehicleId, { 
+      status: "On-trip",
+      currentTripId: trip.tripId
+    });
+
+    // Update all parcels status to "In Transit"
+    if (trip.parcelIds && trip.parcelIds.length > 0) {
+      await Parcel.updateMany(
+        { _id: { $in: trip.parcelIds } },
+        { status: "In Transit" }
+      );
+    }
+
+    // Update delivery destinations status to in-transit
+    trip.deliveryDestinations = trip.deliveryDestinations.map(dest => ({
+      ...dest.toObject(),
+      deliveryStatus: "in-transit"
+    }));
+    await trip.save();
+
+    // Populate and return the updated trip
+    const populatedTrip = await Trip.findById(trip._id)
+      .populate("driverId", "name phone email profilePhoto mobile driverStatus")
+      .populate("vehicleId", "regNumber model type capacity status")
+      .populate("parcelIds", "trackingId weight recipient status type sender deliveryLocation")
+      .populate("assignedBy", "name email");
+
+    res.status(200).json({
+      message: "Journey started successfully",
+      trip: populatedTrip
+    });
+  } catch (error) {
+    console.error("Error starting journey:", error);
+    res.status(500).json({ message: "Failed to start journey", error: error.message });
+  }
+};
+
 // Update delivery destination status
 exports.updateDeliveryStatus = async (req, res) => {
   try {

@@ -148,7 +148,26 @@ const DriverDashboard = () => {
         {/* Grid Container */}
         <View style={styles.gridContainer}>
 
-          {/* Card 1: History */}
+          {/* Card 1: Active Trip */}
+          <TouchableOpacity 
+            style={styles.card}
+            onPress={() => {
+              if (driverId) {
+                router.push({
+                  pathname: "active-trip",
+                  params: { driverId: driverId }
+                } as any);
+              }
+            }}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}>
+              <Truck size={24} color="#16A34A" />
+            </View>
+            <Text style={styles.cardTitle}>Active Trip</Text>
+            <Text style={styles.cardSubtitle}>View current trip</Text>
+          </TouchableOpacity>
+
+          {/* Card 2: History */}
           <TouchableOpacity style={styles.card}>
             <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
               <Clock size={24} color="#2563EB" />
@@ -157,7 +176,7 @@ const DriverDashboard = () => {
             <Text style={styles.cardSubtitle}>View past trips</Text>
           </TouchableOpacity>
 
-          {/* Card 2: Alerts */}
+          {/* Card 3: Alerts */}
           <TouchableOpacity 
             style={styles.card}
             onPress={() => {
@@ -208,7 +227,17 @@ const DriverDashboard = () => {
           <Text style={[styles.navText, { color: "#2563EB" }]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => {
+            if (driverId) {
+              router.push({
+                pathname: "active-trip",
+                params: { driverId: driverId }
+              } as any);
+            }
+          }}
+        >
           <Truck size={24} color="#94A3B8" />
           <Text style={styles.navText}>Trips</Text>
         </TouchableOpacity>
