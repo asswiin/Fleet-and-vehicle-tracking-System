@@ -141,13 +141,42 @@ const TripSummaryScreen = () => {
       // Create notification for the driver with location data
       // NOTE: Vehicle and driver status will be updated to "On-trip" when driver ACCEPTS the trip
       const tripId = `TR-${Date.now().toString().slice(-6)}-X`;
+      
+      // Create Trip record with all details including destinations
+      const tripRes = await api.createTrip({
+        tripId,
+        driverId,
+        vehicleId,
+        parcelIds,
+        startLocation: startLocation,
+        deliveryDestinations: deliveryLocations.map(loc => ({
+          parcelId: loc.parcelId,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          locationName: loc.locationName || "Unknown Location",
+          order: loc.order,
+        })),
+        totalWeight: totalWeight,
+      });
+
+      if (!tripRes.ok) {
+        console.error("Failed to create trip record");
+      }
+
+      // Create notification with locationName included
       const notificationRes = await api.createNotification({
         driverId,
         vehicleId,
         parcelIds,
         tripId,
         message: `New trip assigned with ${parcelIds.length} parcel(s). Vehicle: ${vehicle?.regNumber || 'N/A'}`,
-        deliveryLocations: deliveryLocations,
+        deliveryLocations: deliveryLocations.map(loc => ({
+          parcelId: loc.parcelId,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          order: loc.order,
+          locationName: loc.locationName,
+        })),
         startLocation: startLocation,
       });
 

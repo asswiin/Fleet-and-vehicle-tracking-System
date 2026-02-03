@@ -28,10 +28,7 @@ import {
   ChevronUp,
 } from "lucide-react-native";
 import { api, Notification } from "../utils/api";
-import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "../components/MapViewWrapper.native";
-
-// Google Directions API Key - Replace with your actual API key
-const GOOGLE_DIRECTIONS_API_KEY = "YOUR_GOOGLE_DIRECTIONS_API_KEY";
+import { MapView, Marker, PROVIDER_DEFAULT, isMapAvailable } from "../components/MapViewWrapper.native";
 
 const { width, height } = Dimensions.get("window");
 
@@ -54,12 +51,6 @@ const TripAssignmentDetailScreen = () => {
   const [showFullMap, setShowFullMap] = useState(false);
   const [expandedParcels, setExpandedParcels] = useState(true);
   const [focusedParcelId, setFocusedParcelId] = useState<string | null>(null);
-  
-  // Route coordinates for the complete trip and individual parcel routes
-  const [fullRouteCoordinates, setFullRouteCoordinates] = useState<{latitude: number, longitude: number}[]>([]);
-  const [parcelRoutes, setParcelRoutes] = useState<{[parcelId: string]: {latitude: number, longitude: number}[]}>({});
-  const [selectedParcelRoute, setSelectedParcelRoute] = useState<{latitude: number, longitude: number}[]>([]);
-  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
   useEffect(() => {
     fetchNotificationDetails();
@@ -85,146 +76,6 @@ const TripAssignmentDetailScreen = () => {
       setLoading(false);
     }
   };
-
-  // Decode Google's encoded polyline format
-  const decodePolyline = (encoded: string): {latitude: number, longitude: number}[] => {
-    const points: {latitude: number, longitude: number}[] = [];
-    let index = 0, len = encoded.length;
-    let lat = 0, lng = 0;
-
-    while (index < len) {
-      let b, shift = 0, result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      points.push({
-        latitude: lat / 1e5,
-        longitude: lng / 1e5,
-      });
-    }
-    return points;
-  };
-
-  // Fetch route from source to a single destination
-  const fetchRouteToDestination = async (
-    origin: {latitude: number, longitude: number},
-    destination: {latitude: number, longitude: number}
-  ): Promise<{latitude: number, longitude: number}[]> => {
-    try {
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${GOOGLE_DIRECTIONS_API_KEY}`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.routes && data.routes.length > 0) {
-        const encodedPolyline = data.routes[0].overview_polyline.points;
-        return decodePolyline(encodedPolyline);
-      }
-    } catch (error) {
-      console.error("Error fetching route:", error);
-    }
-    
-    // Fallback: return straight line
-    return [origin, destination];
-  };
-
-  // Fetch the complete route through all delivery locations
-  const fetchFullRoute = async (
-    start: {latitude: number, longitude: number},
-    waypoints: {latitude: number, longitude: number, parcelId: string}[]
-  ) => {
-    if (waypoints.length === 0) return;
-    
-    setIsLoadingRoute(true);
-    try {
-      // Build waypoints string for Google Directions API
-      const waypointsStr = waypoints
-        .slice(0, -1) // All except the last one (which is the destination)
-        .map(wp => `${wp.latitude},${wp.longitude}`)
-        .join('|');
-      
-      const destination = waypoints[waypoints.length - 1];
-      
-      let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${start.latitude},${start.longitude}&destination=${destination.latitude},${destination.longitude}`;
-      
-      if (waypointsStr) {
-        url += `&waypoints=${waypointsStr}`;
-      }
-      url += `&key=${GOOGLE_DIRECTIONS_API_KEY}`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.routes && data.routes.length > 0) {
-        const encodedPolyline = data.routes[0].overview_polyline.points;
-        const decoded = decodePolyline(encodedPolyline);
-        setFullRouteCoordinates(decoded);
-      } else {
-        // Fallback: create straight lines between points
-        const fallbackRoute = [
-          start,
-          ...waypoints.map(wp => ({ latitude: wp.latitude, longitude: wp.longitude }))
-        ];
-        setFullRouteCoordinates(fallbackRoute);
-      }
-      
-      // Also fetch individual routes for each parcel
-      const routes: {[parcelId: string]: {latitude: number, longitude: number}[]} = {};
-      for (const wp of waypoints) {
-        const route = await fetchRouteToDestination(start, { latitude: wp.latitude, longitude: wp.longitude });
-        routes[wp.parcelId] = route;
-      }
-      setParcelRoutes(routes);
-      
-    } catch (error) {
-      console.error("Error fetching full route:", error);
-      // Fallback route
-      const fallbackRoute = [
-        start,
-        ...waypoints.map(wp => ({ latitude: wp.latitude, longitude: wp.longitude }))
-      ];
-      setFullRouteCoordinates(fallbackRoute);
-    } finally {
-      setIsLoadingRoute(false);
-    }
-  };
-
-  // Effect to fetch routes when notification loads
-  useEffect(() => {
-    if (notification && notification.startLocation && notification.deliveryLocations && notification.deliveryLocations.length > 0) {
-      const start = {
-        latitude: notification.startLocation.latitude,
-        longitude: notification.startLocation.longitude,
-      };
-      const deliveryLocs = notification.deliveryLocations;
-      const waypoints = deliveryLocs
-        .filter(loc => loc.latitude && loc.longitude)
-        .map(loc => ({
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          parcelId: loc.parcelId,
-        }));
-      
-      if (waypoints.length > 0) {
-        fetchFullRoute(start, waypoints);
-      }
-    }
-  }, [notification]);
 
   const handleAccept = async () => {
     if (!notification) return;
@@ -377,41 +228,24 @@ const TripAssignmentDetailScreen = () => {
   // Check if we have location data
   const hasLocationData = deliveryLocations.length > 0;
 
-  // Focus map on a specific parcel location and show its route
+  // Focus map on a specific parcel location
   const focusOnParcel = (parcelId: string) => {
     const location = getParcelLocation(parcelId);
     if (location && mapRef.current) {
       setFocusedParcelId(parcelId);
       setShowFullMap(true);
-      
-      // Set the individual route for this parcel
-      if (parcelRoutes[parcelId]) {
-        setSelectedParcelRoute(parcelRoutes[parcelId]);
-      } else {
-        setSelectedParcelRoute([]);
-      }
-      
-      // Fit map to show the entire route from start to this parcel
-      if (startLocation && parcelRoutes[parcelId] && parcelRoutes[parcelId].length > 0) {
-        mapRef.current.fitToCoordinates(parcelRoutes[parcelId], {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-          animated: true,
-        });
-      } else {
-        mapRef.current.animateToRegion({
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        }, 500);
-      }
+      mapRef.current.animateToRegion({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 500);
     }
   };
 
-  // Reset map to show all markers and full route
+  // Reset map to show all markers
   const resetMapView = () => {
     setFocusedParcelId(null);
-    setSelectedParcelRoute([]); // Clear individual route, show full route
     if (mapRef.current) {
       mapRef.current.animateToRegion(getMapRegion(), 500);
     }
@@ -513,26 +347,6 @@ const TripAssignmentDetailScreen = () => {
                     </Marker>
                   )}
                   
-                  {/* Full Route Polyline (shown when no parcel is focused) */}
-                  {fullRouteCoordinates.length > 0 && selectedParcelRoute.length === 0 && (
-                    <Polyline
-                      coordinates={fullRouteCoordinates}
-                      strokeColor="#2563EB"
-                      strokeWidth={4}
-                      lineDashPattern={[0]}
-                    />
-                  )}
-                  
-                  {/* Selected Parcel Route Polyline (shown when a parcel is focused) */}
-                  {selectedParcelRoute.length > 0 && (
-                    <Polyline
-                      coordinates={selectedParcelRoute}
-                      strokeColor="#DC2626"
-                      strokeWidth={5}
-                      lineDashPattern={[0]}
-                    />
-                  )}
-                  
                   {/* Delivery Location Markers */}
                   {deliveryLocations.map((location, index) => {
                     const parcel = notification.parcelIds?.find(p => p._id === location.parcelId);
@@ -544,7 +358,7 @@ const TripAssignmentDetailScreen = () => {
                           latitude: location.latitude,
                           longitude: location.longitude,
                         }}
-                        title={`Stop ${location.order || index + 1}${location.locationName ? ` - ${location.locationName}` : ''}`}
+                        title={`Stop ${location.order || index + 1}`}
                         description={parcel?.recipient?.name || `Delivery ${index + 1}`}
                       >
                         <View style={[
@@ -585,16 +399,6 @@ const TripAssignmentDetailScreen = () => {
                   <View style={[styles.legendDot, { backgroundColor: "#2563EB" }]} />
                   <Text style={styles.legendText}>Stops ({deliveryLocations.length})</Text>
                 </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: selectedParcelRoute.length > 0 ? "#DC2626" : "#2563EB" }]} />
-                  <Text style={styles.legendText}>{selectedParcelRoute.length > 0 ? "Route to Stop" : "Full Route"}</Text>
-                </View>
-                {isLoadingRoute && (
-                  <View style={styles.legendItem}>
-                    <ActivityIndicator size="small" color="#2563EB" />
-                    <Text style={styles.legendText}>Loading...</Text>
-                  </View>
-                )}
               </View>
             )}
           </View>
@@ -684,17 +488,19 @@ const TripAssignmentDetailScreen = () => {
                   <View style={[styles.locationCard, isFocused && styles.locationCardFocused]}>
                     <View style={styles.locationCardHeader}>
                       <View style={[styles.locationMarkerDot, { backgroundColor: markerColor }]} />
-                      <Text style={styles.locationCardTitle}>📍 Delivery Location</Text>
+                      <Text style={styles.locationCardTitle}>📍 Delivery Destination</Text>
                       <View style={styles.stopBadge}>
                         <Text style={styles.stopBadgeText}>Stop #{parcelLocation.order || index + 1}</Text>
                       </View>
                     </View>
                     <View style={styles.locationCardBody}>
-                      {/* Location Name */}
+                      {/* Location Name - Main destination display */}
                       {parcelLocation.locationName && (
-                        <View style={styles.locationNameRow}>
-                          <MapPin size={14} color="#2563EB" />
-                          <Text style={styles.locationNameText}>{parcelLocation.locationName}</Text>
+                        <View style={styles.destinationNameRow}>
+                          <MapPin size={16} color="#2563EB" />
+                          <Text style={styles.destinationNameText}>
+                            {parcelLocation.locationName}
+                          </Text>
                         </View>
                       )}
                       <View style={styles.coordsRow}>
@@ -703,12 +509,9 @@ const TripAssignmentDetailScreen = () => {
                           {parcelLocation.latitude.toFixed(5)}, {parcelLocation.longitude.toFixed(5)}
                         </Text>
                       </View>
-                      <View style={styles.routeHintRow}>
-                        <Route size={12} color="#D97706" />
-                        <Text style={styles.tapHint}>
-                          {isFocused ? "✓ Route shown on map" : "Tap to view route from source"}
-                        </Text>
-                      </View>
+                      <Text style={styles.tapHint}>
+                        {isFocused ? "✓ Showing on map" : "Tap to view on map"}
+                      </Text>
                     </View>
                   </View>
                 ) : (
@@ -985,11 +788,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
-  legendLine: {
-    width: 20,
-    height: 4,
-    borderRadius: 2,
-  },
   legendText: {
     fontSize: 11,
     color: "#64748B",
@@ -1204,20 +1002,20 @@ const styles = StyleSheet.create({
   locationCardBody: {
     marginTop: 4,
   },
-  locationNameRow: {
+  destinationNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 6,
+    gap: 8,
     backgroundColor: "#EFF6FF",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 8,
   },
-  locationNameText: {
-    fontSize: 13,
+  destinationNameText: {
+    fontSize: 15,
     fontWeight: "700",
-    color: "#2563EB",
+    color: "#1E40AF",
     flex: 1,
   },
   coordsRow: {
@@ -1231,15 +1029,10 @@ const styles = StyleSheet.create({
     color: "#059669",
     fontFamily: "monospace",
   },
-  routeHintRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 6,
-  },
   tapHint: {
     fontSize: 10,
     color: "#64748B",
+    marginTop: 4,
     fontStyle: "italic",
   },
   noLocationCard: {

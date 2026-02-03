@@ -202,6 +202,67 @@ export interface Notification {
   };
 }
 
+// Trip interface for storing assigned trips
+export interface Trip {
+  _id: string;
+  tripId: string;
+  driverId: {
+    _id: string;
+    name: string;
+    phone: string;
+    email: string;
+    profilePhoto?: string;
+  };
+  vehicleId: {
+    _id: string;
+    regNumber: string;
+    model: string;
+    type: string;
+    capacity: number;
+  };
+  parcelIds: Array<{
+    _id: string;
+    trackingId: string;
+    weight: number;
+    recipient: {
+      name: string;
+      address: string;
+    };
+    status: string;
+  }>;
+  status: string;
+  startLocation?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  deliveryDestinations: Array<{
+    parcelId: string;
+    latitude: number;
+    longitude: number;
+    locationName: string;
+    order: number;
+    deliveryStatus: string;
+    deliveredAt?: string;
+    notes?: string;
+  }>;
+  assignedBy?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  assignedAt: string;
+  acceptedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  totalWeight: number;
+  totalDistance?: number;
+  estimatedDuration?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 // ==========================================
 // 2. Network Configuration
@@ -406,6 +467,53 @@ export const api = {
   
   deleteNotification: (id: string) => 
     apiCall(`/api/notifications/${id}`, { method: "DELETE" }),
+
+  // TRIPS
+  createTrip: (data: {
+    tripId: string;
+    driverId: string;
+    vehicleId: string;
+    parcelIds: string[];
+    startLocation?: {
+      latitude: number;
+      longitude: number;
+      address: string;
+    } | null;
+    deliveryDestinations: Array<{
+      parcelId: string;
+      latitude: number;
+      longitude: number;
+      locationName: string;
+      order: number;
+    }>;
+    assignedBy?: string;
+    totalWeight?: number;
+    notes?: string;
+  }) => apiCall("/api/trips", { method: "POST", body: JSON.stringify(data) }),
+
+  getAllTrips: () => apiCall<Trip[]>("/api/trips"),
+
+  getTrip: (id: string) => apiCall<Trip>(`/api/trips/${id}`),
+
+  getTripByTripId: (tripId: string) => apiCall<Trip>(`/api/trips/by-trip-id/${tripId}`),
+
+  getDriverTrips: (driverId: string, status?: string) => 
+    apiCall<Trip[]>(`/api/trips/driver/${driverId}${status ? `?status=${status}` : ''}`),
+
+  getActiveTrip: (driverId: string) => 
+    apiCall<Trip>(`/api/trips/driver/${driverId}/active`),
+
+  updateTripStatus: (id: string, status: string) => 
+    apiCall(`/api/trips/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+
+  updateDeliveryStatus: (tripId: string, parcelId: string, deliveryStatus: string, notes?: string) => 
+    apiCall(`/api/trips/${tripId}/delivery/${parcelId}`, { 
+      method: "PATCH", 
+      body: JSON.stringify({ deliveryStatus, notes }) 
+    }),
+
+  deleteTrip: (id: string) => 
+    apiCall(`/api/trips/${id}`, { method: "DELETE" }),
 };
    
 
