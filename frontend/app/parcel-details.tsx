@@ -359,7 +359,7 @@ const ParcelDetailsScreen = () => {
               )}
 
               {/* Delivery Destination */}
-              {parcel.recipient?.address && (
+              {(parcel.deliveryLocation?.locationName || parcel.recipient?.address) && (
                 <View style={styles.assignmentSection}>
                   <View style={styles.assignmentHeader}>
                     <Navigation size={16} color="#D97706" />
@@ -368,8 +368,12 @@ const ParcelDetailsScreen = () => {
                   <View style={styles.destinationCard}>
                     <MapPin size={16} color="#D97706" />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.destinationName}>{parcel.recipient?.name}</Text>
-                      <Text style={styles.destinationAddress}>{parcel.recipient?.address}</Text>
+                      <Text style={styles.destinationName}>
+                        {parcel.deliveryLocation?.locationName || parcel.recipient?.name}
+                      </Text>
+                      {parcel.deliveryLocation?.locationName && parcel.recipient?.name && (
+                        <Text style={styles.destinationAddress}>To: {parcel.recipient?.name}</Text>
+                      )}
                       {parcel.deliveryLocation?.latitude && parcel.deliveryLocation?.longitude && (
                         <Text style={styles.coordsText}>
                           📍 {parcel.deliveryLocation.latitude.toFixed(4)}, {parcel.deliveryLocation.longitude.toFixed(4)}
@@ -384,7 +388,7 @@ const ParcelDetailsScreen = () => {
         )}
 
         {/* Show Destination for non-Booked parcels without trip */}
-        {!parcel.tripId && parcel.status !== "Booked" && parcel.recipient?.address && (
+        {!parcel.tripId && parcel.status !== "Booked" && (parcel.deliveryLocation?.locationName || parcel.recipient?.address) && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
@@ -395,8 +399,17 @@ const ParcelDetailsScreen = () => {
             <View style={styles.destinationOnlyCard}>
               <MapPin size={18} color="#D97706" />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.destinationName}>{parcel.recipient?.name}</Text>
-                <Text style={styles.destinationAddress}>{parcel.recipient?.address}</Text>
+                <Text style={styles.destinationName}>
+                  {parcel.deliveryLocation?.locationName || parcel.recipient?.name}
+                </Text>
+                {parcel.deliveryLocation?.locationName && parcel.recipient?.name && (
+                  <Text style={styles.destinationAddress}>To: {parcel.recipient?.name}</Text>
+                )}
+                {parcel.deliveryLocation?.latitude && parcel.deliveryLocation?.longitude && (
+                  <Text style={styles.coordsText}>
+                    📍 {parcel.deliveryLocation.latitude.toFixed(4)}, {parcel.deliveryLocation.longitude.toFixed(4)}
+                  </Text>
+                )}
               </View>
             </View>
           </View>

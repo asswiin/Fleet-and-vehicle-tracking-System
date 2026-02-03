@@ -161,7 +161,7 @@ export interface Parcel {
     latitude?: number;
     longitude?: number;
     order?: number;
-    locationName?: string;
+    locationName?: string; // Destination name given during trip assignment
   };
   // Can be string ID or populated object
   assignedVehicle?: string | {

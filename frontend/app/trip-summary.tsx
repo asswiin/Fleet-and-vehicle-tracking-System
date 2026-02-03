@@ -126,14 +126,21 @@ const TripSummaryScreen = () => {
 
     setAssigning(true);
     try {
-      // Update each parcel status to "Pending" and add delivery location
+      // Update each parcel status to "Pending" and add delivery location with locationName
       for (const parcel of parcels) {
         await api.updateParcelStatus(parcel._id, "Pending");
         
-        // Update parcel with delivery location if available
+        // Update parcel with delivery location including locationName if available
         if (parcel.deliveryLocation) {
+          // Find the matching location from deliveryLocations to get locationName
+          const locationData = deliveryLocations.find(loc => loc.parcelId === parcel._id);
           await api.updateParcel(parcel._id, {
-            deliveryLocation: parcel.deliveryLocation,
+            deliveryLocation: {
+              latitude: parcel.deliveryLocation.latitude,
+              longitude: parcel.deliveryLocation.longitude,
+              order: parcel.deliveryLocation.order,
+              locationName: locationData?.locationName || parcel.deliveryLocation.locationName,
+            },
           });
         }
       }

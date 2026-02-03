@@ -171,7 +171,7 @@ const ParcelListScreen = () => {
         )}
 
         {/* Show Driver, Vehicle and Destination for non-Booked parcels */}
-        {item.status && item.status !== "Booked" && (getDriverName(item.assignedDriver) || getVehicleRegNumber(item.assignedVehicle) || item.recipient?.address) && (
+        {item.status && item.status !== "Booked" && (getDriverName(item.assignedDriver) || getVehicleRegNumber(item.assignedVehicle) || item.deliveryLocation?.locationName || item.recipient?.address) && (
           <View style={styles.assignmentInfo}>
             {getDriverName(item.assignedDriver) && (
               <View style={styles.assignmentRow}>
@@ -185,10 +185,12 @@ const ParcelListScreen = () => {
                 <Text style={styles.assignmentText}>Vehicle: {getVehicleRegNumber(item.assignedVehicle)}</Text>
               </View>
             )}
-            {item.recipient?.address && (
+            {(item.deliveryLocation?.locationName || item.recipient?.address) && (
               <View style={styles.assignmentRow}>
                 <MapPin size={12} color="#D97706" />
-                <Text style={styles.assignmentText} numberOfLines={1}>To: {item.recipient.address}</Text>
+                <Text style={styles.assignmentText} numberOfLines={1}>
+                  Destination: {item.deliveryLocation?.locationName || item.recipient?.address}
+                </Text>
               </View>
             )}
           </View>

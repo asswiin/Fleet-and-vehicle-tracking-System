@@ -33,6 +33,7 @@ const parcelSchema = new mongoose.Schema(
       latitude: { type: Number },
       longitude: { type: Number },
       order: { type: Number }, // Delivery order in the trip
+      locationName: { type: String }, // Destination name given during trip assignment
     },
   },
   { timestamps: true }
