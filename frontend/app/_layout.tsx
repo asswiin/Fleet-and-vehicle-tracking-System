@@ -14,23 +14,30 @@ export default function RootLayout() {
         }}
       />
       <Stack.Screen
-        name="role-selection"
+        name="shared"
         options={{
-          title: "Select Role",
+          headerShown: false,
         }}
       />
       <Stack.Screen
-        name="login"
+        name="admin"
         options={{
-          title: "Login",
+          headerShown: false,
         }}
       />
       <Stack.Screen
-        name="admin-dashboard"
+        name="manager"
         options={{
-          title: "Admin Dashboard",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="driver"
+        options={{
+          headerShown: false,
         }}
       />
     </Stack>
   );
 }
+
