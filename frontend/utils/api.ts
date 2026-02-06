@@ -493,7 +493,7 @@ export const api = {
   getManagerUnreadCount: (managerId: string) => 
     apiCall<{ count: number }>(`/api/notifications/manager/${managerId}/unread-count`),
   
-  reassignDriver: (notificationId: string, data: { newDriverId: string, vehicleId: string }) =>
+  reassignDriver: (notificationId: string, data: { newDriverId: string, newVehicleId?: string }) =>
     apiCall(`/api/notifications/${notificationId}/reassign-driver`, { 
       method: "POST", 
       body: JSON.stringify(data) 

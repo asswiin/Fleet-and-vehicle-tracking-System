@@ -350,16 +350,17 @@ exports.deleteNotification = async (req, res) => {
   }
 };
 
-// Reassign driver for a declined trip (manager action)
+// Reassign driver and/or vehicle for a declined trip (manager action)
 exports.reassignDriver = async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const { newDriverId, vehicleId } = req.body;
+    const { newDriverId, newVehicleId } = req.body;
 
     // Find the manager notification (driver_declined type)
     const managerNotification = await Notification.findById(notificationId)
       .populate("parcelIds")
-      .populate("declinedDriverId");
+      .populate("declinedDriverId")
+      .populate("vehicleId");
 
     if (!managerNotification || managerNotification.type !== "driver_declined") {
       return res.status(404).json({ message: "Driver declined notification not found" });
@@ -371,13 +372,31 @@ exports.reassignDriver = async (req, res) => {
       return res.status(404).json({ message: "New driver not found" });
     }
 
-    // Validate vehicle
+    // Use new vehicle if provided, otherwise keep original
+    const vehicleId = newVehicleId || managerNotification.vehicleId._id;
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) {
       return res.status(404).json({ message: "Vehicle not found" });
     }
 
-    // Update the trip to pending again with new driver
+    // Check if vehicle is available (if it's a different vehicle)
+    if (newVehicleId && newVehicleId !== managerNotification.vehicleId._id.toString()) {
+      if (vehicle.status !== "Active") {
+        return res.status(400).json({ message: "Selected vehicle is not available" });
+      }
+    }
+
+    // Update original vehicle status if we're changing vehicles
+    if (newVehicleId && newVehicleId !== managerNotification.vehicleId._id.toString()) {
+      // Free up the original vehicle
+      await Vehicle.findByIdAndUpdate(managerNotification.vehicleId._id, {
+        status: "Active",
+        currentTripId: null,
+        driverId: null,
+      });
+    }
+
+    // Update the trip to pending again with new driver and vehicle
     await Trip.findOneAndUpdate(
       { tripId: managerNotification.tripId },
       { 
@@ -387,7 +406,7 @@ exports.reassignDriver = async (req, res) => {
       }
     );
 
-    // Update parcels with new driver assignment
+    // Update parcels with new driver and vehicle assignment
     for (const parcel of managerNotification.parcelIds) {
       await Parcel.findByIdAndUpdate(parcel._id, {
         status: "Pending",
@@ -396,6 +415,13 @@ exports.reassignDriver = async (req, res) => {
       });
     }
 
+    // Create message based on what was changed
+    let reassignMessage = `New trip assignment (reassigned): ${managerNotification.tripId}.`;
+    if (newVehicleId && newVehicleId !== managerNotification.vehicleId._id.toString()) {
+      reassignMessage += ` Vehicle changed to ${vehicle.regNumber}.`;
+    }
+    reassignMessage += ` Previous driver declined.`;
+
     // Create new notification for the new driver
     const newDriverNotification = new Notification({
       driverId: newDriverId,
@@ -403,7 +429,7 @@ exports.reassignDriver = async (req, res) => {
       vehicleId: vehicleId,
       parcelIds: managerNotification.parcelIds.map(p => p._id),
       tripId: managerNotification.tripId,
-      message: `New trip assignment (reassigned): ${managerNotification.tripId}. Previous driver declined.`,
+      message: reassignMessage,
       type: "reassign_driver",
       status: "pending",
       deliveryLocations: managerNotification.deliveryLocations,
