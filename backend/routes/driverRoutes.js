@@ -282,6 +282,7 @@ router.post("/:id/punch", async (req, res) => {
 
     // Update Driver Status for Dashboard
     driver.isAvailable = true;
+    driver.driverStatus = "available"; // Set status to available when punched in
     await driver.save();
 
     res.json({ 
@@ -342,6 +343,7 @@ router.post("/:id/punch-out", async (req, res) => {
 
     // Update Driver Status for Dashboard
     driver.isAvailable = false;
+    driver.driverStatus = "offline"; // Set status to offline when punched out
     await driver.save();
 
     res.json({ 

@@ -37,9 +37,10 @@ const ReassignDriverScreen = () => {
       setLoading(true);
       const response = await api.getDrivers();
       if (response.ok && response.data) {
-        // Filter for available drivers only
+        // Filter for drivers who are available and currently punched in
         const availableDrivers = response.data.filter((driver: Driver) => 
-          driver.isAvailable && driver.driverStatus === "Active"
+          driver.isAvailable && 
+          driver.driverStatus === "available"
         );
         setDrivers(availableDrivers);
         setFilteredDrivers(availableDrivers);

@@ -36,11 +36,11 @@ const driverSchema = new mongoose.Schema(
       default: false
     },
     
-    // Driver status for trip tracking (Active, available, pending, Accepted, On-trip, Off-duty)
+    // Driver status for trip tracking (Active, available, offline, pending, Accepted, On-trip, Off-duty)
     driverStatus: {
       type: String,
-      enum: ["Active", "available", "pending", "Accepted", "On-trip", "Off-duty"],
-      default: "Active"
+      enum: ["Active", "available", "offline", "pending", "Accepted", "On-trip", "Off-duty"],
+      default: "offline"
     },
     
     // Track current trip
