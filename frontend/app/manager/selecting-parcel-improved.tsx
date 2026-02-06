@@ -38,7 +38,6 @@ const SelectingParcelScreen = () => {
   
   // Get manager info from params
   const managerId = params.managerId as string;
-  const initialTab = (params.activeTab as string) || 'new';
   
   const [parcels, setParcels] = useState<ParcelWithRecipient[]>([]);
   const [declinedParcels, setDeclinedParcels] = useState<ParcelWithRecipient[]>([]);
@@ -49,7 +48,7 @@ const SelectingParcelScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [totalWeight, setTotalWeight] = useState(0);
   const [selectedParcelDetail, setSelectedParcelDetail] = useState<ParcelWithRecipient | null>(null);
-  const [activeTab, setActiveTab] = useState<'new' | 'declined'>(initialTab as 'new' | 'declined');
+  const [activeTab, setActiveTab] = useState<'new' | 'declined'>('new');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [selectedDeclinedParcel, setSelectedDeclinedParcel] = useState<ParcelWithRecipient | null>(null);
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
@@ -111,9 +110,9 @@ const SelectingParcelScreen = () => {
       }
 
       if (vehiclesResponse.ok && vehiclesResponse.data) {
-        // Filter available vehicles
+        // Filter available vehicles (exclude On-trip, Sold, Maintenance, In-Service)
         const availableVehiclesList = vehiclesResponse.data.filter((vehicle: Vehicle) => 
-          vehicle.status === "Active" && vehicle.status !== "On-trip"
+          vehicle.status === "Active" || !vehicle.status
         );
         setAvailableVehicles(availableVehiclesList);
       }
@@ -164,10 +163,11 @@ const SelectingParcelScreen = () => {
 
     const selectedIds = Array.from(selectedParcels);
     router.push({
-      pathname: "/driver/select-vehicle",
+      pathname: "/manager/assign-trip",
       params: { 
         parcelIds: JSON.stringify(selectedIds), 
-        totalWeight: totalWeight.toString()
+        totalWeight: totalWeight.toString(),
+        managerId: managerId 
       },
     } as any);
   };

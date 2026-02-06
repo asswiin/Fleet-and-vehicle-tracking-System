@@ -16,6 +16,8 @@ export default function ManagerLayout() {
       <Stack.Screen name="parcel-details" />
       <Stack.Screen name="parcel-list" />
       <Stack.Screen name="selecting-parcel" />
+      <Stack.Screen name="selecting-parcel-improved" />
+      <Stack.Screen name="reassign-driver" />
       <Stack.Screen name="trip-assignment-detail" />
       <Stack.Screen name="trip-confirmation" />
       <Stack.Screen name="trip-summary" />

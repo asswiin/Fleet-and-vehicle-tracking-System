@@ -46,16 +46,6 @@ const TripSummaryScreen = () => {
   const vehicleId = (params.vehicleId as string) || "";
   const driverId = (params.driverId as string) || "";
   
-  // Debug logging
-  console.log("Trip Summary Params:", {
-    parcelIds: parcelIds.length,
-    totalWeight,
-    vehicleId,
-    driverId,
-    hasVehicleId: !!vehicleId,
-    hasDriverId: !!driverId
-  });
-  
   // Parse delivery locations from params
   const deliveryLocations: DeliveryLocation[] = params.deliveryLocations 
     ? JSON.parse(params.deliveryLocations as string) 
@@ -129,15 +119,8 @@ const TripSummaryScreen = () => {
   };
 
   const handleAssignTrip = async () => {
-    console.log("handleAssignTrip called with:", { vehicleId, driverId });
-    
-    if (!vehicleId) {
-      Alert.alert("Error", "Vehicle ID is missing. Please select a vehicle.");
-      return;
-    }
-    
-    if (!driverId) {
-      Alert.alert("Error", "Driver ID is missing. Please select a driver.");
+    if (!vehicleId || !driverId) {
+      Alert.alert("Error", "Missing vehicle or driver information");
       return;
     }
 
@@ -167,8 +150,6 @@ const TripSummaryScreen = () => {
       const tripId = `TR-${Date.now().toString().slice(-6)}-X`;
       
       // Create Trip record with all details including destinations
-      console.log("Creating trip with:", { tripId, driverId, vehicleId, parcelIds: parcelIds.length });
-      
       const tripRes = await api.createTrip({
         tripId,
         driverId,
@@ -186,10 +167,7 @@ const TripSummaryScreen = () => {
       });
 
       if (!tripRes.ok) {
-        console.error("Failed to create trip record:", tripRes.error);
-        Alert.alert("Error", tripRes.error || "Failed to create trip record");
-        setAssigning(false);
-        return;
+        console.error("Failed to create trip record");
       }
 
       // Create notification with locationName included

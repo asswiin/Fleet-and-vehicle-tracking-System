@@ -172,7 +172,10 @@ const ManagerDashboard = () => {
 
             <TouchableOpacity 
               style={styles.actionItem}
-              onPress={() => router.push("/manager/selecting-parcel")}
+              onPress={() => router.push({
+                pathname: "/manager/selecting-parcel-improved",
+                params: { managerId: userId }
+              } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
                 <Navigation size={24} color="#9333EA" />
@@ -180,24 +183,18 @@ const ManagerDashboard = () => {
               <Text style={styles.actionLabel}>Assign Trip</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.actionItem}
-              onPress={() => router.push({
-                pathname: "/manager/selecting-parcel-improved",
-                params: { managerId: userId, activeTab: 'declined' }
-              } as any)}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: "#FEF2F2" }]}>
-                <AlertTriangle size={24} color="#DC2626" />
-              </View>
-              <Text style={styles.actionLabel}>Declined</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.actionItem}>
               <View style={[styles.actionIcon, { backgroundColor: "#FFEDD5" }]}>
                 <Wrench size={24} color="#EA580C" />
               </View>
               <Text style={styles.actionLabel}>Repairs</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem}>
+              <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
+                <AlertTriangle size={24} color="#DC2626" />
+              </View>
+              <Text style={styles.actionLabel}>Alerts</Text>
             </TouchableOpacity>
           </View>
 

@@ -67,8 +67,7 @@ const ReassignDriverScreen = () => {
 
     const filtered = drivers.filter(driver =>
       driver.name.toLowerCase().includes(text.toLowerCase()) ||
-      driver.phone.includes(text) ||
-      driver.email.toLowerCase().includes(text.toLowerCase())
+      driver.email?.toLowerCase().includes(text.toLowerCase())
     );
     setFilteredDrivers(filtered);
   }, [drivers]);
@@ -143,7 +142,7 @@ const ReassignDriverScreen = () => {
           </View>
           <View style={styles.driverInfo}>
             <Text style={styles.driverName}>{item.name}</Text>
-            <Text style={styles.driverPhone}>{item.phone}</Text>
+            <Text style={styles.driverPhone}>{item.email}</Text>
           </View>
           {isSelected && (
             <CheckCircle size={24} color="#10B981" />
@@ -158,7 +157,7 @@ const ReassignDriverScreen = () => {
           
           <View style={styles.driverMetrics}>
             <Text style={styles.driverMetricText}>
-              License: {item.licenseNumber || "N/A"}
+              ID: {item._id.slice(-6) || "N/A"}
             </Text>
           </View>
         </View>
