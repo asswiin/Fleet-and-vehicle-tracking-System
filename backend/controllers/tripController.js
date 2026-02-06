@@ -39,6 +39,17 @@ exports.createTrip = async (req, res) => {
 
     await trip.save();
 
+    // Update driver status to "pending" when trip is assigned
+    await Driver.findByIdAndUpdate(driverId, {
+      driverStatus: "pending",
+      isAvailable: false
+    });
+
+    // Update vehicle status to "assigned" when trip is assigned
+    await Vehicle.findByIdAndUpdate(vehicleId, {
+      status: "assigned"
+    });
+
     // Populate references for response
     const populatedTrip = await Trip.findById(trip._id)
       .populate("driverId", "name phone email profilePhoto")

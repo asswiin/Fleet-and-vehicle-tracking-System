@@ -274,17 +274,17 @@ exports.updateNotificationStatus = async (req, res) => {
         { status: "declined" }
       );
 
-      // Update vehicle status back to "Active"
+      // Keep vehicle status as "assigned" since it's still assigned to the trip
       await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
-        status: "Active",
+        status: "assigned",
         currentTripId: null,
         driverId: null,
       });
 
-      // Update driver status back to "Active" and available
+      // Update driver status to "available" when declining trip
       await Driver.findByIdAndUpdate(notification.driverId._id, {
         isAvailable: true,
-        driverStatus: "Active",
+        driverStatus: "available",
         currentTripId: null,
       });
 

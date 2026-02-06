@@ -12,10 +12,10 @@ const vehicleSchema = new mongoose.Schema(
     pollutionExpiry: { type: String, default: "" },
     taxExpiry: { type: String, default: "" },
 
-    // Status (Active, Trip Confirmed, On-trip, Maintenance, In-Service, Sold)
+    // Status (Active, assigned, pending, Trip Confirmed, On-trip, Maintenance, In-Service, Sold)
     status: { 
       type: String, 
-      enum: ["Active", "Trip Confirmed", "On-trip", "Maintenance", "In-Service", "Sold"],
+      enum: ["Active", "assigned", "pending", "Trip Confirmed", "On-trip", "Maintenance", "In-Service", "Sold"],
       default: "Active" 
     },
     
