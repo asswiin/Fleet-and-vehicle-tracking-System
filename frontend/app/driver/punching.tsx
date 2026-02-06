@@ -37,8 +37,8 @@ const OFFICE_LOCATION = {
   name: "College Location"
 };
 const WAREHOUSE_LOCATION = {
-  latitude: 11.622351,
-  longitude: 76.072485,
+  latitude:11.6239440, 
+  longitude: 76.0707980,
   name: "Home Location"
 };
 const ALLOWED_RADIUS_METERS = 500; 

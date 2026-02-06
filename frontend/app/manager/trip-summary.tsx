@@ -177,6 +177,7 @@ const TripSummaryScreen = () => {
         parcelIds,
         tripId,
         message: `New trip assigned with ${parcelIds.length} parcel(s). Vehicle: ${vehicle?.regNumber || 'N/A'}`,
+        assignedBy: params.managerId as string, // Pass manager ID if available
         deliveryLocations: deliveryLocations.map(loc => ({
           parcelId: loc.parcelId,
           latitude: loc.latitude,

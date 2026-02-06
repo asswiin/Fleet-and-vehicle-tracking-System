@@ -4,15 +4,37 @@ const Vehicle = require("../models/Vehicle");
 const Parcel = require("../models/Parcel");
 const Trip = require("../models/Trip");
 
-// Create a new notification (trip assignment)
+// Create a new notification (trip assignment or manager notification)
 exports.createNotification = async (req, res) => {
   try {
-    const { driverId, vehicleId, parcelIds, tripId, message, deliveryLocations, startLocation } = req.body;
+    const { 
+      driverId, 
+      managerId,
+      recipientType = "driver",
+      vehicleId, 
+      parcelIds, 
+      tripId, 
+      message, 
+      deliveryLocations, 
+      startLocation,
+      type = "trip_assignment",
+      declinedDriverId,
+      assignedBy
+    } = req.body;
 
-    // Validate driver exists
-    const driver = await Driver.findById(driverId);
-    if (!driver) {
-      return res.status(404).json({ message: "Driver not found" });
+    if (recipientType === "driver") {
+      // Validate driver exists
+      const driver = await Driver.findById(driverId);
+      if (!driver) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+    } else if (recipientType === "manager") {
+      // Validate manager exists
+      const User = require("../models/User");
+      const manager = await User.findById(managerId);
+      if (!manager) {
+        return res.status(404).json({ message: "Manager not found" });
+      }
     }
 
     // Validate vehicle exists
@@ -22,28 +44,83 @@ exports.createNotification = async (req, res) => {
     }
 
     const notification = new Notification({
-      driverId,
+      driverId: recipientType === "driver" ? driverId : undefined,
+      managerId: recipientType === "manager" ? managerId : undefined,
+      recipientType,
       vehicleId,
       parcelIds,
       tripId,
       message: message || `New trip assigned: ${tripId}`,
-      type: "trip_assignment",
+      type,
       status: "pending",
       deliveryLocations: deliveryLocations || [],
       startLocation: startLocation || null,
+      declinedDriverId,
+      assignedBy,
     });
 
     await notification.save();
     
     // Populate the notification before sending response
-    const populatedNotification = await Notification.findById(notification._id)
-      .populate("driverId", "name mobile")
-      .populate("vehicleId", "regNumber model type")
-      .populate("parcelIds", "trackingId recipient weight");
+    let populatedNotification;
+    if (recipientType === "driver") {
+      populatedNotification = await Notification.findById(notification._id)
+        .populate("driverId", "name mobile")
+        .populate("vehicleId", "regNumber model type")
+        .populate("parcelIds", "trackingId recipient weight");
+    } else {
+      populatedNotification = await Notification.findById(notification._id)
+        .populate("managerId", "name email")
+        .populate("vehicleId", "regNumber model type")
+        .populate("parcelIds", "trackingId recipient weight")
+        .populate("declinedDriverId", "name mobile");
+    }
 
     res.status(201).json(populatedNotification);
   } catch (error) {
     console.error("Error creating notification:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get all notifications for a manager
+exports.getManagerNotifications = async (req, res) => {
+  try {
+    const { managerId } = req.params;
+
+    const notifications = await Notification.find({
+      managerId,
+      recipientType: "manager",
+      expiresAt: { $gt: new Date() }, // Only get non-expired notifications
+    })
+      .populate("vehicleId", "regNumber model type")
+      .populate("parcelIds", "trackingId recipient weight")
+      .populate("declinedDriverId", "name mobile")
+      .sort({ createdAt: -1 });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching manager notifications:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get unread notification count for a manager
+exports.getManagerUnreadCount = async (req, res) => {
+  try {
+    const { managerId } = req.params;
+
+    const count = await Notification.countDocuments({
+      managerId,
+      recipientType: "manager",
+      read: false,
+      status: "pending",
+      expiresAt: { $gt: new Date() },
+    });
+
+    res.json({ count });
+  } catch (error) {
+    console.error("Error fetching manager unread count:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -188,14 +265,15 @@ exports.updateNotificationStatus = async (req, res) => {
         });
       }
     } else if (status === "declined") {
+      // NEW WORKFLOW: Driver declined - keep parcels in pending state
+      // and notify the manager for reassignment
+      
       // Update the Trip status to "declined"
       await Trip.findOneAndUpdate(
         { tripId: notification.tripId },
         { status: "declined" }
       );
 
-      // Driver declined - revert all statuses back
-      
       // Update vehicle status back to "Active"
       await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
         status: "Active",
@@ -210,14 +288,34 @@ exports.updateNotificationStatus = async (req, res) => {
         currentTripId: null,
       });
 
-      // Update all parcels back to "Booked" and remove assignments
+      // KEEP PARCELS IN PENDING STATE (don't revert to "Booked")
       for (const parcel of notification.parcelIds) {
         await Parcel.findByIdAndUpdate(parcel._id, {
-          status: "Booked",
-          tripId: null,
-          assignedDriver: null,
-          assignedVehicle: null,
+          status: "Pending", // Keep as pending, not back to "Booked"
+          // Keep trip assignment info for reassignment
+          tripId: notification.tripId,
+          assignedDriver: null, // Remove current driver assignment
+          assignedVehicle: null, // Remove vehicle assignment for now
         });
+      }
+
+      // Create notification for manager about driver decline
+      if (notification.assignedBy) {
+        const managerNotification = new Notification({
+          managerId: notification.assignedBy,
+          recipientType: "manager",
+          vehicleId: notification.vehicleId._id,
+          parcelIds: notification.parcelIds.map(p => p._id),
+          tripId: notification.tripId,
+          message: `Driver ${notification.driverId.name} declined trip ${notification.tripId}. Please assign a new driver.`,
+          type: "driver_declined",
+          status: "pending",
+          deliveryLocations: notification.deliveryLocations,
+          startLocation: notification.startLocation,
+          declinedDriverId: notification.driverId._id,
+          assignedBy: notification.assignedBy,
+        });
+        await managerNotification.save();
       }
     }
 
@@ -248,6 +346,92 @@ exports.deleteNotification = async (req, res) => {
     res.json({ message: "Notification deleted successfully" });
   } catch (error) {
     console.error("Error deleting notification:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Reassign driver for a declined trip (manager action)
+exports.reassignDriver = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const { newDriverId, vehicleId } = req.body;
+
+    // Find the manager notification (driver_declined type)
+    const managerNotification = await Notification.findById(notificationId)
+      .populate("parcelIds")
+      .populate("declinedDriverId");
+
+    if (!managerNotification || managerNotification.type !== "driver_declined") {
+      return res.status(404).json({ message: "Driver declined notification not found" });
+    }
+
+    // Validate new driver
+    const newDriver = await Driver.findById(newDriverId);
+    if (!newDriver) {
+      return res.status(404).json({ message: "New driver not found" });
+    }
+
+    // Validate vehicle
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    // Update the trip to pending again with new driver
+    await Trip.findOneAndUpdate(
+      { tripId: managerNotification.tripId },
+      { 
+        driverId: newDriverId,
+        vehicleId: vehicleId,
+        status: "pending" 
+      }
+    );
+
+    // Update parcels with new driver assignment
+    for (const parcel of managerNotification.parcelIds) {
+      await Parcel.findByIdAndUpdate(parcel._id, {
+        status: "Pending",
+        assignedDriver: newDriverId,
+        assignedVehicle: vehicleId,
+      });
+    }
+
+    // Create new notification for the new driver
+    const newDriverNotification = new Notification({
+      driverId: newDriverId,
+      recipientType: "driver",
+      vehicleId: vehicleId,
+      parcelIds: managerNotification.parcelIds.map(p => p._id),
+      tripId: managerNotification.tripId,
+      message: `New trip assignment (reassigned): ${managerNotification.tripId}. Previous driver declined.`,
+      type: "reassign_driver",
+      status: "pending",
+      deliveryLocations: managerNotification.deliveryLocations,
+      startLocation: managerNotification.startLocation,
+      assignedBy: managerNotification.managerId,
+    });
+
+    await newDriverNotification.save();
+
+    // Mark manager notification as resolved/reassigned
+    managerNotification.status = "reassigned";
+    managerNotification.read = true;
+    await managerNotification.save();
+
+    // Populate and return the new driver notification
+    const populatedNotification = await Notification.findById(newDriverNotification._id)
+      .populate("driverId", "name mobile")
+      .populate("vehicleId", "regNumber model type")
+      .populate("parcelIds", "trackingId recipient weight");
+
+    res.json({ 
+      message: "Driver reassigned successfully",
+      newNotification: populatedNotification,
+      tripId: managerNotification.tripId
+    });
+
+  } catch (error) {
+    console.error("Error reassigning driver:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

@@ -175,7 +175,9 @@ export interface Parcel {
 
 export interface Notification {
   _id: string;
-  driverId: string;
+  driverId?: string;
+  managerId?: string;
+  recipientType?: "driver" | "manager";
   vehicleId: {
     _id: string;
     regNumber: string;
@@ -203,6 +205,13 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   expiresAt: string;
+  // For manager notifications about declined trips
+  declinedDriverId?: {
+    _id: string;
+    name: string;
+    mobile?: string;
+  };
+  assignedBy?: string;
   // Delivery route information
   deliveryLocations?: Array<{
     parcelId: string;
@@ -448,16 +457,21 @@ export const api = {
 
   // NOTIFICATIONS
   createNotification: (data: {
-    driverId: string;
+    driverId?: string;
+    managerId?: string;
+    recipientType?: "driver" | "manager";
     vehicleId: string;
     parcelIds: string[];
     tripId: string;
     message: string;
+    type?: string;
+    assignedBy?: string;
     deliveryLocations?: Array<{
       parcelId: string;
       latitude: number;
       longitude: number;
       order: number;
+      locationName?: string;
     }>;
     startLocation?: {
       latitude: number;
@@ -471,6 +485,19 @@ export const api = {
   
   getUnreadNotificationCount: (driverId: string) => 
     apiCall<{ count: number }>(`/api/notifications/driver/${driverId}/unread-count`),
+  
+  // MANAGER NOTIFICATIONS
+  getManagerNotifications: (managerId: string) => 
+    apiCall<Notification[]>(`/api/notifications/manager/${managerId}`),
+  
+  getManagerUnreadCount: (managerId: string) => 
+    apiCall<{ count: number }>(`/api/notifications/manager/${managerId}/unread-count`),
+  
+  reassignDriver: (notificationId: string, data: { newDriverId: string, vehicleId: string }) =>
+    apiCall(`/api/notifications/${notificationId}/reassign-driver`, { 
+      method: "POST", 
+      body: JSON.stringify(data) 
+    }),
   
   getNotification: (id: string) => 
     apiCall<Notification>(`/api/notifications/${id}`),

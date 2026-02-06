@@ -11,6 +11,15 @@ router.get("/driver/:driverId", notificationController.getDriverNotifications);
 // Get unread notification count for a driver
 router.get("/driver/:driverId/unread-count", notificationController.getUnreadCount);
 
+// Get all notifications for a manager
+router.get("/manager/:managerId", notificationController.getManagerNotifications);
+
+// Get unread notification count for a manager
+router.get("/manager/:managerId/unread-count", notificationController.getManagerUnreadCount);
+
+// Reassign driver for a declined trip (manager action)
+router.post("/:notificationId/reassign-driver", notificationController.reassignDriver);
+
 // Get a single notification by ID
 router.get("/:id", notificationController.getNotification);
 
