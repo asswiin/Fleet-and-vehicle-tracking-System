@@ -289,13 +289,13 @@ exports.updateNotificationStatus = async (req, res) => {
       });
 
       // KEEP PARCELS IN PENDING STATE (don't revert to "Booked")
+      // Vehicle stays assigned — only the driver is removed
       for (const parcel of notification.parcelIds) {
         await Parcel.findByIdAndUpdate(parcel._id, {
-          status: "Pending", // Keep as pending, not back to "Booked"
-          // Keep trip assignment info for reassignment
+          status: "Pending",
           tripId: notification.tripId,
           assignedDriver: null, // Remove current driver assignment
-          assignedVehicle: null, // Remove vehicle assignment for now
+          // assignedVehicle stays unchanged — vehicle is still assigned to this trip
         });
       }
 

@@ -22,6 +22,7 @@ const SelectVehicleScreen = () => {
   // Get parcel data from navigation params
   const parcelIds = JSON.parse((params.parcelIds as string) || "[]");
   const totalWeight = parseFloat((params.totalWeight as string) || "0");
+  const managerId = params.managerId as string;
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
@@ -144,13 +145,14 @@ const SelectVehicleScreen = () => {
       return;
     }
 
-    // Navigate to next screen (driver selection or trip creation)
+    // Navigate to next screen (driver selection / trip creation)
     router.push({
-      pathname: "/manager/assign-trip", // You'll need to create this screen next
+      pathname: "/manager/assign-trip",
       params: { 
         parcelIds: JSON.stringify(parcelIds), 
         totalWeight: totalWeight.toString(),
-        vehicleId: selectedVehicle
+        vehicleId: selectedVehicle,
+        managerId: managerId
       },
     } as any);
   };

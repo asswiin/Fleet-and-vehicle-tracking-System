@@ -191,11 +191,11 @@ exports.getDeclinedParcels = async (req, res) => {
   }
 };
 
-// Reassign trip to new driver
+// Reassign trip to new driver (vehicle stays the same)
 exports.reassignTrip = async (req, res) => {
   try {
     const { tripId } = req.params;
-    const { newDriverId, newVehicleId, managerId } = req.body;
+    const { newDriverId, managerId } = req.body;
 
     // Find the trip
     const trip = await Trip.findOne({ tripId });
@@ -203,28 +203,27 @@ exports.reassignTrip = async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    // Validate new driver and vehicle
+    // Validate new driver
     const newDriver = await Driver.findById(newDriverId);
-    const newVehicle = await Vehicle.findById(newVehicleId);
-    
-    if (!newDriver || !newVehicle) {
-      return res.status(404).json({ message: "Driver or vehicle not found" });
+    if (!newDriver) {
+      return res.status(404).json({ message: "Driver not found" });
     }
 
-    // Update trip with new driver and vehicle
+    // Keep the same vehicle — only swap the driver
+    const existingVehicleId = trip.vehicleId;
+
+    // Update trip with new driver only
     trip.driverId = newDriverId;
-    trip.vehicleId = newVehicleId;
     trip.status = "pending"; // Reset to pending for new driver
     trip.assignedAt = new Date();
     
     await trip.save();
 
-    // Update parcels with new assignment
+    // Update parcels with new driver (vehicle unchanged)
     await Parcel.updateMany(
       { _id: { $in: trip.parcelIds } },
       { 
         assignedDriver: newDriverId,
-        assignedVehicle: newVehicleId,
         status: "Assigned"
       }
     );
@@ -234,7 +233,7 @@ exports.reassignTrip = async (req, res) => {
     const notification = new Notification({
       driverId: newDriverId,
       recipientType: "driver",
-      vehicleId: newVehicleId,
+      vehicleId: existingVehicleId,
       parcelIds: trip.parcelIds,
       tripId: trip.tripId,
       message: `New trip reassigned: ${trip.tripId}`,

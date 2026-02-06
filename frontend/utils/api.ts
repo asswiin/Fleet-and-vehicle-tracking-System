@@ -569,10 +569,9 @@ export const api = {
   getDeclinedParcels: () => 
     apiCall<Parcel[]>("/api/trips/declined/parcels"),
 
-  // Reassign trip to new driver and vehicle
+  // Reassign trip to new driver (vehicle stays the same)
   reassignTrip: (tripId: string, data: {
     newDriverId: string;
-    newVehicleId: string;
     managerId: string;
   }) => apiCall(`/api/trips/reassign/${tripId}`, { 
     method: "PATCH", 

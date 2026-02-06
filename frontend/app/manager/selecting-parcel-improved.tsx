@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Search, MapPin, Package, CheckCircle2, Circle, Box, X, MapPinIcon, User, Weight, Layers, AlertTriangle, RotateCcw, Truck, UserX } from "lucide-react-native";
-import { api, type Parcel, type Driver, type Vehicle } from "../../utils/api";
+import { api, type Parcel, type Driver } from "../../utils/api";
 
 interface Recipient {
   name?: string;
@@ -52,16 +52,14 @@ const SelectingParcelScreen = () => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [selectedDeclinedParcel, setSelectedDeclinedParcel] = useState<ParcelWithRecipient | null>(null);
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
-  const [availableVehicles, setAvailableVehicles] = useState<Vehicle[]>([]);
   const [selectedNewDriver, setSelectedNewDriver] = useState<string>("");
-  const [selectedNewVehicle, setSelectedNewVehicle] = useState<string>("");
   const [reassignLoading, setReassignLoading] = useState(false);
 
   // Fetch data
   React.useEffect(() => {
     fetchParcels();
     fetchDeclinedParcels();
-    fetchAvailableDriversAndVehicles();
+    fetchAvailableDrivers();
   }, []);
 
   const fetchParcels = async () => {
@@ -94,30 +92,18 @@ const SelectingParcelScreen = () => {
     }
   };
 
-  const fetchAvailableDriversAndVehicles = async () => {
+  const fetchAvailableDrivers = async () => {
     try {
-      const [driversResponse, vehiclesResponse] = await Promise.all([
-        api.getDrivers(),
-        api.getVehicles()
-      ]);
-
+      const driversResponse = await api.getDrivers();
       if (driversResponse.ok && driversResponse.data) {
-        // Filter available drivers
+        // Filter available drivers (not on trip)
         const availableDriversList = driversResponse.data.filter((driver: Driver) => 
           driver.status === "Active" && driver.driverStatus !== "On-trip"
         );
         setAvailableDrivers(availableDriversList);
       }
-
-      if (vehiclesResponse.ok && vehiclesResponse.data) {
-        // Filter available vehicles (exclude On-trip, Sold, Maintenance, In-Service)
-        const availableVehiclesList = vehiclesResponse.data.filter((vehicle: Vehicle) => 
-          vehicle.status === "Active" || !vehicle.status
-        );
-        setAvailableVehicles(availableVehiclesList);
-      }
     } catch (error) {
-      console.error("Error fetching drivers and vehicles:", error);
+      console.error("Error fetching available drivers:", error);
     }
   };
 
@@ -163,7 +149,7 @@ const SelectingParcelScreen = () => {
 
     const selectedIds = Array.from(selectedParcels);
     router.push({
-      pathname: "/manager/assign-trip",
+      pathname: "/driver/select-vehicle",
       params: { 
         parcelIds: JSON.stringify(selectedIds), 
         totalWeight: totalWeight.toString(),
@@ -173,8 +159,8 @@ const SelectingParcelScreen = () => {
   };
 
   const handleReassignTrip = async () => {
-    if (!selectedDeclinedParcel || !selectedNewDriver || !selectedNewVehicle) {
-      Alert.alert("Missing Selection", "Please select both driver and vehicle");
+    if (!selectedDeclinedParcel || !selectedNewDriver) {
+      Alert.alert("Missing Selection", "Please select a driver");
       return;
     }
 
@@ -182,16 +168,14 @@ const SelectingParcelScreen = () => {
     try {
       const response = await api.reassignTrip(selectedDeclinedParcel.tripId!, {
         newDriverId: selectedNewDriver,
-        newVehicleId: selectedNewVehicle,
         managerId: managerId
       });
 
       if (response.ok) {
-        Alert.alert("Success", "Trip has been reassigned successfully");
+        Alert.alert("Success", "Trip has been reassigned to the new driver. The same vehicle will be used.");
         setShowReassignModal(false);
         setSelectedDeclinedParcel(null);
         setSelectedNewDriver("");
-        setSelectedNewVehicle("");
         fetchDeclinedParcels(); // Refresh declined parcels
       } else {
         Alert.alert("Error", "Failed to reassign trip");
@@ -390,18 +374,17 @@ const SelectingParcelScreen = () => {
         </View>
       )}
 
-      {/* Reassign Modal */}
+      {/* Reassign Modal — driver only, vehicle stays the same */}
       <Modal visible={showReassignModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Reassign Trip</Text>
+              <Text style={styles.modalTitle}>Reassign Driver</Text>
               <TouchableOpacity 
                 onPress={() => {
                   setShowReassignModal(false);
                   setSelectedDeclinedParcel(null);
                   setSelectedNewDriver("");
-                  setSelectedNewVehicle("");
                 }}
               >
                 <X size={24} color="#6B7280" />
@@ -414,56 +397,60 @@ const SelectingParcelScreen = () => {
                   Reassigning: {selectedDeclinedParcel.trackingId}
                 </Text>
 
-                {/* Driver Selection */}
+                {/* Vehicle Info — read-only, already assigned */}
+                <View style={styles.vehicleInfoCard}>
+                  <Truck size={20} color="#2563EB" />
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={styles.vehicleInfoLabel}>Assigned Vehicle (unchanged)</Text>
+                    <Text style={styles.vehicleInfoValue}>
+                      {selectedDeclinedParcel.assignedVehicle
+                        ? `${(selectedDeclinedParcel.assignedVehicle as any).regNumber} • ${(selectedDeclinedParcel.assignedVehicle as any).model} - ${(selectedDeclinedParcel.assignedVehicle as any).type}`
+                        : "Vehicle assigned"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Declined driver info */}
+                <View style={styles.declinedDriverCard}>
+                  <UserX size={20} color="#DC2626" />
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={styles.declinedDriverLabel}>Declined by</Text>
+                    <Text style={styles.declinedDriverValue}>
+                      {selectedDeclinedParcel.declinedDriverName || "Unknown"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Driver Selection — only thing manager needs to pick */}
                 <Text style={styles.sectionTitle}>Select New Driver</Text>
                 <ScrollView style={styles.selectionList} showsVerticalScrollIndicator={false}>
-                  {availableDrivers.map((driver) => (
-                    <TouchableOpacity
-                      key={driver._id}
-                      style={[
-                        styles.selectionItem,
-                        selectedNewDriver === driver._id && styles.selectedItem
-                      ]}
-                      onPress={() => setSelectedNewDriver(driver._id)}
-                    >
-                      <View style={styles.driverInfo}>
-                        <User size={20} color="#374151" />
-                        <View style={styles.driverDetails}>
-                          <Text style={styles.driverName}>{driver.name}</Text>
-                          <Text style={styles.driverMobile}>{driver.mobile}</Text>
+                  {availableDrivers.length === 0 ? (
+                    <View style={{ padding: 20, alignItems: "center" }}>
+                      <Text style={{ color: "#6B7280" }}>No available drivers</Text>
+                    </View>
+                  ) : (
+                    availableDrivers.map((driver) => (
+                      <TouchableOpacity
+                        key={driver._id}
+                        style={[
+                          styles.selectionItem,
+                          selectedNewDriver === driver._id && styles.selectedItem
+                        ]}
+                        onPress={() => setSelectedNewDriver(driver._id)}
+                      >
+                        <View style={styles.driverInfo}>
+                          <User size={20} color="#374151" />
+                          <View style={styles.driverDetails}>
+                            <Text style={styles.driverName}>{driver.name}</Text>
+                            <Text style={styles.driverMobile}>{driver.mobile}</Text>
+                          </View>
                         </View>
-                      </View>
-                      {selectedNewDriver === driver._id && (
-                        <CheckCircle2 size={20} color="#2563EB" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                {/* Vehicle Selection */}
-                <Text style={styles.sectionTitle}>Select New Vehicle</Text>
-                <ScrollView style={styles.selectionList} showsVerticalScrollIndicator={false}>
-                  {availableVehicles.map((vehicle) => (
-                    <TouchableOpacity
-                      key={vehicle._id}
-                      style={[
-                        styles.selectionItem,
-                        selectedNewVehicle === vehicle._id && styles.selectedItem
-                      ]}
-                      onPress={() => setSelectedNewVehicle(vehicle._id)}
-                    >
-                      <View style={styles.vehicleInfo}>
-                        <Truck size={20} color="#374151" />
-                        <View style={styles.vehicleDetails}>
-                          <Text style={styles.vehicleName}>{vehicle.regNumber}</Text>
-                          <Text style={styles.vehicleModel}>{vehicle.model} - {vehicle.type}</Text>
-                        </View>
-                      </View>
-                      {selectedNewVehicle === vehicle._id && (
-                        <CheckCircle2 size={20} color="#2563EB" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
+                        {selectedNewDriver === driver._id && (
+                          <CheckCircle2 size={20} color="#2563EB" />
+                        )}
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </ScrollView>
 
                 {/* Action Buttons */}
@@ -474,7 +461,6 @@ const SelectingParcelScreen = () => {
                       setShowReassignModal(false);
                       setSelectedDeclinedParcel(null);
                       setSelectedNewDriver("");
-                      setSelectedNewVehicle("");
                     }}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -482,15 +468,15 @@ const SelectingParcelScreen = () => {
                   <TouchableOpacity
                     style={[
                       styles.confirmButton,
-                      (!selectedNewDriver || !selectedNewVehicle) && styles.disabledButton
+                      !selectedNewDriver && styles.disabledButton
                     ]}
                     onPress={handleReassignTrip}
-                    disabled={!selectedNewDriver || !selectedNewVehicle || reassignLoading}
+                    disabled={!selectedNewDriver || reassignLoading}
                   >
                     {reassignLoading ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.confirmButtonText}>Reassign Trip</Text>
+                      <Text style={styles.confirmButtonText}>Reassign Driver</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -945,6 +931,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     marginBottom: 4,
+  },
+  vehicleInfoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  vehicleInfoLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  vehicleInfoValue: {
+    fontSize: 14,
+    color: "#1E40AF",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  declinedDriverCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  declinedDriverLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  declinedDriverValue: {
+    fontSize: 14,
+    color: "#DC2626",
+    fontWeight: "600",
+    marginTop: 2,
   },
 });
 
