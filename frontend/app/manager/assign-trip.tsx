@@ -49,17 +49,15 @@ const AssignTripScreen = () => {
         const punchedDrivers = allDrivers.filter((driver: Driver) => {
           const isActive = driver.status === "Active";
           const isPunchedIn = driver.isAvailable === true;
-          const isAvailable = driver.driverStatus === "available"; // Only show drivers with 'available' status
           const isNotOnTrip = driver.driverStatus !== "On-trip";
           const isNotAccepted = driver.driverStatus !== "Accepted";
-          const isNotPending = driver.driverStatus !== "pending";
 
           console.log(`🔍 Driver ${driver.name}:`);
           console.log(`   - Status: ${driver.status} (Active: ${isActive})`);
           console.log(`   - isAvailable: ${driver.isAvailable} (Punched In: ${isPunchedIn})`);
-          console.log(`   - driverStatus: ${driver.driverStatus} (Available: ${isAvailable}, Not On-trip: ${isNotOnTrip}, Not Accepted: ${isNotAccepted}, Not Pending: ${isNotPending})`);
+          console.log(`   - driverStatus: ${driver.driverStatus} (Not On-trip: ${isNotOnTrip}, Not Accepted: ${isNotAccepted})`);
 
-          return isActive && isPunchedIn && isAvailable && isNotOnTrip && isNotAccepted && isNotPending;
+          return isActive && isPunchedIn && isNotOnTrip && isNotAccepted;
         });
 
         console.log(`✅ Available drivers found: ${punchedDrivers.length}`);
