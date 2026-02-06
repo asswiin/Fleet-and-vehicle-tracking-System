@@ -230,6 +230,12 @@ exports.reassignTrip = async (req, res) => {
     
     await trip.save();
 
+    // Update new driver status to "pending" when trip is reassigned
+    await Driver.findByIdAndUpdate(newDriverId, {
+      driverStatus: "pending",
+      isAvailable: false
+    });
+
     // Update parcels with new driver (vehicle unchanged)
     await Parcel.updateMany(
       { _id: { $in: trip.parcelIds } },

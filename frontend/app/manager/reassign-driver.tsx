@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  StatusBar,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ArrowLeft, Search, User, Clock, CheckCircle } from "lucide-react-native";
+import { ArrowLeft, Search, User, CheckCircle, Clock } from "lucide-react-native";
 import { api, type Driver } from "../../utils/api";
 
 const ReassignDriverScreen = () => {
@@ -37,10 +38,25 @@ const ReassignDriverScreen = () => {
       setLoading(true);
       const response = await api.getDrivers();
       if (response.ok && response.data) {
-        // Filter for available drivers only
-        const availableDrivers = response.data.filter((driver: Driver) => 
-          driver.isAvailable && driver.driverStatus === "Active"
-        );
+        // Handle both array directly or nested in { data: [] }
+        const allDrivers = Array.isArray(response.data) ? response.data : (response.data as any).data || [];
+        
+        // Filter logic identical to Assign Trip page:
+        // 1. Account Status must be Active
+        // 2. Must be Punched In (isAvailable === true)
+        // 3. Must NOT be On-trip
+        // 4. Must NOT have Accepted another trip
+        // 5. Must NOT have a pending trip
+        const availableDrivers = allDrivers.filter((driver: Driver) => {
+          const isActive = driver.status === "Active";
+          const isPunchedIn = driver.isAvailable === true;
+          const isNotOnTrip = driver.driverStatus !== "On-trip";
+          const isNotAccepted = driver.driverStatus !== "Accepted";
+          const isNotPending = driver.driverStatus !== "pending";
+
+          return isActive && isPunchedIn && isNotOnTrip && isNotAccepted && isNotPending;
+        });
+
         setDrivers(availableDrivers);
         setFilteredDrivers(availableDrivers);
       }
@@ -67,7 +83,8 @@ const ReassignDriverScreen = () => {
 
     const filtered = drivers.filter(driver =>
       driver.name.toLowerCase().includes(text.toLowerCase()) ||
-      driver.email?.toLowerCase().includes(text.toLowerCase())
+      driver.email?.toLowerCase().includes(text.toLowerCase()) ||
+      driver.mobile?.toLowerCase().includes(text.toLowerCase())
     );
     setFilteredDrivers(filtered);
   }, [drivers]);
@@ -142,7 +159,7 @@ const ReassignDriverScreen = () => {
           </View>
           <View style={styles.driverInfo}>
             <Text style={styles.driverName}>{item.name}</Text>
-            <Text style={styles.driverPhone}>{item.email}</Text>
+            <Text style={styles.driverPhone}>{item.mobile}</Text>
           </View>
           {isSelected && (
             <CheckCircle size={24} color="#10B981" />
@@ -151,8 +168,8 @@ const ReassignDriverScreen = () => {
 
         <View style={styles.driverDetails}>
           <View style={styles.statusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: "#10B981" }]} />
-            <Text style={styles.statusText}>Available</Text>
+            <Clock size={14} color="#10B981" style={{ marginRight: 4 }} />
+            <Text style={styles.statusText}>Available (Punched In)</Text>
           </View>
           
           <View style={styles.driverMetrics}>
@@ -185,6 +202,7 @@ const ReassignDriverScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color="#1E293B" />
@@ -226,7 +244,9 @@ const ReassignDriverScreen = () => {
           <User size={48} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No available drivers</Text>
           <Text style={styles.emptyText}>
-            All drivers are currently busy or inactive
+            {searchText 
+              ? "No drivers found matching your search" 
+              : "No drivers are currently punched in and available"}
           </Text>
         </View>
       ) : (
@@ -435,17 +455,15 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "500",
-    color: "#10B981",
+    fontWeight: "600",
+    color: "#15803D",
   },
   driverMetrics: {
     alignItems: "flex-end",

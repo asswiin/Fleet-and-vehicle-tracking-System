@@ -75,7 +75,7 @@ const DriversListScreen = () => {
       if (selectedTab === "Available") {
         // Available = punched in AND not on a trip or accepted
         statusMatch = driver.isAvailable === true && driver.driverStatus !== "On-trip" && driver.driverStatus !== "Accepted";
-      } else if (selectedTab === "Offline") {
+      } else if (selectedTab === "pending") {
         // Offline = not punched in (and not on trip, accepted or resigned)
         statusMatch = driver.isAvailable === false && driver.driverStatus !== "On-trip" && driver.driverStatus !== "Accepted" && driver.status !== "Resigned";
       } else if (selectedTab === "Accepted") {
