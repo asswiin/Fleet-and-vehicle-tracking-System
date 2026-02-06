@@ -9,11 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ArrowLeft, Search, User, Clock, CheckCircle, Truck, RefreshCw } from "lucide-react-native";
-import { api, type Driver, type Vehicle } from "../../utils/api";
+import { ArrowLeft, Search, User, Clock, CheckCircle } from "lucide-react-native";
+import { api, type Driver } from "../../utils/api";
 
 const ReassignDriverScreen = () => {
   const router = useRouter();
@@ -27,47 +26,27 @@ const ReassignDriverScreen = () => {
   const managerId = params.managerId as string;
 
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
-  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const [selectedVehicle, setSelectedVehicle] = useState<string>(vehicleId); // Default to current vehicle
   const [loading, setLoading] = useState(true);
   const [reassigning, setReassigning] = useState(false);
-  const [driverSearchText, setDriverSearchText] = useState("");
-  const [vehicleSearchText, setVehicleSearchText] = useState("");
-  const [activeTab, setActiveTab] = useState<"driver" | "vehicle">("driver");
+  const [searchText, setSearchText] = useState("");
 
-  const fetchAvailableData = useCallback(async () => {
+  const fetchAvailableDrivers = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Fetch drivers and vehicles in parallel
-      const [driversResponse, vehiclesResponse] = await Promise.all([
-        api.getDrivers(),
-        api.getVehicles()
-      ]);
-
-      // Process drivers
-      if (driversResponse.ok && driversResponse.data) {
-        const availableDrivers = driversResponse.data.filter((driver: Driver) => 
+      const response = await api.getDrivers();
+      if (response.ok && response.data) {
+        // Filter for available drivers only
+        const availableDrivers = response.data.filter((driver: Driver) => 
           driver.isAvailable && driver.driverStatus === "Active"
         );
         setDrivers(availableDrivers);
         setFilteredDrivers(availableDrivers);
       }
-
-      // Process vehicles
-      if (vehiclesResponse.ok && vehiclesResponse.data) {
-        const availableVehicles = vehiclesResponse.data.filter((vehicle: Vehicle) => 
-          vehicle.status === "Active"
-        );
-        setVehicles(availableVehicles);
-        setFilteredVehicles(availableVehicles);
-      }
     } catch (error) {
-      console.error("Error fetching data:", error);
-      Alert.alert("Error", "Failed to load available drivers and vehicles");
+      console.error("Error fetching drivers:", error);
+      Alert.alert("Error", "Failed to load available drivers");
     } finally {
       setLoading(false);
     }
@@ -75,12 +54,12 @@ const ReassignDriverScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchAvailableData();
-    }, [fetchAvailableData])
+      fetchAvailableDrivers();
+    }, [fetchAvailableDrivers])
   );
 
-  const handleDriverSearch = useCallback((text: string) => {
-    setDriverSearchText(text);
+  const handleSearch = useCallback((text: string) => {
+    setSearchText(text);
     if (!text.trim()) {
       setFilteredDrivers(drivers);
       return;
@@ -94,40 +73,15 @@ const ReassignDriverScreen = () => {
     setFilteredDrivers(filtered);
   }, [drivers]);
 
-  const handleVehicleSearch = useCallback((text: string) => {
-    setVehicleSearchText(text);
-    if (!text.trim()) {
-      setFilteredVehicles(vehicles);
-      return;
-    }
-
-    const filtered = vehicles.filter(vehicle =>
-      vehicle.regNumber.toLowerCase().includes(text.toLowerCase()) ||
-      vehicle.model.toLowerCase().includes(text.toLowerCase()) ||
-      vehicle.type.toLowerCase().includes(text.toLowerCase())
-    );
-    setFilteredVehicles(filtered);
-  }, [vehicles]);
-
   const handleReassignTrip = async () => {
     if (!selectedDriver) {
       Alert.alert("Error", "Please select a driver to reassign the trip");
       return;
     }
 
-    const selectedDriverData = filteredDrivers.find(d => d._id === selectedDriver);
-    const selectedVehicleData = filteredVehicles.find(v => v._id === selectedVehicle);
-    const isVehicleChanged = selectedVehicle !== vehicleId;
-
-    let confirmMessage = `Reassign trip ${tripId}?\n\nPrevious driver: ${declinedDriverName}\nNew driver: ${selectedDriverData?.name}`;
-    
-    if (isVehicleChanged) {
-      confirmMessage += `\n\nVehicle will be changed to: ${selectedVehicleData?.regNumber}`;
-    }
-
     Alert.alert(
       "Confirm Reassignment",
-      confirmMessage,
+      `Reassign trip ${tripId} to selected driver?\n\nPrevious driver: ${declinedDriverName}\nNew driver: ${filteredDrivers.find(d => d._id === selectedDriver)?.name}`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -135,25 +89,20 @@ const ReassignDriverScreen = () => {
           onPress: async () => {
             setReassigning(true);
             try {
-              const reassignData: { newDriverId: string, newVehicleId?: string } = {
+              const response = await api.reassignDriver(notificationId, {
                 newDriverId: selectedDriver,
-              };
-              
-              // Only include vehicle if it's being changed
-              if (isVehicleChanged) {
-                reassignData.newVehicleId = selectedVehicle;
-              }
-
-              const response = await api.reassignDriver(notificationId, reassignData);
+                vehicleId: vehicleId,
+              });
 
               if (response.ok) {
                 Alert.alert(
                   "Success! ✓",
-                  `Trip ${tripId} has been reassigned successfully!\n\nDriver: ${selectedDriverData?.name}${isVehicleChanged ? `\nVehicle: ${selectedVehicleData?.regNumber}` : ''}\n\nThe new driver will receive a notification and parcels will remain in "Pending" status until accepted.`,
+                  `Trip ${tripId} has been reassigned successfully!\n\nThe new driver will receive a notification and parcels will remain in "Pending" status until accepted.`,
                   [
                     {
                       text: "OK",
                       onPress: () => {
+                        // Navigate back to manager dashboard
                         router.replace({
                           pathname: "/manager/manager-dashboard",
                           params: { userId: managerId }
@@ -174,55 +123,6 @@ const ReassignDriverScreen = () => {
           },
         },
       ]
-    );
-  };
-
-  const renderVehicleItem = ({ item }: { item: Vehicle }) => {
-    const isSelected = selectedVehicle === item._id;
-    const isCurrentVehicle = item._id === vehicleId;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.vehicleCard,
-          isSelected && styles.vehicleCardSelected,
-          isCurrentVehicle && styles.currentVehicleCard,
-        ]}
-        onPress={() => setSelectedVehicle(item._id)}
-      >
-        <View style={styles.vehicleHeader}>
-          <View style={[styles.vehicleIcon, isSelected && styles.vehicleIconSelected]}>
-            <Truck size={20} color={isSelected ? "#fff" : "#64748B"} />
-          </View>
-          <View style={styles.vehicleInfo}>
-            <Text style={styles.vehicleName}>{item.regNumber}</Text>
-            <Text style={styles.vehicleModel}>{item.model} • {item.type}</Text>
-          </View>
-          <View style={styles.vehicleActions}>
-            {isCurrentVehicle && (
-              <View style={styles.currentBadge}>
-                <Text style={styles.currentBadgeText}>CURRENT</Text>
-              </View>
-            )}
-            {isSelected && (
-              <CheckCircle size={24} color="#10B981" />
-            )}
-          </View>
-        </View>
-
-        <View style={styles.vehicleDetails}>
-          <View style={styles.statusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: "#10B981" }]} />
-            <Text style={styles.statusText}>Available</Text>
-          </View>
-          
-          <View style={styles.vehicleMetrics}>
-            <Text style={styles.vehicleMetricText}>
-              Capacity: {item.capacity || "N/A"} kg
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
     );
   };
 
@@ -310,99 +210,41 @@ const ReassignDriverScreen = () => {
         </Text>
       </View>
 
-      {/* Tab Selection */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "driver" && styles.activeTab]}
-          onPress={() => setActiveTab("driver")}
-        >
-          <User size={20} color={activeTab === "driver" ? "#fff" : "#64748B"} />
-          <Text style={[styles.tabText, activeTab === "driver" && styles.activeTabText]}>
-            Select Driver
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "vehicle" && styles.activeTab]}
-          onPress={() => setActiveTab("vehicle")}
-        >
-          <Truck size={20} color={activeTab === "vehicle" ? "#fff" : "#64748B"} />
-          <Text style={[styles.tabText, activeTab === "vehicle" && styles.activeTabText]}>
-            Select Vehicle
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Search size={20} color="#9CA3AF" />
         <TextInput
           style={styles.searchInput}
-          placeholder={activeTab === "driver" ? "Search drivers by name, phone..." : "Search vehicles by registration, model..."}
-          value={activeTab === "driver" ? driverSearchText : vehicleSearchText}
-          onChangeText={activeTab === "driver" ? handleDriverSearch : handleVehicleSearch}
+          placeholder="Search drivers by name, phone..."
+          value={searchText}
+          onChangeText={handleSearch}
           placeholderTextColor="#9CA3AF"
         />
       </View>
 
-      {/* Driver Tab Content */}
-      {activeTab === "driver" && (
+      {filteredDrivers.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <User size={48} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>No available drivers</Text>
+          <Text style={styles.emptyText}>
+            All drivers are currently busy or inactive
+          </Text>
+        </View>
+      ) : (
         <>
-          {filteredDrivers.length === 0 ? (
-            <View style={styles.centerContainer}>
-              <User size={48} color="#D1D5DB" />
-              <Text style={styles.emptyTitle}>No available drivers</Text>
-              <Text style={styles.emptyText}>
-                All drivers are currently busy or inactive
-              </Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.instructionContainer}>
-                <Text style={styles.instructionText}>
-                  Select an available driver to reassign this trip
-                </Text>
-              </View>
+          <View style={styles.instructionContainer}>
+            <Text style={styles.instructionText}>
+              Select an available driver to reassign this trip
+            </Text>
+          </View>
 
-              <FlatList
-                data={filteredDrivers}
-                renderItem={renderDriverItem}
-                keyExtractor={(item) => item._id}
-                contentContainerStyle={styles.listContainer}
-                showsVerticalScrollIndicator={false}
-              />
-            </>
-          )}
-        </>
-      )}
-
-      {/* Vehicle Tab Content */}
-      {activeTab === "vehicle" && (
-        <>
-          {filteredVehicles.length === 0 ? (
-            <View style={styles.centerContainer}>
-              <Truck size={48} color="#D1D5DB" />
-              <Text style={styles.emptyTitle}>No available vehicles</Text>
-              <Text style={styles.emptyText}>
-                All vehicles are currently in use
-              </Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.instructionContainer}>
-                <Text style={styles.instructionText}>
-                  Select a vehicle for this trip (current vehicle is pre-selected)
-                </Text>
-              </View>
-
-              <FlatList
-                data={filteredVehicles}
-                renderItem={renderVehicleItem}
-                keyExtractor={(item) => item._id}
-                contentContainerStyle={styles.listContainer}
-                showsVerticalScrollIndicator={false}
-              />
-            </>
-          )}
+          <FlatList
+            data={filteredDrivers}
+            renderItem={renderDriverItem}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
         </>
       )}
 
@@ -531,36 +373,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1F2937",
   },
-  // Tab Styles
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#F3F4F6",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  activeTab: {
-    backgroundColor: "#2563EB",
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  activeTabText: {
-    color: "#fff",
-  },
   instructionContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -640,81 +452,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   driverMetricText: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  // Vehicle Styles
-  vehicleCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  vehicleCardSelected: {
-    borderColor: "#10B981",
-    borderWidth: 2,
-    backgroundColor: "#F0FDF4",
-  },
-  currentVehicleCard: {
-    borderColor: "#F59E0B",
-    backgroundColor: "#FFFBEB",
-  },
-  vehicleHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  vehicleIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  vehicleIconSelected: {
-    backgroundColor: "#10B981",
-  },
-  vehicleInfo: {
-    flex: 1,
-  },
-  vehicleName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1F2937",
-  },
-  vehicleModel: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  vehicleActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  currentBadge: {
-    backgroundColor: "#F59E0B",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  currentBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  vehicleDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  vehicleMetrics: {
-    alignItems: "flex-end",
-  },
-  vehicleMetricText: {
     fontSize: 12,
     color: "#6B7280",
   },

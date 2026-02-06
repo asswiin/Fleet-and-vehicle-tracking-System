@@ -157,6 +157,108 @@ exports.getActiveTrip = async (req, res) => {
   }
 };
 
+// Get declined parcels for reassignment
+exports.getDeclinedParcels = async (req, res) => {
+  try {
+    // Find trips that were declined
+    const declinedTrips = await Trip.find({ status: "declined" })
+      .populate("parcelIds", "trackingId weight recipient status sender")
+      .populate("driverId", "name phone")
+      .populate("vehicleId", "regNumber model type")
+      .sort({ createdAt: -1 });
+
+    // Extract parcels from declined trips
+    const declinedParcels = [];
+    for (const trip of declinedTrips) {
+      for (const parcel of trip.parcelIds) {
+        declinedParcels.push({
+          ...parcel._doc,
+          tripId: trip.tripId,
+          declinedDriverId: trip.driverId._id,
+          declinedDriverName: trip.driverId.name,
+          assignedVehicleId: trip.vehicleId._id,
+          assignedVehicle: trip.vehicleId,
+        });
+      }
+    }
+
+    res.status(200).json(declinedParcels);
+  } catch (error) {
+    console.error("Error fetching declined parcels:", error);
+    res.status(500).json({ message: "Failed to fetch declined parcels", error: error.message });
+  }
+};
+
+// Reassign trip to new driver
+exports.reassignTrip = async (req, res) => {
+  try {
+    const { tripId } = req.params;
+    const { newDriverId, newVehicleId, managerId } = req.body;
+
+    // Find the trip
+    const trip = await Trip.findOne({ tripId });
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // Validate new driver and vehicle
+    const newDriver = await Driver.findById(newDriverId);
+    const newVehicle = await Vehicle.findById(newVehicleId);
+    
+    if (!newDriver || !newVehicle) {
+      return res.status(404).json({ message: "Driver or vehicle not found" });
+    }
+
+    // Update trip with new driver and vehicle
+    trip.driverId = newDriverId;
+    trip.vehicleId = newVehicleId;
+    trip.status = "pending"; // Reset to pending for new driver
+    trip.assignedAt = new Date();
+    
+    await trip.save();
+
+    // Update parcels with new assignment
+    await Parcel.updateMany(
+      { _id: { $in: trip.parcelIds } },
+      { 
+        assignedDriver: newDriverId,
+        assignedVehicle: newVehicleId,
+        status: "Assigned"
+      }
+    );
+
+    // Create notification for new driver
+    const Notification = require("../models/Notification");
+    const notification = new Notification({
+      driverId: newDriverId,
+      recipientType: "driver",
+      vehicleId: newVehicleId,
+      parcelIds: trip.parcelIds,
+      tripId: trip.tripId,
+      message: `New trip reassigned: ${trip.tripId}`,
+      type: "trip_reassignment",
+      status: "pending",
+      assignedBy: managerId,
+      deliveryLocations: trip.deliveryDestinations,
+      startLocation: trip.startLocation,
+    });
+
+    await notification.save();
+
+    // Populate and return updated trip
+    const updatedTrip = await Trip.findById(trip._id)
+      .populate("driverId", "name phone email profilePhoto")
+      .populate("vehicleId", "regNumber model type capacity")
+      .populate("parcelIds", "trackingId weight recipient status")
+      .populate("assignedBy", "name email");
+
+    res.status(200).json({ trip: updatedTrip, notification });
+  } catch (error) {
+    console.error("Error reassigning trip:", error);
+    res.status(500).json({ message: "Failed to reassign trip", error: error.message });
+  }
+};
+
 // Update trip status
 exports.updateTripStatus = async (req, res) => {
   try {

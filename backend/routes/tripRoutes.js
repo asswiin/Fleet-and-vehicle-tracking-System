@@ -29,6 +29,12 @@ router.patch("/:id/status", tripController.updateTripStatus);
 // Update delivery destination status
 router.patch("/:tripId/delivery/:parcelId", tripController.updateDeliveryStatus);
 
+// Get declined parcels for reassignment
+router.get("/declined/parcels", tripController.getDeclinedParcels);
+
+// Reassign trip to new driver
+router.patch("/reassign/:tripId", tripController.reassignTrip);
+
 // Delete trip
 router.delete("/:id", tripController.deleteTrip);
 

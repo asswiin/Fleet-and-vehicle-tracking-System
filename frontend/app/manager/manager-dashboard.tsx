@@ -172,7 +172,10 @@ const ManagerDashboard = () => {
 
             <TouchableOpacity 
               style={styles.actionItem}
-              onPress={() => router.push("/manager/selecting-parcel")}
+              onPress={() => router.push({
+                pathname: "/manager/selecting-parcel-improved",
+                params: { managerId: userId }
+              } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
                 <Navigation size={24} color="#9333EA" />

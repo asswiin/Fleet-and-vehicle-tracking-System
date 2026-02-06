@@ -171,6 +171,10 @@ export interface Parcel {
     type?: string;
     status?: string;
   };
+  // Properties for declined parcels
+  declinedDriverId?: string;
+  declinedDriverName?: string;
+  assignedVehicleId?: string;
 }
 
 export interface Notification {
@@ -493,7 +497,7 @@ export const api = {
   getManagerUnreadCount: (managerId: string) => 
     apiCall<{ count: number }>(`/api/notifications/manager/${managerId}/unread-count`),
   
-  reassignDriver: (notificationId: string, data: { newDriverId: string, newVehicleId?: string }) =>
+  reassignDriver: (notificationId: string, data: { newDriverId: string, vehicleId: string }) =>
     apiCall(`/api/notifications/${notificationId}/reassign-driver`, { 
       method: "POST", 
       body: JSON.stringify(data) 
@@ -560,6 +564,20 @@ export const api = {
 
   deleteTrip: (id: string) => 
     apiCall(`/api/trips/${id}`, { method: "DELETE" }),
+
+  // Get declined parcels for reassignment
+  getDeclinedParcels: () => 
+    apiCall<Parcel[]>("/api/trips/declined/parcels"),
+
+  // Reassign trip to new driver and vehicle
+  reassignTrip: (tripId: string, data: {
+    newDriverId: string;
+    newVehicleId: string;
+    managerId: string;
+  }) => apiCall(`/api/trips/reassign/${tripId}`, { 
+    method: "PATCH", 
+    body: JSON.stringify(data) 
+  }),
 };
    
 
