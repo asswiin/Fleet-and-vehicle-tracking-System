@@ -18,10 +18,35 @@ exports.createTrip = async (req, res) => {
       notes,
     } = req.body;
 
+    // Validate required fields
+    if (!driverId) {
+      return res.status(400).json({ message: "Driver ID is required" });
+    }
+    if (!vehicleId) {
+      return res.status(400).json({ message: "Vehicle ID is required" });
+    }
+    if (!parcelIds || parcelIds.length === 0) {
+      return res.status(400).json({ message: "At least one parcel is required" });
+    }
+
+    // Check if driver exists and is available
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    // Check if vehicle exists and is available
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
     // Check if trip with this ID already exists
-    const existingTrip = await Trip.findOne({ tripId });
-    if (existingTrip) {
-      return res.status(400).json({ message: "Trip with this ID already exists" });
+    if (tripId) {
+      const existingTrip = await Trip.findOne({ tripId });
+      if (existingTrip) {
+        return res.status(400).json({ message: "Trip with this ID already exists" });
+      }
     }
 
     const trip = new Trip({

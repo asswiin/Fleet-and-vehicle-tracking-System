@@ -38,6 +38,7 @@ const SelectingParcelScreen = () => {
   
   // Get manager info from params
   const managerId = params.managerId as string;
+  const initialTab = (params.activeTab as string) || 'new';
   
   const [parcels, setParcels] = useState<ParcelWithRecipient[]>([]);
   const [declinedParcels, setDeclinedParcels] = useState<ParcelWithRecipient[]>([]);
@@ -48,7 +49,7 @@ const SelectingParcelScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [totalWeight, setTotalWeight] = useState(0);
   const [selectedParcelDetail, setSelectedParcelDetail] = useState<ParcelWithRecipient | null>(null);
-  const [activeTab, setActiveTab] = useState<'new' | 'declined'>('new');
+  const [activeTab, setActiveTab] = useState<'new' | 'declined'>(initialTab as 'new' | 'declined');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [selectedDeclinedParcel, setSelectedDeclinedParcel] = useState<ParcelWithRecipient | null>(null);
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
@@ -163,11 +164,10 @@ const SelectingParcelScreen = () => {
 
     const selectedIds = Array.from(selectedParcels);
     router.push({
-      pathname: "/manager/assign-trip",
+      pathname: "/driver/select-vehicle",
       params: { 
         parcelIds: JSON.stringify(selectedIds), 
-        totalWeight: totalWeight.toString(),
-        managerId: managerId 
+        totalWeight: totalWeight.toString()
       },
     } as any);
   };
