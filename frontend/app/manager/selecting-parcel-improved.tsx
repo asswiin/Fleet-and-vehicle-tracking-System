@@ -96,9 +96,9 @@ const SelectingParcelScreen = () => {
     try {
       const driversResponse = await api.getDrivers();
       if (driversResponse.ok && driversResponse.data) {
-        // Filter available drivers (not on trip, not pending, not accepted)
+        // Filter available drivers (not on trip, not accepted)
         const availableDriversList = driversResponse.data.filter((driver: Driver) => 
-          driver.status === "Active" && driver.driverStatus !== "On-trip" && driver.driverStatus !== "pending" && driver.driverStatus !== "Accepted"
+          driver.status === "Active" && driver.driverStatus !== "On-trip" && driver.driverStatus !== "Accepted"
         );
         setAvailableDrivers(availableDriversList);
       }
