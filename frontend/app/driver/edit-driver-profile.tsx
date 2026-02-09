@@ -18,7 +18,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { api, Driver } from "../../utils/api";
 import { 
@@ -112,10 +112,10 @@ const EditDriverProfileScreen = () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true, 
       aspect: type === 'profile' ? [1, 1] : [4, 3], 
-      quality: 0.7, 
+      quality: 0.3, 
     });
 
     if (!result.canceled) {
