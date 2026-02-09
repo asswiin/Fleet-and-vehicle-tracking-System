@@ -742,43 +742,43 @@ exports.updateTripResources = async (req, res) => {
 
 
     // --- NOTIFY DRIVER OF CHANGES ---
-    // If driver changed, create a new notification as before
-    if (isDriverChanged) {
-      const currentVehicle = await Vehicle.findById(trip.vehicleId);
-      const newNotification = new Notification({
-        driverId: driverId,
-        vehicleId: trip.vehicleId,
-        parcelIds: trip.parcelIds,
-        tripId: trip.tripId,
-        type: "reassign_driver",
-        status: "pending",
-        message: `Trip #${trip.tripId} has been reassigned to you. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
-        assignedBy: managerId || trip.assignedBy,
-        startLocation: trip.startLocation,
-        deliveryLocations: trip.deliveryDestinations,
-        recipientType: "driver"
-      });
-      await newNotification.save();
-    } else if (isVehicleChanged) {
-      // If only vehicle changed, update the existing notification for this trip/driver
-      const currentVehicle = await Vehicle.findById(trip.vehicleId);
-      await Notification.updateMany(
-        {
-          driverId: trip.driverId,
+    // Only send notification if this is an edit (not first assignment) and only one notification per edit
+    if ((isDriverChanged || isVehicleChanged) && (oldDriverId || oldVehicleId)) {
+      // If driver changed, send reassign_driver notification
+      if (isDriverChanged) {
+        const currentVehicle = await Vehicle.findById(trip.vehicleId);
+        const newNotification = new Notification({
+          driverId: driverId,
+          vehicleId: trip.vehicleId,
+          parcelIds: trip.parcelIds,
           tripId: trip.tripId,
-          recipientType: "driver",
-          type: { $in: ["trip_assignment", "reassign_driver", "trip_update"] },
-        },
-        {
-          $set: {
-            vehicleId: trip.vehicleId,
-            message: `Trip #${trip.tripId} vehicle has been updated. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
-            type: "trip_update",
-            status: "pending",
-            read: false
-          }
-        }
-      );
+          type: "reassign_driver",
+          status: "pending",
+          message: `Trip #${trip.tripId} has been reassigned to you. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
+          assignedBy: managerId || trip.assignedBy,
+          startLocation: trip.startLocation,
+          deliveryLocations: trip.deliveryDestinations,
+          recipientType: "driver"
+        });
+        await newNotification.save();
+      } else if (isVehicleChanged) {
+        // Only send one notification for vehicle change
+        const currentVehicle = await Vehicle.findById(trip.vehicleId);
+        const newNotification = new Notification({
+          driverId: trip.driverId,
+          vehicleId: trip.vehicleId,
+          parcelIds: trip.parcelIds,
+          tripId: trip.tripId,
+          type: "trip_update",
+          status: "pending",
+          message: `Trip #${trip.tripId} vehicle has been updated. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
+          assignedBy: managerId || trip.assignedBy,
+          startLocation: trip.startLocation,
+          deliveryLocations: trip.deliveryDestinations,
+          recipientType: "driver"
+        });
+        await newNotification.save();
+      }
     }
 
     res.json({ 

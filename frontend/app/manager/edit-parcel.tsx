@@ -16,6 +16,20 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Package, User, MapPin } from "lucide-react-native";
 import { api, type Parcel } from "../../utils/api";
 
+type Driver = {
+  _id: string;
+  name: string;
+  phone: string;
+  email?: string;
+};
+
+type Vehicle = {
+  _id: string;
+  licensePlate: string;
+  model: string;
+  capacity?: number;
+};
+
 const EditParcelScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -97,8 +111,8 @@ const EditParcelScreen = () => {
         weight: p.weight?.toString() || "",
         parcelType: p.type || "",
         paymentAmount: p.paymentAmount?.toString() || "",
-        assignedDriver: p.assignedDriver?._id?.toString() || p.assignedDriver?.toString() || "",
-        assignedVehicle: p.assignedVehicle?._id?.toString() || p.assignedVehicle?.toString() || "",
+        assignedDriver: typeof p.assignedDriver === "object" ? p.assignedDriver?._id?.toString() || "" : p.assignedDriver || "",
+        assignedVehicle: typeof p.assignedVehicle === "object" ? p.assignedVehicle?._id?.toString() || "" : p.assignedVehicle || "",
       });
     } else {
       setError(response.error || "Failed to load parcel");
