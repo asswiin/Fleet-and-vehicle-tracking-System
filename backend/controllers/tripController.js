@@ -740,11 +740,11 @@ exports.updateTripResources = async (req, res) => {
       );
     }
 
-    // --- NOTIFY NEW DRIVER ---
+
+    // --- NOTIFY DRIVER OF CHANGES ---
+    // If driver changed, create a new notification as before
     if (isDriverChanged) {
-      // Get vehicle details for the message
       const currentVehicle = await Vehicle.findById(trip.vehicleId);
-      
       const newNotification = new Notification({
         driverId: driverId,
         vehicleId: trip.vehicleId,
@@ -758,8 +758,27 @@ exports.updateTripResources = async (req, res) => {
         deliveryLocations: trip.deliveryDestinations,
         recipientType: "driver"
       });
-
       await newNotification.save();
+    } else if (isVehicleChanged) {
+      // If only vehicle changed, update the existing notification for this trip/driver
+      const currentVehicle = await Vehicle.findById(trip.vehicleId);
+      await Notification.updateMany(
+        {
+          driverId: trip.driverId,
+          tripId: trip.tripId,
+          recipientType: "driver",
+          type: { $in: ["trip_assignment", "reassign_driver", "trip_update"] },
+        },
+        {
+          $set: {
+            vehicleId: trip.vehicleId,
+            message: `Trip #${trip.tripId} vehicle has been updated. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
+            type: "trip_update",
+            status: "pending",
+            read: false
+          }
+        }
+      );
     }
 
     res.json({ 
