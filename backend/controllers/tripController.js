@@ -493,10 +493,6 @@
 
 
 
-
-
-
-
 const Trip = require("../models/Trip");
 const Driver = require("../models/Driver");
 const Vehicle = require("../models/Vehicle");
@@ -518,7 +514,6 @@ exports.createTrip = async (req, res) => {
       notes,
     } = req.body;
 
-    // Check if trip with this ID already exists
     const existingTrip = await Trip.findOne({ tripId });
     if (existingTrip) {
       return res.status(400).json({ message: "Trip with this ID already exists" });
@@ -539,18 +534,17 @@ exports.createTrip = async (req, res) => {
 
     await trip.save();
 
-    // Update driver status to "pending" when trip is assigned
+    // Update driver status
     await Driver.findByIdAndUpdate(driverId, {
       driverStatus: "pending",
       isAvailable: false
     });
 
-    // Update vehicle status to "assigned"
+    // Update vehicle status
     await Vehicle.findByIdAndUpdate(vehicleId, {
       status: "assigned"
     });
 
-    // Populate references for response
     const populatedTrip = await Trip.findById(trip._id)
       .populate("driverId", "name phone email profilePhoto")
       .populate("vehicleId", "regNumber model type capacity")
@@ -575,12 +569,11 @@ exports.getAllTrips = async (req, res) => {
 
     res.status(200).json(trips);
   } catch (error) {
-    console.error("Error fetching trips:", error);
     res.status(500).json({ message: "Failed to fetch trips", error: error.message });
   }
 };
 
-// Get trip by Mongo ID
+// Get trip by ID
 exports.getTripById = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id)
@@ -589,18 +582,14 @@ exports.getTripById = async (req, res) => {
       .populate("parcelIds", "trackingId weight recipient status sender")
       .populate("assignedBy", "name email");
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
     res.status(200).json(trip);
   } catch (error) {
-    console.error("Error fetching trip:", error);
     res.status(500).json({ message: "Failed to fetch trip", error: error.message });
   }
 };
 
-// Get trip by tripId string (e.g. TR-123456-X)
+// Get trip by tripId string
 exports.getTripByTripId = async (req, res) => {
   try {
     const trip = await Trip.findOne({ tripId: req.params.tripId })
@@ -609,13 +598,9 @@ exports.getTripByTripId = async (req, res) => {
       .populate("parcelIds", "trackingId weight recipient status sender")
       .populate("assignedBy", "name email");
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
     res.status(200).json(trip);
   } catch (error) {
-    console.error("Error fetching trip:", error);
     res.status(500).json({ message: "Failed to fetch trip", error: error.message });
   }
 };
@@ -625,11 +610,8 @@ exports.getTripsByDriver = async (req, res) => {
   try {
     const { driverId } = req.params;
     const { status } = req.query;
-
     let query = { driverId };
-    if (status) {
-      query.status = status;
-    }
+    if (status) query.status = status;
 
     const trips = await Trip.find(query)
       .populate("driverId", "name phone email profilePhoto")
@@ -639,7 +621,6 @@ exports.getTripsByDriver = async (req, res) => {
 
     res.status(200).json(trips);
   } catch (error) {
-    console.error("Error fetching driver trips:", error);
     res.status(500).json({ message: "Failed to fetch driver trips", error: error.message });
   }
 };
@@ -648,7 +629,6 @@ exports.getTripsByDriver = async (req, res) => {
 exports.getActiveTrip = async (req, res) => {
   try {
     const { driverId } = req.params;
-
     const activeTrip = await Trip.findOne({
       driverId,
       status: { $in: ["accepted", "in-progress"] },
@@ -657,21 +637,19 @@ exports.getActiveTrip = async (req, res) => {
       .populate("vehicleId", "regNumber model type capacity")
       .populate("parcelIds", "trackingId weight recipient status deliveryLocation");
 
-    if (!activeTrip) {
-      return res.status(404).json({ message: "No active trip found" });
-    }
-
+    if (!activeTrip) return res.status(404).json({ message: "No active trip found" });
     res.status(200).json(activeTrip);
   } catch (error) {
-    console.error("Error fetching active trip:", error);
     res.status(500).json({ message: "Failed to fetch active trip", error: error.message });
   }
 };
 
-// Update Trip Resources (Edit Driver/Vehicle on existing trip)
+// =======================================================
+// UPDATE TRIP RESOURCES (EDIT TRIP FUNCTIONALITY)
+// =======================================================
 exports.updateTripResources = async (req, res) => {
   try {
-    const { id } = req.params; // Trip ID
+    const { id } = req.params; // Trip Mongo ID
     const { driverId, vehicleId, managerId } = req.body;
 
     const trip = await Trip.findById(id);
@@ -679,70 +657,102 @@ exports.updateTripResources = async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    const oldDriverId = trip.driverId.toString();
+    const oldDriverId = trip.driverId ? trip.driverId.toString() : null;
+    const oldVehicleId = trip.vehicleId ? trip.vehicleId.toString() : null;
+
+    // Determine what changed
     const isDriverChanged = driverId && driverId !== oldDriverId;
-    const isVehicleChanged = vehicleId && vehicleId !== trip.vehicleId.toString();
+    const isVehicleChanged = vehicleId && vehicleId !== oldVehicleId;
 
-    // 1. Update Trip Fields
-    if (driverId) trip.driverId = driverId;
-    if (vehicleId) trip.vehicleId = vehicleId;
-
-    // 2. If Driver Changed: Reset status to pending (new driver must accept)
+    // --- HANDLE DRIVER CHANGE ---
     if (isDriverChanged) {
+      // 1. Free up the OLD driver
+      if (oldDriverId) {
+        await Driver.findByIdAndUpdate(oldDriverId, {
+          isAvailable: true,
+          driverStatus: "available",
+          currentTripId: null
+        });
+
+        // 2. Remove notifications for the OLD driver for this specific trip
+        // This ensures the old driver doesn't see the request anymore
+        await Notification.deleteMany({
+          driverId: oldDriverId,
+          tripId: trip.tripId,
+          // Delete both initial assignment and reassignment types
+          type: { $in: ["trip_assignment", "reassign_driver"] }
+        });
+      }
+
+      // 3. Assign the NEW driver
+      await Driver.findByIdAndUpdate(driverId, {
+        isAvailable: false,
+        driverStatus: "pending" // Waiting for acceptance
+      });
+
+      // 4. Update Trip reference
+      trip.driverId = driverId;
+      // Reset trip status to pending so new driver must accept
       trip.status = "pending";
-      // Clear accepted/started timestamps if resetting
       trip.acceptedAt = null;
       trip.startedAt = null;
-      
-      // Update Old Driver: Set back to available
-      await Driver.findByIdAndUpdate(oldDriverId, { 
-        driverStatus: "available",
-        isAvailable: true,
-        currentTripId: null
-      });
-
-      // Update New Driver: Set to pending
-      await Driver.findByIdAndUpdate(driverId, {
-        driverStatus: "pending",
-        isAvailable: false
-      });
     }
 
-    if (isVehicleChanged && vehicleId) {
-       // Free up old vehicle if needed (optional logic depending on requirements)
-       // Set new vehicle status
-       await Vehicle.findByIdAndUpdate(vehicleId, { status: "assigned" });
+    // --- HANDLE VEHICLE CHANGE ---
+    if (isVehicleChanged) {
+      // 1. Free up the OLD vehicle
+      if (oldVehicleId) {
+        await Vehicle.findByIdAndUpdate(oldVehicleId, {
+          status: "Active", // Revert to Active/Available
+          currentTripId: null,
+          driverId: null
+        });
+      }
+
+      // 2. Assign the NEW vehicle
+      await Vehicle.findByIdAndUpdate(vehicleId, {
+        status: "assigned", // Mark as Assigned (Pending trip start)
+        currentTripId: trip.tripId
+      });
+
+      // 3. Update Trip reference
+      trip.vehicleId = vehicleId;
     }
 
+    // Save changes to Trip
     await trip.save();
 
-    // 3. Update All Associated Parcels
+    // --- UPDATE PARCELS ---
+    // Parcels need to reflect the new driver/vehicle
     const parcelUpdate = {};
-    if (driverId) parcelUpdate.assignedDriver = driverId;
-    if (vehicleId) parcelUpdate.assignedVehicle = vehicleId;
+    if (isDriverChanged) parcelUpdate.assignedDriver = driverId;
+    if (isVehicleChanged) parcelUpdate.assignedVehicle = vehicleId;
     
-    // Also set parcel status back to 'Pending' if driver changed so it matches the flow
+    // If driver changed, set parcel status back to Pending/Assigned
     if (isDriverChanged) {
-      parcelUpdate.status = "Pending"; 
+      parcelUpdate.status = "Pending";
     }
 
-    await Parcel.updateMany(
-      { _id: { $in: trip.parcelIds } },
-      { $set: parcelUpdate }
-    );
+    if (Object.keys(parcelUpdate).length > 0) {
+      await Parcel.updateMany(
+        { _id: { $in: trip.parcelIds } },
+        { $set: parcelUpdate }
+      );
+    }
 
-    // 4. Create Notification if Driver Changed
+    // --- NOTIFY NEW DRIVER ---
     if (isDriverChanged) {
-      const vehicle = await Vehicle.findById(vehicleId || trip.vehicleId);
+      // Get vehicle details for the message
+      const currentVehicle = await Vehicle.findById(trip.vehicleId);
       
       const newNotification = new Notification({
         driverId: driverId,
-        vehicleId: vehicleId || trip.vehicleId,
+        vehicleId: trip.vehicleId,
         parcelIds: trip.parcelIds,
         tripId: trip.tripId,
         type: "reassign_driver",
         status: "pending",
-        message: `Trip #${trip.tripId} has been reassigned to you. Vehicle: ${vehicle.regNumber}`,
+        message: `Trip #${trip.tripId} has been reassigned to you. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
         assignedBy: managerId || trip.assignedBy,
         startLocation: trip.startLocation,
         deliveryLocations: trip.deliveryDestinations,
@@ -753,7 +763,7 @@ exports.updateTripResources = async (req, res) => {
     }
 
     res.json({ 
-      message: "Trip updated and driver notified", 
+      message: "Trip updated successfully", 
       data: trip 
     });
 
@@ -763,7 +773,7 @@ exports.updateTripResources = async (req, res) => {
   }
 };
 
-// Get declined parcels for reassignment logic
+// Get declined parcels
 exports.getDeclinedParcels = async (req, res) => {
   try {
     const declinedTrips = await Trip.find({ status: "declined" })
@@ -787,29 +797,20 @@ exports.getDeclinedParcels = async (req, res) => {
         });
       }
     }
-
     res.status(200).json(declinedParcels);
   } catch (error) {
-    console.error("Error fetching declined parcels:", error);
     res.status(500).json({ message: "Failed to fetch declined parcels", error: error.message });
   }
 };
 
-// Reassign trip to new driver (Specific for declined trips flow)
+// Reassign trip (Specific to Declined workflow)
 exports.reassignTrip = async (req, res) => {
   try {
     const { tripId } = req.params;
     const { newDriverId, managerId } = req.body;
 
     const trip = await Trip.findOne({ tripId });
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    const newDriver = await Driver.findById(newDriverId);
-    if (!newDriver) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
 
     const existingVehicleId = trip.vehicleId;
 
@@ -819,7 +820,7 @@ exports.reassignTrip = async (req, res) => {
     trip.assignedAt = new Date();
     await trip.save();
 
-    // Update driver statuses
+    // Update new driver
     await Driver.findByIdAndUpdate(newDriverId, {
       driverStatus: "pending",
       isAvailable: false
@@ -830,7 +831,7 @@ exports.reassignTrip = async (req, res) => {
       { _id: { $in: trip.parcelIds } },
       { 
         assignedDriver: newDriverId,
-        status: "Pending" // Reset to Pending
+        status: "Pending" 
       }
     );
 
@@ -857,12 +858,11 @@ exports.reassignTrip = async (req, res) => {
 
     res.status(200).json({ trip: updatedTrip, notification });
   } catch (error) {
-    console.error("Error reassigning trip:", error);
     res.status(500).json({ message: "Failed to reassign trip", error: error.message });
   }
 };
 
-// Update trip status (General status updates like accepted, completed)
+// Update trip status
 exports.updateTripStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -882,18 +882,25 @@ exports.updateTripStatus = async (req, res) => {
       .populate("driverId")
       .populate("vehicleId");
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
 
-    // Sync Driver & Vehicle Statuses based on Trip Status
-    if (status === "accepted" || status === "in-progress") {
+    // Sync Driver & Vehicle Statuses
+    if (status === "accepted") {
       await Driver.findByIdAndUpdate(trip.driverId._id, { 
-        driverStatus: status === "accepted" ? "Accepted" : "On-trip",
+        driverStatus: "Accepted",
         currentTripId: trip.tripId
       });
       await Vehicle.findByIdAndUpdate(trip.vehicleId._id, { 
-        status: status === "accepted" ? "Trip Confirmed" : "On-trip",
+        status: "Trip Confirmed",
+        currentTripId: trip.tripId
+      });
+    } else if (status === "in-progress") {
+      await Driver.findByIdAndUpdate(trip.driverId._id, { 
+        driverStatus: "On-trip",
+        currentTripId: trip.tripId
+      });
+      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, { 
+        status: "On-trip",
         currentTripId: trip.tripId
       });
     } else if (status === "completed") {
@@ -906,11 +913,23 @@ exports.updateTripStatus = async (req, res) => {
         status: "Active",
         currentTripId: null
       });
+    } else if (status === "declined") {
+      await Driver.findByIdAndUpdate(trip.driverId._id, {
+        driverStatus: "available",
+        isAvailable: true,
+        currentTripId: null
+      });
+      // Vehicle stays assigned or reverts? Usually reverts if trip is dead, 
+      // but if reassigning later, logic might differ. 
+      // Assuming declined means resource free-up for now:
+      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, {
+        status: "Active",
+        currentTripId: null
+      });
     }
 
     res.status(200).json(trip);
   } catch (error) {
-    console.error("Error updating trip status:", error);
     res.status(500).json({ message: "Failed to update trip status", error: error.message });
   }
 };
@@ -919,17 +938,11 @@ exports.updateTripStatus = async (req, res) => {
 exports.startJourney = async (req, res) => {
   try {
     const { id } = req.params;
-
     const trip = await Trip.findById(id);
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
 
     if (trip.status !== "accepted") {
-      return res.status(400).json({ 
-        message: "Trip must be in 'accepted' status to start",
-        currentStatus: trip.status 
-      });
+      return res.status(400).json({ message: "Trip must be accepted to start" });
     }
 
     trip.status = "in-progress";
@@ -958,12 +971,8 @@ exports.startJourney = async (req, res) => {
       { status: "In Transit" }
     );
 
-    res.status(200).json({
-      message: "Journey started successfully",
-      trip
-    });
+    res.status(200).json({ message: "Journey started successfully", trip });
   } catch (error) {
-    console.error("Error starting journey:", error);
     res.status(500).json({ message: "Failed to start journey", error: error.message });
   }
 };
@@ -982,7 +991,7 @@ exports.updateDeliveryStatus = async (req, res) => {
     );
 
     if (destinationIndex === -1) {
-      return res.status(404).json({ message: "Delivery destination not found" });
+      return res.status(404).json({ message: "Destination not found" });
     }
 
     trip.deliveryDestinations[destinationIndex].deliveryStatus = deliveryStatus;
@@ -993,7 +1002,7 @@ exports.updateDeliveryStatus = async (req, res) => {
       await Parcel.findByIdAndUpdate(parcelId, { status: "Delivered" });
     }
 
-    // Check if trip is fully complete
+    // Check completion
     const allDelivered = trip.deliveryDestinations.every(
       (d) => d.deliveryStatus === "delivered" || d.deliveryStatus === "failed"
     );
@@ -1016,8 +1025,7 @@ exports.updateDeliveryStatus = async (req, res) => {
     await trip.save();
     res.status(200).json(trip);
   } catch (error) {
-    console.error("Error updating delivery status:", error);
-    res.status(500).json({ message: "Failed to update delivery status", error: error.message });
+    res.status(500).json({ message: "Failed to update delivery", error: error.message });
   }
 };
 
@@ -1026,7 +1034,7 @@ exports.deleteTrip = async (req, res) => {
   try {
     const trip = await Trip.findByIdAndDelete(req.params.id);
     if (!trip) return res.status(404).json({ message: "Trip not found" });
-    res.status(200).json({ message: "Trip deleted successfully" });
+    res.status(200).json({ message: "Trip deleted" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete trip", error: error.message });
   }
