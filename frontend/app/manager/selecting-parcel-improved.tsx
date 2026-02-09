@@ -96,9 +96,19 @@ const SelectingParcelScreen = () => {
     try {
       const driversResponse = await api.getDrivers();
       if (driversResponse.ok && driversResponse.data) {
-        // Filter available drivers (not on trip, not accepted)
-        const availableDriversList = driversResponse.data.filter((driver: Driver) => 
-          driver.status === "Active" && driver.driverStatus !== "On-trip" && driver.driverStatus !== "Accepted"
+        // Filter available drivers using same logic as assign-trip and reassign-driver:
+        // 1. Account Status must be Active
+        // 2. Must be Punched In (isAvailable === true) 
+        // 3. driverStatus not "On-trip", "Accepted", or "pending"
+        const allDrivers = Array.isArray(driversResponse.data) 
+          ? driversResponse.data 
+          : (driversResponse.data as any).data || [];
+        const availableDriversList = allDrivers.filter((driver: Driver) => 
+          driver.status === "Active" && 
+          driver.isAvailable === true &&
+          driver.driverStatus !== "On-trip" && 
+          driver.driverStatus !== "Accepted" &&
+          driver.driverStatus !== "pending"
         );
         setAvailableDrivers(availableDriversList);
       }

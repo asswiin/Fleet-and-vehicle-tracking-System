@@ -170,6 +170,20 @@ const ManagerDashboard = () => {
               <Text style={styles.actionLabel}>Trips</Text>
             </TouchableOpacity>
 
+
+
+<TouchableOpacity 
+  style={styles.actionItem}
+  onPress={() => router.push("/manager/trip-list" as any)} // NEW LINK
+>
+  <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
+    <Truck size={24} color="#0284C7" />
+  </View>
+  <Text style={styles.actionLabel}>Manage Trips</Text>
+</TouchableOpacity>
+
+
+
             <TouchableOpacity 
               style={styles.actionItem}
               onPress={() => router.push({

@@ -38,4 +38,7 @@ router.patch("/:tripId/delivery/:parcelId", tripController.updateDeliveryStatus)
 // Delete trip
 router.delete("/:id", tripController.deleteTrip);
 
+// Update resources (Driver/Vehicle) for an existing trip
+router.patch("/:id/resources", tripController.updateTripResources);
+
 module.exports = router;

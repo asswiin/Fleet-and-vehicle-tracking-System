@@ -101,7 +101,7 @@ export interface Driver {
   licensePhoto?: string;
   createdAt?: string;
   isAvailable?: boolean;
-  driverStatus?: "Active" | "Accepted" | "On-trip" | "Off-duty";
+  driverStatus?: "offline" | "available" | "pending" | "Accepted" | "On-trip" | "Off-duty";
   currentTripId?: string;
   punchHistory?: Array<{
     date: string;
@@ -570,6 +570,15 @@ export const api = {
       body: JSON.stringify({ deliveryStatus, notes }) 
     }),
 
+
+// Update Trip Resources (Driver/Vehicle)
+  updateTripResources: (tripId: string, data: { driverId?: string; vehicleId?: string }) => 
+    apiCall(`/api/trips/${tripId}/resources`, { 
+      method: "PATCH", 
+      body: JSON.stringify(data) 
+    }),
+
+    
   deleteTrip: (id: string) => 
     apiCall(`/api/trips/${id}`, { method: "DELETE" }),
 

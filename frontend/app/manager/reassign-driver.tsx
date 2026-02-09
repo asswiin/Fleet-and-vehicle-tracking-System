@@ -46,13 +46,15 @@ const ReassignDriverScreen = () => {
         // 2. Must be Punched In (isAvailable === true)
         // 3. Must NOT be On-trip
         // 4. Must NOT have Accepted another trip
+        // 5. Must NOT have pending trip assignment
         const availableDrivers = allDrivers.filter((driver: Driver) => {
           const isActive = driver.status === "Active";
           const isPunchedIn = driver.isAvailable === true;
           const isNotOnTrip = driver.driverStatus !== "On-trip";
           const isNotAccepted = driver.driverStatus !== "Accepted";
+          const isNotPending = driver.driverStatus !== "pending";
 
-          return isActive && isPunchedIn && isNotOnTrip && isNotAccepted;
+          return isActive && isPunchedIn && isNotOnTrip && isNotAccepted && isNotPending;
         });
 
         setDrivers(availableDrivers);

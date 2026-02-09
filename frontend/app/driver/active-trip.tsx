@@ -442,6 +442,28 @@ const ActiveTripPage = () => {
         </View>
       </View>
 
+      {/* Estimated Distance & Time (always visible) */}
+      {routeDistance !== "0.0" && (
+        <View style={styles.routeInfoCard}>
+          <View style={styles.routeInfoRow}>
+            <View style={styles.routeInfoItem}>
+              <Text style={styles.routeInfoValue}>{routeDistance}</Text>
+              <Text style={styles.routeInfoLabel}>KM</Text>
+            </View>
+            <View style={styles.routeInfoDivider} />
+            <View style={styles.routeInfoItem}>
+              <Text style={styles.routeInfoValue}>{routeDuration}</Text>
+              <Text style={styles.routeInfoLabel}>Est. Time</Text>
+            </View>
+            <View style={styles.routeInfoDivider} />
+            <View style={styles.routeInfoItem}>
+              <Text style={styles.routeInfoValue}>{destinations.length}</Text>
+              <Text style={styles.routeInfoLabel}>Stops</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
