@@ -60,6 +60,14 @@ exports.createNotification = async (req, res) => {
     });
 
     await notification.save();
+
+    // Update driver status to "pending" when trip is assigned (for driver-type notifications)
+    if (recipientType === "driver" && type === "trip_assignment") {
+      await Driver.findByIdAndUpdate(driverId, {
+        driverStatus: "pending",
+        isAvailable: false
+      });
+    }
     
     // Populate the notification before sending response
     let populatedNotification;
