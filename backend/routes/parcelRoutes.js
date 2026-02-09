@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Parcel = require("../models/Parcel");
+const Notification = require("../models/Notification");
 
 // GET all parcels
 router.get("/", async (req, res) => {
@@ -46,6 +47,13 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { trackingId, _id, ...updatePayload } = req.body; // prevent trackingId/_id overwrite
+    
+    // Get the old parcel to check for changes
+    const oldParcel = await Parcel.findById(req.params.id);
+    if (!oldParcel) {
+      return res.status(404).json({ message: "Parcel not found" });
+    }
+    
     const parcel = await Parcel.findByIdAndUpdate(
       req.params.id,
       updatePayload,
@@ -54,6 +62,31 @@ router.put("/:id", async (req, res) => {
 
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });
+    }
+
+    // Check if assignedDriver or assignedVehicle changed
+    const driverChanged = updatePayload.assignedDriver && oldParcel.assignedDriver?.toString() !== updatePayload.assignedDriver;
+    const vehicleChanged = updatePayload.assignedVehicle && oldParcel.assignedVehicle?.toString() !== updatePayload.assignedVehicle;
+
+    if ((driverChanged || vehicleChanged) && parcel.assignedDriver && parcel.assignedVehicle) {
+      // Create notification for the driver
+      const driverId = parcel.assignedDriver;
+      const notificationType = driverChanged ? "reassign_driver" : "trip_update";
+      const message = driverChanged 
+        ? `You have been assigned to deliver parcel ${parcel.trackingId}`
+        : `Vehicle for parcel ${parcel.trackingId} has been updated`;
+
+      const notification = new Notification({
+        driverId,
+        recipientType: "driver",
+        vehicleId: parcel.assignedVehicle,
+        parcelIds: [parcel._id],
+        tripId: parcel.tripId || "N/A",
+        type: notificationType,
+        status: "pending",
+        message,
+      });
+      await notification.save();
     }
 
     res.json({ data: parcel });

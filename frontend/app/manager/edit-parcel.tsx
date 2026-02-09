@@ -25,6 +25,8 @@ const EditParcelScreen = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const [form, setForm] = useState({
     senderName: "",
@@ -45,6 +47,8 @@ const EditParcelScreen = () => {
     weight: "",
     parcelType: "",
     paymentAmount: "",
+    assignedDriver: "",
+    assignedVehicle: "",
   });
 
   const normalizePhone = (raw?: string) => {
@@ -93,6 +97,8 @@ const EditParcelScreen = () => {
         weight: p.weight?.toString() || "",
         parcelType: p.type || "",
         paymentAmount: p.paymentAmount?.toString() || "",
+        assignedDriver: p.assignedDriver?._id?.toString() || p.assignedDriver?.toString() || "",
+        assignedVehicle: p.assignedVehicle?._id?.toString() || p.assignedVehicle?.toString() || "",
       });
     } else {
       setError(response.error || "Failed to load parcel");
@@ -100,8 +106,24 @@ const EditParcelScreen = () => {
     setLoading(false);
   }, [parcelId]);
 
+  const loadDrivers = async () => {
+    const response = await api.getDrivers();
+    if (response.ok && response.data) {
+      setDrivers(response.data);
+    }
+  };
+
+  const loadVehicles = async () => {
+    const response = await api.getVehicles();
+    if (response.ok && response.data) {
+      setVehicles(response.data);
+    }
+  };
+
   useEffect(() => {
     loadParcel();
+    loadDrivers();
+    loadVehicles();
   }, [loadParcel]);
 
   const validate = () => {
@@ -164,6 +186,8 @@ const EditParcelScreen = () => {
       weight: Number(form.weight),
       type: form.parcelType.trim(),
       paymentAmount: Number(form.paymentAmount),
+      assignedDriver: form.assignedDriver.trim() || null,
+      assignedVehicle: form.assignedVehicle.trim() || null,
     };
 
     const response = await api.updateParcel(parcelId, payload);
@@ -335,6 +359,8 @@ const EditParcelScreen = () => {
               onChange={(t) => setForm({ ...form, paymentAmount: t })}
               placeholder="499"
             />
+            <LabeledInput label="Assigned Driver ID" value={form.assignedDriver} onChange={(t) => setForm({ ...form, assignedDriver: t })} placeholder="Driver ID" />
+            <LabeledInput label="Assigned Vehicle ID" value={form.assignedVehicle} onChange={(t) => setForm({ ...form, assignedVehicle: t })} placeholder="Vehicle ID" />
           </View>
 
           <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.7 }]} disabled={submitting} onPress={handleSubmit}>
