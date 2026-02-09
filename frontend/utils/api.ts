@@ -353,6 +353,10 @@ const apiCall = async <T = any>(
 export const api = {
   getImageUrl: (path?: string) => {
     if (!path) return null;
+    // If the path is already a base64 data URI, return it directly
+    if (path.startsWith('data:image')) {
+      return path;
+    }
     const cleanPath = path.replace(/\\/g, "/");
     return `${API_BASE_URL}/${cleanPath}`;
   },
@@ -366,19 +370,20 @@ export const api = {
   updateUser: (id: string, data: any) =>
     apiCall(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  // USER PROFILE IMAGE UPLOAD (Special Handling for Managers)
-  updateUserProfileWithImage: async (id: string, formData: FormData) => {
-    const url = `${API_BASE_URL}/api/users/${id}/profile`;
-    try {
-      const response = await fetch(url, {
-        method: "PUT",
-        body: formData,
-        // DO NOT set Content-Type header here; fetch handles multipart boundary automatically
-      });
-      return await handleResponse(response);
-    } catch (error: any) {
-      return { ok: false, status: 500, data: null, error: error.message };
-    }
+  // USER PROFILE IMAGE UPLOAD (Base64 for Vercel compatibility)
+  updateUserProfileWithImage: async (id: string, data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    place?: string;
+    dob?: string;
+    address?: any;
+    profilePhotoBase64?: string;
+  }) => {
+    return apiCall(`/api/users/${id}/profile`, { 
+      method: "PUT", 
+      body: JSON.stringify(data) 
+    });
   },
 
   updateUserStatus: (id: string, status: string) =>
@@ -436,19 +441,22 @@ export const api = {
   checkLicenseExists: (license: string, excludeId?: string) => 
     apiCall(`/api/drivers/check-license/${license}${excludeId ? `?excludeId=${excludeId}` : ''}`),
 
-  // DRIVER IMAGE UPLOAD (Special Handling)
-  updateDriverProfileWithImage: async (id: string, formData: FormData) => {
-    const url = `${API_BASE_URL}/api/drivers/${id}`;
-    try {
-      const response = await fetch(url, {
-        method: "PUT",
-        body: formData,
-        // DO NOT set Content-Type header here; fetch handles multipart boundary automatically
-      });
-      return await handleResponse(response);
-    } catch (error: any) {
-      return { ok: false, status: 500, data: null, error: error.message };
-    }
+  // DRIVER PROFILE UPDATE with Base64 Image Support (Vercel Compatible)
+  updateDriverProfileWithImage: async (id: string, data: {
+    name: string;
+    email: string;
+    mobile: string;
+    license?: string;
+    gender?: string;
+    dob?: string;
+    address?: any;
+    profilePhotoBase64?: string;
+    licensePhotoBase64?: string;
+  }) => {
+    return apiCall(`/api/drivers/${id}`, { 
+      method: "PUT", 
+      body: JSON.stringify(data) 
+    });
   },
   // PARCELS
   getParcels: () => apiCall<Parcel[]>("/api/parcels"),

@@ -147,24 +147,10 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// --- CONDITIONAL UPLOAD MIDDLEWARE ---
-// Multer cannot parse application/json bodies. We only invoke it when the
-// incoming request is multipart/form-data (image uploads). For JSON bodies we
-// skip Multer so express.json can handle parsing.
-const handleDriverUpload = (req, res, next) => {
-  if (req.is("multipart/form-data")) {
-    return upload.fields([
-      { name: "profilePhoto", maxCount: 1 },
-      { name: "licensePhoto", maxCount: 1 },
-    ])(req, res, next);
-  }
-  return next();
-};
-
-// PUT: Update Driver Profile (supports JSON or multipart with images)
-router.put("/:id", handleDriverUpload, async (req, res) => {
+// PUT: Update Driver Profile with Base64 Image Support (Vercel Compatible)
+router.put("/:id", async (req, res) => {
   try {
-    const { name, mobile, email, license, gender, dob } = req.body || {};
+    const { name, mobile, email, license, gender, dob, profilePhotoBase64, licensePhotoBase64 } = req.body || {};
     let { address } = req.body || {};
 
     // Basic validation
@@ -172,7 +158,7 @@ router.put("/:id", handleDriverUpload, async (req, res) => {
       return res.status(400).json({ message: "Name, Mobile, and Email are required" });
     }
 
-    // Parse address when sent as string (FormData)
+    // Parse address when sent as string
     if (typeof address === "string") {
       try {
         address = JSON.parse(address);
@@ -212,12 +198,12 @@ router.put("/:id", handleDriverUpload, async (req, res) => {
       updateData.address = address;
     }
 
-    // Attach uploaded file paths if present
-    if (req.files?.profilePhoto?.[0]) {
-      updateData.profilePhoto = req.files.profilePhoto[0].path.replace(/\\/g, "/");
+    // Store base64 images if provided (Vercel compatible)
+    if (profilePhotoBase64) {
+      updateData.profilePhoto = profilePhotoBase64;
     }
-    if (req.files?.licensePhoto?.[0]) {
-      updateData.licensePhoto = req.files.licensePhoto[0].path.replace(/\\/g, "/");
+    if (licensePhotoBase64) {
+      updateData.licensePhoto = licensePhotoBase64;
     }
 
     const updatedDriver = await Driver.findByIdAndUpdate(

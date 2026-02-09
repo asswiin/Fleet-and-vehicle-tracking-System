@@ -20,6 +20,7 @@ import { useState } from "react";
 import React from "react";
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { api, User } from "../../utils/api";
 import { 
   ChevronLeft, 
@@ -174,64 +175,44 @@ const EditManagerProfileScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      if (selectedAsset) {
-        // IMAGE UPLOAD FLOW
-        const formDataObj = new FormData();
-        
-        formDataObj.append("name", formData.name);
-        formDataObj.append("email", formData.email);
-        formDataObj.append("phone", `+91${formData.phone}`);
-        formDataObj.append("place", `${formData.city}, ${formData.state}`);
-        formDataObj.append("dob", formData.dob);
-        formDataObj.append("address", JSON.stringify({
+      // Build the payload
+      const payload: any = {
+        name: formData.name,
+        email: formData.email,
+        phone: `+91${formData.phone}`,
+        place: `${formData.city}, ${formData.state}`,
+        dob: formData.dob,
+        address: {
           house: formData.houseName,
           street: formData.street,
           city: formData.city,
           district: formData.district,
           state: formData.state
-        }));
-
-        // CHANGED: Correct file object construction
-        const fileToUpload = {
-          uri: selectedAsset.uri,
-          name: `manager-${Date.now()}.jpg`,
-          type: selectedAsset.mimeType || "image/jpeg", // Use actual mime type
-        };
-        
-        // @ts-ignore
-        formDataObj.append("profilePhoto", fileToUpload);
-
-        const response = await api.updateUserProfileWithImage(initialData._id, formDataObj);
-
-        if (response.ok) {
-          Alert.alert("Success", "Profile updated successfully!", [{ text: "OK", onPress: () => router.back() }]);
-        } else {
-          Alert.alert("Error", response.error || "Failed to update profile");
         }
+      };
+
+      // Convert image to base64 if a new image was selected
+      if (selectedAsset) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(selectedAsset.uri, {
+            encoding: 'base64',
+          });
+          const mimeType = selectedAsset.mimeType || 'image/jpeg';
+          payload.profilePhotoBase64 = `data:${mimeType};base64,${base64}`;
+        } catch (imgError) {
+          console.error('Error converting image to base64:', imgError);
+          Alert.alert("Error", "Failed to process image. Please try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      const response = await api.updateUserProfileWithImage(initialData._id, payload);
+
+      if (response.ok) {
+        Alert.alert("Success", "Profile updated successfully!", [{ text: "OK", onPress: () => router.back() }]);
       } else {
-        // JSON UPDATE FLOW (No image changed)
-        const payload = {
-          name: formData.name,
-          email: formData.email,
-          phone: `+91${formData.phone}`,
-          place: `${formData.city}, ${formData.state}`,
-          dob: formData.dob,
-          address: {
-            house: formData.houseName,
-            street: formData.street,
-            city: formData.city,
-            district: formData.district,
-            state: formData.state
-          }
-        };
-
-        const response = await api.updateUser(initialData._id, payload);
-
-        if (response.ok) {
-          Alert.alert("Success", "Profile updated successfully!", [{ text: "OK", onPress: () => router.back() }]);
-        } else {
-          Alert.alert("Error", response.error || "Failed to update profile");
-        }
+        Alert.alert("Error", response.error || "Failed to update profile");
       }
     } catch (error) {
       console.error(error);

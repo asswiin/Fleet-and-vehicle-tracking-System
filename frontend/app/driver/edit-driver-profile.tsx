@@ -18,6 +18,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from 'expo-file-system';
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { api, Driver } from "../../utils/api";
 import { 
@@ -222,50 +223,44 @@ const EditDriverProfileScreen = () => {
         return;
       }
 
-      const formData = new FormData();
-      formData.append("name", form.name);
-      formData.append("email", form.email);
-      formData.append("mobile", form.mobile.startsWith('+91') ? form.mobile : `+91${form.mobile}`);
-      formData.append("license", cleanLicense); // Send cleaned license
-      formData.append("gender", form.gender);
-      formData.append("dob", form.dob);
-      formData.append("address", JSON.stringify(form.address));
-
-      console.log('FormData before adding images:', {
+      // Build payload with base64 images (Vercel compatible)
+      const payload: any = {
         name: form.name,
         email: form.email,
-        mobile: form.mobile,
+        mobile: form.mobile.startsWith('+91') ? form.mobile : `+91${form.mobile}`,
         license: cleanLicense,
         gender: form.gender,
         dob: form.dob,
         address: form.address
-      });
+      };
 
+      // Convert profile image to base64 if a new image was selected
       if (newProfileAsset) {
-        console.log('Adding profile photo:', {
-          uri: newProfileAsset.uri,
-          mimeType: newProfileAsset.mimeType
-        });
-        formData.append("profilePhoto", {
-          uri: newProfileAsset.uri,
-          name: `profile_${Date.now()}.jpg`,
-          type: newProfileAsset.mimeType || "image/jpeg", 
-        } as any);
+        try {
+          const base64 = await FileSystem.readAsStringAsync(newProfileAsset.uri, {
+            encoding: 'base64',
+          });
+          const mimeType = newProfileAsset.mimeType || 'image/jpeg';
+          payload.profilePhotoBase64 = `data:${mimeType};base64,${base64}`;
+        } catch (imgError) {
+          console.error('Error converting profile image to base64:', imgError);
+        }
       }
 
+      // Convert license image to base64 if a new image was selected
       if (newLicenseAsset) {
-        console.log('Adding license photo:', {
-          uri: newLicenseAsset.uri,
-          mimeType: newLicenseAsset.mimeType
-        });
-        formData.append("licensePhoto", {
-          uri: newLicenseAsset.uri,
-          name: `license_${Date.now()}.jpg`,
-          type: newLicenseAsset.mimeType || "image/jpeg",
-        } as any);
+        try {
+          const base64 = await FileSystem.readAsStringAsync(newLicenseAsset.uri, {
+            encoding: 'base64',
+          });
+          const mimeType = newLicenseAsset.mimeType || 'image/jpeg';
+          payload.licensePhotoBase64 = `data:${mimeType};base64,${base64}`;
+        } catch (imgError) {
+          console.error('Error converting license image to base64:', imgError);
+        }
       }
 
-      const response = await api.updateDriverProfileWithImage(initialData._id, formData);
+      const response = await api.updateDriverProfileWithImage(initialData._id, payload);
       console.log('API Response:', response);
 
       if (response.ok) {

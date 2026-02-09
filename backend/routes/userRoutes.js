@@ -302,20 +302,10 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// --- CONDITIONAL UPLOAD MIDDLEWARE FOR USER PROFILE PHOTO ---
-const handleUserUpload = (req, res, next) => {
-  if (req.is("multipart/form-data")) {
-    return upload.fields([
-      { name: "profilePhoto", maxCount: 1 },
-    ])(req, res, next);
-  }
-  return next();
-};
-
-// PUT: Update User Profile with Image Support
-router.put("/:id/profile", handleUserUpload, async (req, res) => {
+// PUT: Update User Profile with Base64 Image Support (Vercel Compatible)
+router.put("/:id/profile", async (req, res) => {
   try {
-    const { name, email, phone, place, dob, address } = req.body || {};
+    const { name, email, phone, place, dob, address, profilePhotoBase64 } = req.body || {};
 
     // Check if user exists
     let user = await User.findById(req.params.id);
@@ -330,7 +320,7 @@ router.put("/:id/profile", handleUserUpload, async (req, res) => {
     if (place) user.place = place;
     if (dob) user.dob = dob;
     if (address) {
-      // Parse address when sent as string (FormData)
+      // Parse address when sent as string
       if (typeof address === "string") {
         try {
           user.address = JSON.parse(address);
@@ -342,9 +332,9 @@ router.put("/:id/profile", handleUserUpload, async (req, res) => {
       }
     }
 
-    // Attach uploaded profile photo if present
-    if (req.files?.profilePhoto?.[0]) {
-      user.profilePhoto = req.files.profilePhoto[0].path.replace(/\\/g, "/");
+    // Store base64 profile photo if provided
+    if (profilePhotoBase64) {
+      user.profilePhoto = profilePhotoBase64;
     }
 
     await user.save();
