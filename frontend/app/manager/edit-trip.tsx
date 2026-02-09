@@ -35,6 +35,32 @@ const EditTripScreen = () => {
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
 
+
+  // --- Vehicle Capacity Logic (copied from select-vehicle.tsx) ---
+  // Calculate total parcel weight for this trip
+  const totalWeight = Array.isArray(initialTrip.parcelIds)
+    ? initialTrip.parcelIds.reduce((sum: number, p: any) => sum + (parseFloat(p.weight) || 0), 0)
+    : 0;
+
+  const getVehicleCapacity = (vehicle: Vehicle): number => {
+    if (vehicle.capacity) {
+      const capacityNum = parseFloat(vehicle.capacity);
+      if (!isNaN(capacityNum) && capacityNum > 0) {
+        return capacityNum;
+      }
+    }
+    return getDefaultCapacity(vehicle.type);
+  };
+
+  const getDefaultCapacity = (type: string): number => {
+    switch (type?.toLowerCase()) {
+      case "van": return 1000;
+      case "box truck": return 3000;
+      case "truck": return 5000;
+      default: return 600;
+    }
+  };
+
   useEffect(() => {
     fetchResources();
   }, []);
@@ -48,10 +74,6 @@ const EditTripScreen = () => {
       ]);
 
       if (driversRes.ok && driversRes.data) {
-        // Filter for available drivers:
-        // 1. Must be Active
-        // 2. Must be Punched In (isAvailable)
-        // 3. Must NOT be On-trip (unless it's the current driver of this trip)
         const driverList = Array.isArray(driversRes.data) ? driversRes.data : (driversRes.data as any).data;
         const available = driverList.filter((d: Driver) => 
           (d.status === "Active" && d.isAvailable && d.driverStatus !== "On-trip") || d._id === initialTrip.driverId?._id
@@ -60,10 +82,15 @@ const EditTripScreen = () => {
       }
 
       if (vehiclesRes.ok && vehiclesRes.data) {
-        // Filter for active vehicles
-        const vehicleList = vehiclesRes.data.filter((v: Vehicle) => 
-          (v.status !== "Maintenance" && v.status !== "Sold") || v._id === initialTrip.vehicleId?._id
-        );
+        // Only show vehicles with enough capacity for the trip's total parcel weight
+        const vehicleList = vehiclesRes.data.filter((v: Vehicle) => {
+          // Allow current vehicle even if it doesn't meet criteria (for edit)
+          if (v._id === initialTrip.vehicleId?._id) return true;
+          // Only show if Active and has enough capacity
+          const isActive = v.status === "Active";
+          const vehicleCapacity = getVehicleCapacity(v);
+          return isActive && vehicleCapacity >= totalWeight;
+        });
         setVehicles(vehicleList);
       }
     } catch (e) {
@@ -113,8 +140,8 @@ const EditTripScreen = () => {
           [{ 
             text: "OK", 
             onPress: () => {
-              // Navigate back to Trip List to force refresh
-              router.push("/manager/trip-list" as any);
+              // Redirect to Manager Dashboard after editing
+              router.push("/manager/manager-dashboard" as any);
             } 
           }]
         );

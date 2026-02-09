@@ -1,4 +1,6 @@
 const express = require("express");
+// Start the auto-complete driver status cron job
+require("./autoCompleteDriverStatus");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
