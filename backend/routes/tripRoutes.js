@@ -8,6 +8,9 @@ router.post("/", tripController.createTrip);
 // Get all trips
 router.get("/", tripController.getAllTrips);
 
+// Get specific list of ongoing trips
+router.get("/ongoing-list", tripController.getOngoingTrips);
+
 // Get declined parcels for reassignment (MUST be before /:id)
 router.get("/declined/parcels", tripController.getDeclinedParcels);
 

@@ -13,7 +13,7 @@ import {
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
 import { api, type Vehicle } from "../../utils/api";
-import { ChevronLeft, Plus, Search, Truck } from "lucide-react-native";
+import { ChevronLeft, Plus, Search, Truck, AlertTriangle } from "lucide-react-native";
 
 const FILTER_TABS = ["All", "Available", "On-trip", "In-Service", "Sold"];
 
@@ -25,12 +25,12 @@ interface StatusStyle {
 
 const VehicleListScreen = () => {
   const router = useRouter();
-  
+
   // 1. Get the user role passed from Dashboard (Admin or Manager)
   const params = useLocalSearchParams<{ userRole: string }>();
   const userRole = params.userRole || "admin"; // Default to admin if undefined
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]); 
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [selectedTab, setSelectedTab] = useState("All");
@@ -59,10 +59,10 @@ const VehicleListScreen = () => {
 
   // 3. Filter Logic
   const filteredVehicles = vehicles.filter(v => {
-    const matchesSearch = 
-      v.regNumber.toLowerCase().includes(searchText.toLowerCase()) || 
+    const matchesSearch =
+      v.regNumber.toLowerCase().includes(searchText.toLowerCase()) ||
       v.model.toLowerCase().includes(searchText.toLowerCase());
-    
+
     let statusMatch = true;
     if (selectedTab !== "All") {
       const currentStatus = v.status === "Active" ? "Available" : v.status;
@@ -76,16 +76,16 @@ const VehicleListScreen = () => {
   const getStatusStyles = (status?: string): StatusStyle => {
     const displayStatus = status === "Active" ? "Available" : status;
 
-    switch(displayStatus) {
-      case 'Available': 
+    switch (displayStatus) {
+      case 'Available':
         return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
-      case 'On-trip': 
+      case 'On-trip':
         return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
-      case 'In-Service': 
+      case 'In-Service':
         return { bg: '#FEF3C7', text: '#92400E', label: 'In-Service' };
-      case 'Sold': 
+      case 'Sold':
         return { bg: '#FEE2E2', text: '#991B1B', label: 'Sold' };
-      default: 
+      default:
         return { bg: '#F1F5F9', text: '#475569', label: status || 'Unknown' };
     }
   };
@@ -94,19 +94,49 @@ const VehicleListScreen = () => {
   const handleVehicleClick = (vehicle: Vehicle) => {
     router.push({
       pathname: "/admin/vehicle-details",
-      params: { 
+      params: {
         vehicle: JSON.stringify(vehicle),
         userRole: userRole // Pass role so details screen knows whether to show "Sell" button
       }
     });
   };
 
+  // 6. Expiry Warning Logic
+  const parseDate = (dateInput?: string): Date | null => {
+    if (!dateInput) return null;
+    if (dateInput.includes('/')) {
+      const parts = dateInput.split('/');
+      if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+    const date = new Date(dateInput);
+    if (!isNaN(date.getTime())) return date;
+    return null;
+  };
+
+  const isExpiringSoon = (dateInput?: string) => {
+    const date = parseDate(dateInput);
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tenDaysFromNow = new Date(today);
+    tenDaysFromNow.setDate(today.getDate() + 10);
+    return date <= tenDaysFromNow;
+  };
+
+  const hasExpiringDocs = (v: Vehicle) => {
+    return (
+      isExpiringSoon(v.insuranceDate || (v as any).insuranceExpiry) ||
+      isExpiringSoon(v.pollutionDate || (v as any).pollutionExpiry) ||
+      isExpiringSoon(v.taxDate || (v as any).taxExpiry)
+    );
+  };
+
   const renderItem = ({ item }: { item: Vehicle }) => {
     const statusStyle = getStatusStyles(item.status);
-    
+
     return (
-      <TouchableOpacity 
-        style={styles.card} 
+      <TouchableOpacity
+        style={styles.card}
         onPress={() => handleVehicleClick(item)}
         activeOpacity={0.7}
       >
@@ -116,14 +146,26 @@ const VehicleListScreen = () => {
           </View>
 
           <View style={styles.infoContainer}>
-            <Text style={styles.modelText}>{item.regNumber}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.modelText}>{item.regNumber}</Text>
+              {hasExpiringDocs(item) && (
+                <AlertTriangle size={16} color="#EF4444" style={{ marginLeft: 6 }} />
+              )}
+            </View>
             <Text style={styles.regText}>{item.model}</Text>
           </View>
 
-          <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-              {statusStyle.label}
-            </Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <View style={[styles.badge, { backgroundColor: statusStyle.bg, marginBottom: 4 }]}>
+              <Text style={[styles.badgeText, { color: statusStyle.text }]}>
+                {statusStyle.label}
+              </Text>
+            </View>
+            {hasExpiringDocs(item) && (
+              <View style={[styles.badge, { backgroundColor: '#FEF2F2' }]}>
+                <Text style={[styles.badgeText, { color: '#EF4444' }]}>Warning</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -134,7 +176,7 @@ const VehicleListScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <View style={styles.container}>
-        
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -160,9 +202,9 @@ const VehicleListScreen = () => {
 
         {/* Filter Tabs */}
         <View style={styles.tabsWrapper}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabsContainer}
           >
             {FILTER_TABS.map((tab) => {
@@ -204,8 +246,8 @@ const VehicleListScreen = () => {
 
       {/* FAB - Add Vehicle Button (Managers only) */}
       {userRole === "manager" && (
-        <TouchableOpacity 
-          style={styles.fab} 
+        <TouchableOpacity
+          style={styles.fab}
           onPress={() => router.push("/admin/register-vehicle")}
         >
           <Plus size={32} color="#fff" />

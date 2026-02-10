@@ -17,8 +17,8 @@ import {
   ChevronRight,
   CheckCircle,
   Circle as LucideCircle,
-  MapPin, 
-  RefreshCw, 
+  MapPin,
+  RefreshCw,
 } from "lucide-react-native";
 import { useState, useEffect, useRef } from "react";
 import { Platform } from "react-native";
@@ -37,11 +37,11 @@ const OFFICE_LOCATION = {
   name: "College Location"
 };
 const WAREHOUSE_LOCATION = {
-  latitude:11.6239440, 
+  latitude: 11.6239440,
   longitude: 76.0707980,
   name: "Home Location"
 };
-const ALLOWED_RADIUS_METERS = 500; 
+const ALLOWED_RADIUS_METERS = 500;
 // ==================================================
 
 interface PunchRecord {
@@ -65,7 +65,7 @@ const PunchingScreen = () => {
   // --- LOCATION STATE ---
   const [currentAddress, setCurrentAddress] = useState<string>("Fetching location...");
   const [isLocationLoading, setIsLocationLoading] = useState(false);
-  const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number, longitude: number } | null>(null);
   const [distanceToOffice, setDistanceToOffice] = useState<number | null>(null);
   const [isInsideOffice, setIsInsideOffice] = useState<boolean | null>(null);
   const [nearestLocation, setNearestLocation] = useState<string | null>(null);
@@ -73,7 +73,7 @@ const PunchingScreen = () => {
   useEffect(() => {
     fetchDriver();
     fetchPunchHistory();
-    getCurrentLocation(); 
+    getCurrentLocation();
   }, []);
 
   const fetchDriver = async () => {
@@ -105,15 +105,15 @@ const PunchingScreen = () => {
   // --- 🌍 LOCATION LOGIC ---
 
   const getDistanceFromLatLonInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; 
+    const R = 6371;
     const dLat = deg2rad(lat2 - lat1);
     const dLon = deg2rad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(deg2rad(lat1)) *
-        Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c * 1000;
   };
@@ -123,10 +123,10 @@ const PunchingScreen = () => {
   const isWithinAllowedLocation = (lat: number, lon: number): { isAllowed: boolean; location: string | null } => {
     const distToOffice = getDistanceFromLatLonInMeters(lat, lon, OFFICE_LOCATION.latitude, OFFICE_LOCATION.longitude);
     const distToWarehouse = getDistanceFromLatLonInMeters(lat, lon, WAREHOUSE_LOCATION.latitude, WAREHOUSE_LOCATION.longitude);
-    
+
     const minDistance = Math.min(distToOffice, distToWarehouse);
     const location = distToOffice < distToWarehouse ? OFFICE_LOCATION.name : WAREHOUSE_LOCATION.name;
-    
+
     return {
       isAllowed: minDistance <= ALLOWED_RADIUS_METERS,
       location: minDistance <= ALLOWED_RADIUS_METERS ? location : null
@@ -148,12 +148,12 @@ const PunchingScreen = () => {
       let location;
       try {
         location = await Promise.race([
-          Location.getCurrentPositionAsync({ 
+          Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
             timeInterval: 5000,
             distanceInterval: 10
           }),
-          new Promise<never>((_, reject) => 
+          new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Location timeout')), 10000)
           )
         ]);
@@ -162,23 +162,23 @@ const PunchingScreen = () => {
         console.log("Trying with lower accuracy...");
         location = await Location.getLastKnownPositionAsync();
         if (!location) {
-          location = await Location.getCurrentPositionAsync({ 
-            accuracy: Location.Accuracy.Low 
+          location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Low
           });
         }
       }
-      
+
       if (!location) {
         setCurrentAddress("Could not get location");
         setIsLocationLoading(false);
         return;
       }
-      
+
       const newCoords = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude
       };
-      
+
       setCurrentCoords(newCoords);
 
       // Calculate distances to both locations
@@ -194,10 +194,10 @@ const PunchingScreen = () => {
         WAREHOUSE_LOCATION.latitude,
         WAREHOUSE_LOCATION.longitude
       );
-      
+
       const minDistance = Math.min(distToOffice, distToWarehouse);
       const nearestLoc = distToOffice < distToWarehouse ? OFFICE_LOCATION.name : WAREHOUSE_LOCATION.name;
-      
+
       setDistanceToOffice(minDistance);
       setNearestLocation(nearestLoc);
       setIsInsideOffice(minDistance <= ALLOWED_RADIUS_METERS);
@@ -239,12 +239,12 @@ const PunchingScreen = () => {
       let location;
       try {
         location = await Promise.race([
-          Location.getCurrentPositionAsync({ 
+          Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
             timeInterval: 5000,
             distanceInterval: 10
           }),
-          new Promise<never>((_, reject) => 
+          new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Location timeout')), 10000)
           )
         ]);
@@ -252,24 +252,24 @@ const PunchingScreen = () => {
         // Fallback to last known position or low accuracy
         location = await Location.getLastKnownPositionAsync();
         if (!location) {
-          location = await Location.getCurrentPositionAsync({ 
-            accuracy: Location.Accuracy.Low 
+          location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Low
           });
         }
       }
-      
+
       if (!location) {
         Alert.alert("GPS Error", "Could not get your location. Please try again.");
         return false;
       }
-      
+
       const distToOffice = getDistanceFromLatLonInMeters(
         location.coords.latitude,
         location.coords.longitude,
         OFFICE_LOCATION.latitude,
         OFFICE_LOCATION.longitude
       );
-      
+
       const distToWarehouse = getDistanceFromLatLonInMeters(
         location.coords.latitude,
         location.coords.longitude,
@@ -300,17 +300,17 @@ const PunchingScreen = () => {
     if (!d2String) return false;
     const date1 = new Date(d1);
     const date2 = new Date(d2String);
-    
+
     // Compare using local date components to handle timezone differences properly
     // Both dates are compared in their local representation
     const d1Year = date1.getFullYear();
     const d1Month = date1.getMonth();
     const d1Day = date1.getDate();
-    
+
     const d2Year = date2.getFullYear();
     const d2Month = date2.getMonth();
     const d2Day = date2.getDate();
-    
+
     return d1Year === d2Year && d1Month === d2Month && d1Day === d2Day;
   };
 
@@ -351,9 +351,19 @@ const PunchingScreen = () => {
     try {
       const res = await api.punchDriver(driverId);
       if (res.ok) {
-        await fetchPunchHistory(); 
+        await fetchPunchHistory();
         await fetchDriver();
-        Alert.alert("Success", "Punched in successfully!");
+        Alert.alert("Success", "Punched in successfully!", [
+          {
+            text: "OK",
+            onPress: () => {
+              router.push({
+                pathname: "/driver/driver-dashboard",
+                params: { userId: driverId }
+              } as any);
+            }
+          }
+        ]);
       } else {
         Alert.alert("Info", res.error || "Could not punch in");
       }
@@ -380,7 +390,17 @@ const PunchingScreen = () => {
       if (res.ok) {
         await fetchPunchHistory();
         await fetchDriver();
-        Alert.alert("Success", "Punched out successfully! Shift Ended.");
+        Alert.alert("Success", "Punched out successfully! Shift Ended.", [
+          {
+            text: "OK",
+            onPress: () => {
+              router.push({
+                pathname: "/driver/driver-dashboard",
+                params: { userId: driverId }
+              } as any);
+            }
+          }
+        ]);
       } else {
         Alert.alert("Info", res.error || "Could not punch out");
       }
@@ -445,7 +465,7 @@ const PunchingScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
+
         {/* Driver Header */}
         <View style={styles.driverCard}>
           <View style={styles.avatar}>
@@ -476,64 +496,64 @@ const PunchingScreen = () => {
         {/* MAP VIEW CARD */}
         {isToday(selectedDate) && (
           <View style={styles.mapCard}>
-             <View style={styles.mapHeader}>
-                <Text style={styles.mapTitle}>Verification Location</Text>
-                <TouchableOpacity onPress={getCurrentLocation} disabled={isLocationLoading}>
-                    {isLocationLoading ? <ActivityIndicator size="small" color="#2563EB"/> : <RefreshCw size={16} color="#2563EB" />}
-                </TouchableOpacity>
-             </View>
-             
-             <View style={styles.mapContainer}>
-                {!isMapAvailable ? (
-                  <WebMapFallback style={styles.map} />
-                ) : currentCoords ? (
-                  <MapView
-                    ref={mapRef}
-                    provider={PROVIDER_DEFAULT}
-                    style={styles.map}
-                    initialRegion={{
-                      ...currentCoords,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    }}
-                  >
-                    {/* Office Marker */}
-                    <Marker coordinate={OFFICE_LOCATION} title={OFFICE_LOCATION.name} pinColor="red" />
-                    
-                    {/* Office Allowed Radius */}
-                    <Circle 
-                      center={OFFICE_LOCATION} 
-                      radius={ALLOWED_RADIUS_METERS} 
-                      fillColor="rgba(239, 68, 68, 0.1)" 
-                      strokeColor="rgba(239, 68, 68, 0.5)" 
-                    />
+            <View style={styles.mapHeader}>
+              <Text style={styles.mapTitle}>Verification Location</Text>
+              <TouchableOpacity onPress={getCurrentLocation} disabled={isLocationLoading}>
+                {isLocationLoading ? <ActivityIndicator size="small" color="#2563EB" /> : <RefreshCw size={16} color="#2563EB" />}
+              </TouchableOpacity>
+            </View>
 
-                    {/* Warehouse Marker */}
-                    <Marker coordinate={WAREHOUSE_LOCATION} title={WAREHOUSE_LOCATION.name} pinColor="orange" />
-                    
-                    {/* Warehouse Allowed Radius */}
-                    <Circle 
-                      center={WAREHOUSE_LOCATION} 
-                      radius={ALLOWED_RADIUS_METERS} 
-                      fillColor="rgba(249, 115, 22, 0.1)" 
-                      strokeColor="rgba(249, 115, 22, 0.5)" 
-                    />
+            <View style={styles.mapContainer}>
+              {!isMapAvailable ? (
+                <WebMapFallback style={styles.map} />
+              ) : currentCoords ? (
+                <MapView
+                  ref={mapRef}
+                  provider={PROVIDER_DEFAULT}
+                  style={styles.map}
+                  initialRegion={{
+                    ...currentCoords,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                >
+                  {/* Office Marker */}
+                  <Marker coordinate={OFFICE_LOCATION} title={OFFICE_LOCATION.name} pinColor="red" />
 
-                    {/* Driver Position */}
-                    <Marker coordinate={currentCoords} title="You" pinColor="blue" />
-                  </MapView>
-                ) : (
-                  <View style={styles.mapPlaceholder}>
-                     <ActivityIndicator size="large" color="#94A3B8" />
-                     <Text style={{color:"#94A3B8", marginTop: 10}}>Loading Map...</Text>
-                  </View>
-                )}
-             </View>
-             
-             <View style={styles.addressContainer}>
-                <MapPin size={16} color="#64748B" style={{marginRight: 6}} />
-                <Text style={styles.addressText} numberOfLines={1}>{currentAddress}</Text>
-             </View>
+                  {/* Office Allowed Radius */}
+                  <Circle
+                    center={OFFICE_LOCATION}
+                    radius={ALLOWED_RADIUS_METERS}
+                    fillColor="rgba(239, 68, 68, 0.1)"
+                    strokeColor="rgba(239, 68, 68, 0.5)"
+                  />
+
+                  {/* Warehouse Marker */}
+                  <Marker coordinate={WAREHOUSE_LOCATION} title={WAREHOUSE_LOCATION.name} pinColor="orange" />
+
+                  {/* Warehouse Allowed Radius */}
+                  <Circle
+                    center={WAREHOUSE_LOCATION}
+                    radius={ALLOWED_RADIUS_METERS}
+                    fillColor="rgba(249, 115, 22, 0.1)"
+                    strokeColor="rgba(249, 115, 22, 0.5)"
+                  />
+
+                  {/* Driver Position */}
+                  <Marker coordinate={currentCoords} title="You" pinColor="blue" />
+                </MapView>
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <ActivityIndicator size="large" color="#94A3B8" />
+                  <Text style={{ color: "#94A3B8", marginTop: 10 }}>Loading Map...</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.addressContainer}>
+              <MapPin size={16} color="#64748B" style={{ marginRight: 6 }} />
+              <Text style={styles.addressText} numberOfLines={1}>{currentAddress}</Text>
+            </View>
           </View>
         )}
 
@@ -612,7 +632,7 @@ const PunchingScreen = () => {
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.punchButtonText}>
-                   {punchedIn ? "PUNCHED IN" : "PUNCH IN"}
+                  {punchedIn ? "PUNCHED IN" : "PUNCH IN"}
                 </Text>
               )}
             </TouchableOpacity>
@@ -631,7 +651,7 @@ const PunchingScreen = () => {
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.punchOutButtonText}>
-                   {punchedOut ? "SHIFT ENDED" : "PUNCH OUT"}
+                  {punchedOut ? "SHIFT ENDED" : "PUNCH OUT"}
                 </Text>
               )}
             </TouchableOpacity>

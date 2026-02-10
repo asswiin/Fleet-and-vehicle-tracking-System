@@ -7,15 +7,15 @@ const Trip = require("../models/Trip");
 // Create a new notification (trip assignment or manager notification)
 exports.createNotification = async (req, res) => {
   try {
-    const { 
-      driverId, 
+    const {
+      driverId,
       managerId,
       recipientType = "driver",
-      vehicleId, 
-      parcelIds, 
-      tripId, 
-      message, 
-      deliveryLocations, 
+      vehicleId,
+      parcelIds,
+      tripId,
+      message,
+      deliveryLocations,
       startLocation,
       type = "trip_assignment",
       declinedDriverId,
@@ -64,11 +64,10 @@ exports.createNotification = async (req, res) => {
     // Update driver status to "pending" when trip is assigned (for driver-type notifications)
     if (recipientType === "driver" && type === "trip_assignment") {
       await Driver.findByIdAndUpdate(driverId, {
-        driverStatus: "pending",
-        isAvailable: false
+        driverStatus: "pending"
       });
     }
-    
+
     // Populate the notification before sending response
     let populatedNotification;
     if (recipientType === "driver") {
@@ -243,7 +242,7 @@ exports.updateNotificationStatus = async (req, res) => {
       // Update the Trip status to "accepted"
       await Trip.findOneAndUpdate(
         { tripId: notification.tripId },
-        { 
+        {
           status: "accepted",
           acceptedAt: new Date()
         }
@@ -256,9 +255,8 @@ exports.updateNotificationStatus = async (req, res) => {
         driverId: notification.driverId._id,
       });
 
-      // Update driver availability and status to "Accepted"
+      // Update driver status to "Accepted"
       await Driver.findByIdAndUpdate(notification.driverId._id, {
-        isAvailable: false,
         driverStatus: "Accepted",
         currentTripId: notification.tripId,
       });
@@ -275,7 +273,7 @@ exports.updateNotificationStatus = async (req, res) => {
     } else if (status === "declined") {
       // NEW WORKFLOW: Driver declined - keep parcels in pending state
       // and notify the manager for reassignment
-      
+
       // Update the Trip status to "declined"
       await Trip.findOneAndUpdate(
         { tripId: notification.tripId },
@@ -291,7 +289,6 @@ exports.updateNotificationStatus = async (req, res) => {
 
       // Update driver status to "available" when declining trip
       await Driver.findByIdAndUpdate(notification.driverId._id, {
-        isAvailable: true,
         driverStatus: "available",
         currentTripId: null,
       });
@@ -388,10 +385,10 @@ exports.reassignDriver = async (req, res) => {
     // Update the trip to pending again with new driver
     await Trip.findOneAndUpdate(
       { tripId: managerNotification.tripId },
-      { 
+      {
         driverId: newDriverId,
         vehicleId: vehicleId,
-        status: "pending" 
+        status: "pending"
       }
     );
 
@@ -438,7 +435,7 @@ exports.reassignDriver = async (req, res) => {
       .populate("vehicleId", "regNumber model type")
       .populate("parcelIds", "trackingId recipient weight");
 
-    res.json({ 
+    res.json({
       message: "Driver reassigned successfully",
       newNotification: populatedNotification,
       tripId: managerNotification.tripId

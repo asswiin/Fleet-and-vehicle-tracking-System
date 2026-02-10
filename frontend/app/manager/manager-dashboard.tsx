@@ -26,6 +26,7 @@ import {
   Settings,
   ArrowUpRight,
   LayoutGrid,
+  MessageSquare,
   LogOut,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
@@ -36,19 +37,79 @@ const { width } = Dimensions.get("window");
 const ManagerDashboard = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   // Dynamic Name & ID
-  // Use managerData.name if available, else params.userName, else 'Manager'
+  const rawUserId = params.userId as string;
+  const rawUserName = params.userName as string;
+
   const [managerData, setManagerData] = useState<UserType | null>(null);
-  const userId = params.userId || managerData?._id;
-  const displayName = managerData?.name || params.userName || "Manager";
-  
+
+  // Robust ID selection: prioritize params, then state
+  const userId = (rawUserId && rawUserId !== "undefined" && rawUserId !== "null")
+    ? rawUserId
+    : (managerData?._id);
+
+  const displayName = managerData?.name || (rawUserName && rawUserName !== "undefined" ? rawUserName : "Manager");
+
   // Get role selection params for logout
   const selectedRole = params.role || "manager";
   const selectedDistrict = params.district || "";
   const selectedBranch = params.branch || "";
-  
+
   const [declinedCount, setDeclinedCount] = useState(0);
+  const [hasVehicleAlerts, setHasVehicleAlerts] = useState(false);
+  const [activeTrips, setActiveTrips] = useState<any[]>([]);
+
+  // Expiry Warning Helpers
+  const parseDate = (dateInput?: string): Date | null => {
+    if (!dateInput) return null;
+    if (dateInput.includes('/')) {
+      const parts = dateInput.split('/');
+      if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+    const date = new Date(dateInput);
+    if (!isNaN(date.getTime())) return date;
+    return null;
+  };
+
+  const isExpiringSoon = (dateInput?: string) => {
+    const date = parseDate(dateInput);
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tenDaysFromNow = new Date(today);
+    tenDaysFromNow.setDate(today.getDate() + 10);
+    return date <= tenDaysFromNow;
+  };
+
+  const checkVehicleExpiries = async () => {
+    try {
+      const res = await api.getVehicles();
+      if (res.ok && Array.isArray(res.data)) {
+        const expiring = res.data.some((v: any) =>
+          isExpiringSoon(v.insuranceExpiry || v.insuranceDate) ||
+          isExpiringSoon(v.pollutionExpiry || v.pollutionDate) ||
+          isExpiringSoon(v.taxExpiry || v.taxDate)
+        );
+        setHasVehicleAlerts(expiring);
+      }
+    } catch (e) {
+      console.error("Error checking vehicle expiries", e);
+    }
+  };
+
+  const fetchActiveTrips = async () => {
+    try {
+      const res = await api.getOngoingTrips();
+      if (res.ok && Array.isArray(res.data)) {
+        // Map to Trip objects so UI remains consistent
+        const active = res.data.map((item: any) => item.trip).filter(Boolean);
+        setActiveTrips(active);
+      }
+    } catch (e) {
+      console.error("Error fetching active trips", e);
+    }
+  };
 
   // Fetch Manager Details
   const fetchManagerData = useCallback(async () => {
@@ -76,43 +137,47 @@ const ManagerDashboard = () => {
         }
       };
       fetchDeclined();
+      checkVehicleExpiries();
+      fetchActiveTrips();
     }, [fetchManagerData])
   );
 
   const navigateToProfile = () => {
     // Always try to use managerData._id if available
     const id = userId || managerData?._id;
-    if (id) {
+    if (id && id !== "undefined" && id !== "null") {
       router.push({
         pathname: "/manager/manager-profile",
         params: { userId: id }
       } as any);
     } else {
-      Alert.alert("Error", "User ID missing, cannot navigate to profile.");
+      Alert.alert("Error", "User ID missing or invalid. Please relogin.");
     }
   };
 
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: () => router.replace({
-        pathname: "/shared/login",
-        params: {
-          role: selectedRole,
-          district: selectedDistrict,
-          branch: selectedBranch,
-        }
-      } as any) },
+      {
+        text: "Log Out", style: "destructive", onPress: () => router.replace({
+          pathname: "/shared/login",
+          params: {
+            role: selectedRole,
+            district: selectedDistrict,
+            branch: selectedBranch,
+          }
+        } as any)
+      },
     ]);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
-      
+
       <View style={styles.container}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
@@ -125,15 +190,15 @@ const ManagerDashboard = () => {
                 />
               ) : (
                 <View style={styles.avatar}>
-                  <Text style={{fontSize: 20, fontWeight:'bold', color: '#64748B'}}>
+                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#64748B' }}>
                     {displayName.toString().charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
               <View>
-      
+
                 <Text style={styles.headerSubtitle}>Welcome back, </Text>
-                 <Text style={styles.headerTitle}>{displayName}</Text>
+                <Text style={styles.headerTitle}>{displayName}</Text>
               </View>
             </View>
             <View style={styles.headerRight}>
@@ -152,12 +217,15 @@ const ManagerDashboard = () => {
 
           {/* Stats Cards */}
           <View style={styles.statsContainer}>
-            <TouchableOpacity style={[styles.statCard, styles.blueCard]}>
+            <TouchableOpacity
+              style={[styles.statCard, styles.blueCard]}
+              onPress={() => router.push("/manager/on-going-trip" as any)}
+            >
               <View style={styles.statHeader}>
                 <Truck size={24} color="rgba(255,255,255,0.8)" />
                 <View style={styles.statBadgeBlue}>
                   <ArrowUpRight size={16} color="#fff" />
-                  <Text style={styles.statBadgeText}> --</Text>
+                  <Text style={styles.statBadgeText}> {activeTrips.length}</Text>
                 </View>
               </View>
               <Text style={styles.statLabelWhite}>Active Trips</Text>
@@ -177,34 +245,37 @@ const ManagerDashboard = () => {
           {/* Quick Actions */}
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionGrid}>
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => router.push("/manager/on-going-trip" as any)}
+            >
               <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
                 <Truck size={24} color="#0284C7" />
               </View>
-              <Text style={styles.actionLabel}>Trips</Text>
+              <Text style={styles.actionLabel}>Trip</Text>
             </TouchableOpacity>
 
 
 
 
-<TouchableOpacity 
-  style={styles.actionItem}
-  onPress={() => router.push("/manager/trip-list" as any)}
->
-  <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}> 
-    <Truck size={24} color="#0284C7" />
-    {declinedCount > 0 && (
-      <View style={styles.declinedBadge}>
-        <Text style={styles.declinedBadgeText}>{declinedCount}</Text>
-      </View>
-    )}
-  </View>
-  <Text style={styles.actionLabel}>Manage Trips</Text>
-</TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => router.push("/manager/trip-list" as any)}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
+                <Truck size={24} color="#0284C7" />
+                {declinedCount > 0 && (
+                  <View style={styles.declinedBadge}>
+                    <Text style={styles.declinedBadgeText}>{declinedCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.actionLabel}>Manage Trips</Text>
+            </TouchableOpacity>
 
 
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionItem}
               onPress={() => router.push({
                 pathname: "/manager/selecting-parcel-improved",
@@ -232,6 +303,73 @@ const ManagerDashboard = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Active Deliveries Section */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Active Deliveries</Text>
+            <TouchableOpacity onPress={() => router.push("/manager/on-going-trip" as any)}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {activeTrips.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Truck size={32} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No active deliveries</Text>
+            </View>
+          ) : (
+            activeTrips.slice(0, 2).map((trip) => {
+              const totalParcels = trip.parcelIds?.length || 0;
+              const deliveredParcels = trip.parcelIds?.filter((p: any) => p.status === "delivered" || p.status === "Completed").length || 0;
+              const progress = totalParcels > 0 ? (deliveredParcels / totalParcels) * 100 : 0;
+
+              return (
+                <View key={trip._id} style={styles.deliveryCard}>
+                  <View style={styles.cardTop}>
+                    <View style={styles.cardHeaderLeft}>
+                      <View style={styles.truckIconBg}>
+                        <Truck size={20} color="#64748B" />
+                      </View>
+                      <View>
+                        <Text style={styles.vehicleName}>{trip.vehicleId?.regNumber || "Vehicle"}</Text>
+                        <Text style={styles.driverNameSub}>{trip.driverId?.name || "Driver"}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.inTransitBadge}>
+                      <Text style={styles.inTransitText}>IN TRANSIT</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.progressRow}>
+                    <Text style={styles.progressTimeText}>--:-- PM</Text>
+                    <Text style={styles.progressPercentText}>{Math.round(progress)}%</Text>
+                  </View>
+
+                  <View style={styles.dashboardProgressBarBg}>
+                    <View style={[styles.dashboardProgressBarFill, { width: `${progress}%` }]} />
+                    <View style={[styles.dashboardProgressKnob, { left: `${progress}%` }]} />
+                  </View>
+
+                  <View style={styles.cardActionsRow}>
+                    <TouchableOpacity style={styles.messageIconButton}>
+                      <MessageSquare size={18} color="#374151" style={{ marginRight: 8 }} />
+                      <Text style={styles.actionBtnLabel}>Message</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.trackIconButton}
+                      onPress={() => router.push({
+                        pathname: "/manager/track-trip",
+                        params: { tripId: trip._id }
+                      } as any)}
+                    >
+                      <Navigation size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={[styles.actionBtnLabel, { color: "#fff" }]}>Track</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )}
+
           <View style={{ height: 100 }} />
         </ScrollView>
       </View>
@@ -242,16 +380,16 @@ const ManagerDashboard = () => {
           <LayoutGrid size={24} color="#2563EB" fill="#2563EB" fillOpacity={0.1} />
           <Text style={[styles.navLabel, { color: "#2563EB" }]}>Home</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.navItem}
           onPress={() => router.push("/manager/parcel-list")}
         >
           <Package size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Parcel</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.navItem}
           onPress={() => router.push({ pathname: "/admin/drivers-list", params: { userRole: "manager" } })}
         >
@@ -259,16 +397,23 @@ const ManagerDashboard = () => {
           <Text style={styles.navLabel}>Drivers</Text>
         </TouchableOpacity>
 
-         <TouchableOpacity 
+        <TouchableOpacity
           style={styles.navItem}
-          onPress={() => router.push({ pathname: "/admin/vehicle-list", params: { userRole: "manager" }})}
+          onPress={() => router.push({ pathname: "/admin/vehicle-list", params: { userRole: "manager" } })}
         >
-          <Car size={24} color="#9CA3AF" />
+          <View style={{ position: 'relative' }}>
+            <Car size={24} color="#9CA3AF" />
+            {hasVehicleAlerts && (
+              <View style={[styles.declinedBadge, { top: -4, right: -4, width: 14, height: 14, minWidth: 14 }]}>
+                <Text style={[styles.declinedBadgeText, { fontSize: 8 }]}>!</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.navLabel}>Vehicle</Text>
         </TouchableOpacity>
-        
+
         {/* Settings -> Manager Profile */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.navItem}
           onPress={navigateToProfile}
         >
@@ -345,6 +490,146 @@ const styles = StyleSheet.create({
   },
   navItem: { alignItems: "center" },
   navLabel: { fontSize: 10, fontWeight: "600", color: "#9CA3AF", marginTop: 4 },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: "#2563EB",
+    fontWeight: "600",
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderStyle: "dashed",
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#94A3B8",
+    textAlign: "center",
+  },
+  deliveryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  truckIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  vehicleName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  driverNameSub: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  inTransitBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  inTransitText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  progressRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  progressTimeText: {
+    fontSize: 11,
+    color: "#6B7280",
+  },
+  progressPercentText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  dashboardProgressBarBg: {
+    height: 6,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 3,
+    marginBottom: 16,
+    position: "relative",
+  },
+  dashboardProgressBarFill: {
+    height: "100%",
+    backgroundColor: "#2563EB",
+    borderRadius: 3,
+  },
+  dashboardProgressKnob: {
+    position: "absolute",
+    top: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#2563EB",
+    borderWidth: 2,
+    borderColor: "#fff",
+    marginLeft: -5,
+  },
+  cardActionsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  messageIconButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  trackIconButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#2563EB",
+  },
+  actionBtnLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+  },
 });
 
 export default ManagerDashboard;

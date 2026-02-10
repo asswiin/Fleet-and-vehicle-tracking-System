@@ -15,14 +15,14 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from "../../utils/api";
-import { 
-  ChevronLeft, 
-  ChevronDown, 
-  Calendar, 
-  CheckCircle2, 
-  ShieldCheck, 
-  Cloud, 
-  FileText 
+import {
+  ChevronLeft,
+  ChevronDown,
+  Calendar,
+  CheckCircle2,
+  ShieldCheck,
+  Cloud,
+  FileText
 } from "lucide-react-native";
 
 const VEHICLE_TYPES = ["Truck", "Lorry", "Pickups", "Container"];
@@ -46,7 +46,7 @@ interface DatePickerState {
 const RegisterVehicleScreen = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   const [form, setForm] = useState<VehicleForm>({
     regNumber: "",
     model: "",
@@ -58,10 +58,10 @@ const RegisterVehicleScreen = () => {
   });
 
   const [showTypeModal, setShowTypeModal] = useState(false);
-  const [datePicker, setDatePicker] = useState<DatePickerState>({ 
-    show: false, 
-    field: null, 
-    value: new Date() 
+  const [datePicker, setDatePicker] = useState<DatePickerState>({
+    show: false,
+    field: null,
+    value: new Date()
   });
 
   // ------------------------------------------------------------------
@@ -80,7 +80,7 @@ const RegisterVehicleScreen = () => {
     let formatted = "";
 
     // 3. Construct the formatted string
-    
+
     // Part 1: State (First 2 chars)
     if (cleaned.length > 0) {
       formatted = cleaned.substring(0, 2);
@@ -94,7 +94,7 @@ const RegisterVehicleScreen = () => {
     // Part 3: Series (1 or 2 Letters) & Number (1 to 4 Digits)
     if (cleaned.length >= 5) {
       const remaining = cleaned.substring(4);
-      
+
       // Regex separates Letters (Series) from Digits (Number)
       const match = remaining.match(/^([A-Z]*)([0-9]*)$/);
 
@@ -109,7 +109,7 @@ const RegisterVehicleScreen = () => {
 
         // Add space before Number if number exists
         if (number.length > 0) {
-           formatted += " " + number;
+          formatted += " " + number;
         }
       } else {
         formatted += " " + remaining;
@@ -134,7 +134,7 @@ const RegisterVehicleScreen = () => {
   // Date Picker Logic
   const onDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
-        setDatePicker(prev => ({ ...prev, show: false }));
+      setDatePicker(prev => ({ ...prev, show: false }));
     }
     if (selectedDate && datePicker.field) {
       const formatted = selectedDate.toLocaleDateString('en-GB');
@@ -189,7 +189,7 @@ const RegisterVehicleScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        
+
         {/* Registration Number */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Registration Number</Text>
@@ -205,15 +205,15 @@ const RegisterVehicleScreen = () => {
           <Text style={styles.helperText}>Format: State Dist Series Number (e.g. KL 07 A 1)</Text>
         </View>
 
-        {/* Model */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Model / Make</Text>
+          <Text style={styles.label}>Model Number</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Ford Transit 2023"
+            placeholder="e.g. 2023"
             placeholderTextColor="#94A3B8"
+            keyboardType="numeric"
             value={form.model}
-            onChangeText={(t) => setForm({...form, model: t})}
+            onChangeText={(t) => setForm({ ...form, model: t.replace(/[^0-9]/g, '') })}
           />
         </View>
 
@@ -237,7 +237,7 @@ const RegisterVehicleScreen = () => {
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
             value={form.weight}
-            onChangeText={(t) => setForm({...form, weight: t})}
+            onChangeText={(t) => setForm({ ...form, weight: t })}
           />
         </View>
 
@@ -252,8 +252,8 @@ const RegisterVehicleScreen = () => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Insurance Expiry</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('insuranceDate')}>
-            <View style={{flexDirection:'row', alignItems:'center'}}>
-              <ShieldCheck size={18} color="#94A3B8" style={{marginRight:8}} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ShieldCheck size={18} color="#94A3B8" style={{ marginRight: 8 }} />
               <Text style={[styles.inputText, !form.insuranceDate && { color: "#94A3B8" }]}>
                 {form.insuranceDate || "mm/dd/yyyy"}
               </Text>
@@ -266,8 +266,8 @@ const RegisterVehicleScreen = () => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Pollution Certificate</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('pollutionDate')}>
-            <View style={{flexDirection:'row', alignItems:'center'}}>
-              <Cloud size={18} color="#94A3B8" style={{marginRight:8}} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Cloud size={18} color="#94A3B8" style={{ marginRight: 8 }} />
               <Text style={[styles.inputText, !form.pollutionDate && { color: "#94A3B8" }]}>
                 {form.pollutionDate || "mm/dd/yyyy"}
               </Text>
@@ -280,8 +280,8 @@ const RegisterVehicleScreen = () => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Road Tax</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openDatePicker('taxDate')}>
-            <View style={{flexDirection:'row', alignItems:'center'}}>
-              <FileText size={18} color="#94A3B8" style={{marginRight:8}} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <FileText size={18} color="#94A3B8" style={{ marginRight: 8 }} />
               <Text style={[styles.inputText, !form.taxDate && { color: "#94A3B8" }]}>
                 {form.taxDate || "mm/dd/yyyy"}
               </Text>
@@ -293,8 +293,8 @@ const RegisterVehicleScreen = () => {
         <View style={{ height: 20 }} />
 
         {/* Register Button */}
-        <TouchableOpacity 
-          style={[styles.submitBtn, loading && {opacity: 0.7}]} 
+        <TouchableOpacity
+          style={[styles.submitBtn, loading && { opacity: 0.7 }]}
           onPress={handleSubmit}
           disabled={loading}
         >
@@ -323,14 +323,14 @@ const RegisterVehicleScreen = () => {
               data={VEHICLE_TYPES}
               keyExtractor={item => item}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalItem}
                   onPress={() => {
                     setForm({ ...form, type: item });
                     setShowTypeModal(false);
                   }}
                 >
-                  <Text style={[styles.modalItemText, form.type === item && {color:'#2563EB', fontWeight:'bold'}]}>
+                  <Text style={[styles.modalItemText, form.type === item && { color: '#2563EB', fontWeight: 'bold' }]}>
                     {item}
                   </Text>
                   {form.type === item && <CheckCircle2 size={18} color="#2563EB" />}
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15, color: '#0F172A' },
-  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection:'row', justifyContent:'space-between' },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between' },
   modalItemText: { fontSize: 16, color: '#334155' }
 });
 

@@ -228,7 +228,7 @@
 //     trip.driverId = newDriverId;
 //     trip.status = "pending"; // Reset to pending for new driver
 //     trip.assignedAt = new Date();
-    
+
 //     await trip.save();
 
 //     // Update new driver status to "pending" when trip is reassigned
@@ -414,7 +414,7 @@
 //     }
 //     if (deliveryStatus === "delivered") {
 //       trip.deliveryDestinations[destinationIndex].deliveredAt = new Date();
-      
+
 //       // Update parcel status
 //       await Parcel.findByIdAndUpdate(parcelId, { status: "Delivered" });
 //     }
@@ -427,7 +427,7 @@
 //     if (allDelivered) {
 //       trip.status = "completed";
 //       trip.completedAt = new Date();
-      
+
 //       // Update driver and vehicle status
 //       await Driver.findByIdAndUpdate(trip.driverId, { status: "Available" });
 //       await Vehicle.findByIdAndUpdate(trip.vehicleId, { status: "Available" });
@@ -498,6 +498,7 @@ const Driver = require("../models/Driver");
 const Vehicle = require("../models/Vehicle");
 const Notification = require("../models/Notification");
 const Parcel = require("../models/Parcel");
+const OngoingTrip = require("../models/OngoingTrip");
 
 // Create a new trip
 exports.createTrip = async (req, res) => {
@@ -673,29 +674,16 @@ exports.updateTripResources = async (req, res) => {
           driverStatus: "available",
           currentTripId: null
         });
-
-        // 2. Remove notifications for the OLD driver for this specific trip
-        // This ensures the old driver doesn't see the request anymore
-        await Notification.deleteMany({
-          driverId: oldDriverId,
-          tripId: trip.tripId,
-          // Delete both initial assignment and reassignment types
-          type: { $in: ["trip_assignment", "reassign_driver"] }
-        });
       }
 
-      // 3. Assign the NEW driver
+      // 2. Assign the NEW driver
       await Driver.findByIdAndUpdate(driverId, {
         isAvailable: false,
         driverStatus: "pending" // Waiting for acceptance
       });
 
-      // 4. Update Trip reference
+      // 3. Update Trip reference
       trip.driverId = driverId;
-      // Reset trip status to pending so new driver must accept
-      trip.status = "pending";
-      trip.acceptedAt = null;
-      trip.startedAt = null;
     }
 
     // --- HANDLE VEHICLE CHANGE ---
@@ -719,6 +707,22 @@ exports.updateTripResources = async (req, res) => {
       trip.vehicleId = vehicleId;
     }
 
+    // --- RESET TRIP STATUS IF RESOURCES CHANGED ---
+    // Either driver or vehicle change requires a new acceptance from the driver
+    if (isDriverChanged || isVehicleChanged) {
+      trip.status = "pending";
+      trip.acceptedAt = null;
+      trip.startedAt = null;
+
+      // If only vehicle changed, we still need to set the driver's status to pending
+      // so they can see it as a new request to accept.
+      if (!isDriverChanged && trip.driverId) {
+        await Driver.findByIdAndUpdate(trip.driverId, {
+          driverStatus: "pending"
+        });
+      }
+    }
+
     // Save changes to Trip
     await trip.save();
 
@@ -727,9 +731,9 @@ exports.updateTripResources = async (req, res) => {
     const parcelUpdate = {};
     if (isDriverChanged) parcelUpdate.assignedDriver = driverId;
     if (isVehicleChanged) parcelUpdate.assignedVehicle = vehicleId;
-    
-    // If driver changed, set parcel status back to Pending/Assigned
-    if (isDriverChanged) {
+
+    // If driver/vehicle changed, set parcel status back to Pending
+    if (isDriverChanged || isVehicleChanged) {
       parcelUpdate.status = "Pending";
     }
 
@@ -742,12 +746,19 @@ exports.updateTripResources = async (req, res) => {
 
 
     // --- NOTIFY DRIVER OF CHANGES ---
-    // Only send notification if this is an edit (not first assignment) and only one notification per edit
-    // Only send vehicle change notification if trip is still pending (not declined)
-    if ((isDriverChanged || isVehicleChanged) && (oldDriverId || oldVehicleId)) {
+    // Aggressively delete ALL existing notifications for this trip before sending a new one.
+    // This ensures that whether the driver changed OR the vehicle changed, the driver(s) 
+    // only see ONE current notification and don't have duplicate or stale entries.
+    if (isDriverChanged || isVehicleChanged) {
+      console.log(`Cleaning up old notifications for trip ${trip.tripId}`);
+      await Notification.deleteMany({ tripId: trip.tripId });
+    }
+
+    if (isDriverChanged || isVehicleChanged) {
+      const currentVehicle = await Vehicle.findById(trip.vehicleId);
+
       // If driver changed, send reassign_driver notification
       if (isDriverChanged) {
-        const currentVehicle = await Vehicle.findById(trip.vehicleId);
         const newNotification = new Notification({
           driverId: driverId,
           vehicleId: trip.vehicleId,
@@ -762,32 +773,29 @@ exports.updateTripResources = async (req, res) => {
           recipientType: "driver"
         });
         await newNotification.save();
-      } else if (isVehicleChanged) {
-        // Only send vehicle update notification if trip is still pending (driver has not declined)
-        if (trip.status === "pending") {
-          const currentVehicle = await Vehicle.findById(trip.vehicleId);
-          const newNotification = new Notification({
-            driverId: trip.driverId,
-            vehicleId: trip.vehicleId,
-            parcelIds: trip.parcelIds,
-            tripId: trip.tripId,
-            type: "trip_update",
-            status: "pending",
-            message: `Trip #${trip.tripId} vehicle has been updated. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
-            assignedBy: managerId || trip.assignedBy,
-            startLocation: trip.startLocation,
-            deliveryLocations: trip.deliveryDestinations,
-            recipientType: "driver"
-          });
-          await newNotification.save();
-        }
-        // If trip is not pending (e.g., declined), do not send vehicle update notification
+      }
+      // If SAME driver but vehicle changed, send a trip_update notification
+      else if (isVehicleChanged) {
+        const newNotification = new Notification({
+          driverId: trip.driverId,
+          vehicleId: trip.vehicleId,
+          parcelIds: trip.parcelIds,
+          tripId: trip.tripId,
+          type: "trip_update",
+          status: "pending",
+          message: `Trip #${trip.tripId} vehicle has been updated. New Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}. Please accept the change.`,
+          assignedBy: managerId || trip.assignedBy,
+          startLocation: trip.startLocation,
+          deliveryLocations: trip.deliveryDestinations,
+          recipientType: "driver"
+        });
+        await newNotification.save();
       }
     }
 
-    res.json({ 
-      message: "Trip updated successfully", 
-      data: trip 
+    res.json({
+      message: "Trip updated successfully",
+      data: trip
     });
 
   } catch (error) {
@@ -835,11 +843,14 @@ exports.reassignTrip = async (req, res) => {
     const trip = await Trip.findOne({ tripId });
     if (!trip) return res.status(404).json({ message: "Trip not found" });
 
+    // Clear ALL existing notifications for this trip before reassigning to a new driver
+    await Notification.deleteMany({ tripId: trip.tripId });
+
     const existingVehicleId = trip.vehicleId;
 
     // Update trip
     trip.driverId = newDriverId;
-    trip.status = "pending"; 
+    trip.status = "pending";
     trip.assignedAt = new Date();
     await trip.save();
 
@@ -852,9 +863,9 @@ exports.reassignTrip = async (req, res) => {
     // Update parcels
     await Parcel.updateMany(
       { _id: { $in: trip.parcelIds } },
-      { 
+      {
         assignedDriver: newDriverId,
-        status: "Pending" 
+        status: "Pending"
       }
     );
 
@@ -909,37 +920,37 @@ exports.updateTripStatus = async (req, res) => {
 
     // Sync Driver & Vehicle Statuses
     if (status === "accepted") {
-      await Driver.findByIdAndUpdate(trip.driverId._id, { 
+      await Driver.findByIdAndUpdate(trip.driverId._id, {
         driverStatus: "Accepted",
         currentTripId: trip.tripId
       });
-      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, { 
+      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, {
         status: "Trip Confirmed",
         currentTripId: trip.tripId
       });
     } else if (status === "in-progress") {
-      await Driver.findByIdAndUpdate(trip.driverId._id, { 
+      await Driver.findByIdAndUpdate(trip.driverId._id, {
         driverStatus: "On-trip",
         currentTripId: trip.tripId
       });
-      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, { 
+      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, {
         status: "On-trip",
         currentTripId: trip.tripId
       });
     } else if (status === "completed") {
-      await Driver.findByIdAndUpdate(trip.driverId._id, { 
-        driverStatus: "available",
-        isAvailable: true,
+      const driver = await Driver.findById(trip.driverId._id);
+      await Driver.findByIdAndUpdate(trip.driverId._id, {
+        driverStatus: driver.isAvailable ? "available" : "offline",
         currentTripId: null
       });
-      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, { 
+      await Vehicle.findByIdAndUpdate(trip.vehicleId._id, {
         status: "Active",
         currentTripId: null
       });
     } else if (status === "declined") {
+      const driver = await Driver.findById(trip.driverId._id);
       await Driver.findByIdAndUpdate(trip.driverId._id, {
-        driverStatus: "available",
-        isAvailable: true,
+        driverStatus: driver.isAvailable ? "available" : "offline",
         currentTripId: null
       });
       // Vehicle stays assigned or reverts? Usually reverts if trip is dead, 
@@ -949,6 +960,8 @@ exports.updateTripStatus = async (req, res) => {
         status: "Active",
         currentTripId: null
       });
+      // Remove from OngoingTrips
+      await OngoingTrip.findOneAndDelete({ trip: trip._id });
     }
 
     res.status(200).json(trip);
@@ -970,24 +983,38 @@ exports.startJourney = async (req, res) => {
 
     trip.status = "in-progress";
     trip.startedAt = new Date();
-    
+
     // Update delivery destinations to "in-transit"
     trip.deliveryDestinations = trip.deliveryDestinations.map(dest => ({
       ...dest.toObject(),
       deliveryStatus: dest.deliveryStatus === 'pending' ? "in-transit" : dest.deliveryStatus
     }));
-    
+
     await trip.save();
 
-    await Driver.findByIdAndUpdate(trip.driverId, { 
+    await Driver.findByIdAndUpdate(trip.driverId, {
       driverStatus: "On-trip",
       currentTripId: trip.tripId
     });
 
-    await Vehicle.findByIdAndUpdate(trip.vehicleId, { 
+    await Vehicle.findByIdAndUpdate(trip.vehicleId, {
       status: "On-trip",
       currentTripId: trip.tripId
     });
+
+    // Create or Update OngoingTrip entry
+    await OngoingTrip.findOneAndUpdate(
+      { trip: trip._id },
+      {
+        trip: trip._id,
+        vehicle: trip.vehicleId,
+        driver: trip.driverId,
+        status: "in-transit",
+        startedAt: new Date(),
+        progress: 0
+      },
+      { upsert: true, new: true }
+    );
 
     await Parcel.updateMany(
       { _id: { $in: trip.parcelIds } },
@@ -1019,7 +1046,7 @@ exports.updateDeliveryStatus = async (req, res) => {
 
     trip.deliveryDestinations[destinationIndex].deliveryStatus = deliveryStatus;
     if (notes) trip.deliveryDestinations[destinationIndex].notes = notes;
-    
+
     if (deliveryStatus === "delivered") {
       trip.deliveryDestinations[destinationIndex].deliveredAt = new Date();
       await Parcel.findByIdAndUpdate(parcelId, { status: "Delivered" });
@@ -1033,16 +1060,18 @@ exports.updateDeliveryStatus = async (req, res) => {
     if (allDelivered) {
       trip.status = "completed";
       trip.completedAt = new Date();
-      
-      await Driver.findByIdAndUpdate(trip.driverId, { 
-        driverStatus: "available",
-        isAvailable: true,
+
+      const driver = await Driver.findById(trip.driverId);
+      await Driver.findByIdAndUpdate(trip.driverId, {
+        driverStatus: driver.isAvailable ? "available" : "offline",
         currentTripId: null
       });
-      await Vehicle.findByIdAndUpdate(trip.vehicleId, { 
+      await Vehicle.findByIdAndUpdate(trip.vehicleId, {
         status: "Active",
         currentTripId: null
       });
+      // Remove from OngoingTrips
+      await OngoingTrip.findOneAndDelete({ trip: trip._id });
     }
 
     await trip.save();
@@ -1060,5 +1089,25 @@ exports.deleteTrip = async (req, res) => {
     res.status(200).json({ message: "Trip deleted" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete trip", error: error.message });
+  }
+};
+
+// Get Ongoing Trips specifically
+exports.getOngoingTrips = async (req, res) => {
+  try {
+    const ongoing = await OngoingTrip.find()
+      .populate({
+        path: "trip",
+        populate: [
+          { path: "driverId", select: "name phone profilePhoto" },
+          { path: "vehicleId", select: "regNumber model type" },
+          { path: "parcelIds" }
+        ]
+      })
+      .sort({ startedAt: -1 });
+
+    res.status(200).json(ongoing);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch ongoing trips", error: error.message });
   }
 };

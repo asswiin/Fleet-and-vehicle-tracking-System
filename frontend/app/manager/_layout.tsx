@@ -24,6 +24,7 @@ export default function ManagerLayout() {
 
       <Stack.Screen name="trip-list" />
       <Stack.Screen name="trip-details" />
+      <Stack.Screen name="track-trip" />
       <Stack.Screen name="edit-trip" />
     </Stack>
   );

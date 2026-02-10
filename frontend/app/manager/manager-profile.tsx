@@ -14,32 +14,38 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import { api } from "../../utils/api";
 import type { User } from "../../utils/api";
-import { 
-  ChevronLeft, 
-  Edit2, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
+import {
+  ChevronLeft,
+  Edit2,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
   LogOut,
 } from "lucide-react-native";
 
 const ManagerProfileScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ userId: string }>();
-  
+
   const [manager, setManager] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async () => {
-    if (!params.userId) return;
+    if (!params.userId || params.userId === "undefined" || params.userId === "null") {
+      setLoading(false);
+      Alert.alert("Error", "Session expired or User ID missing. Please login again.");
+      return;
+    }
     try {
       // Don't set loading to true on refresh to avoid flicker
-      if (!manager) setLoading(true); 
-      
+      if (!manager) setLoading(true);
+
       const response = await api.getUser(params.userId);
       if (response.ok && response.data) {
         setManager(response.data);
+      } else {
+        Alert.alert("Error", response.error || "User not found");
       }
     } catch (error) {
       console.error(error);
@@ -88,7 +94,7 @@ const ManagerProfileScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -106,7 +112,7 @@ const ManagerProfileScreen = () => {
         <View style={styles.profileCard}>
           {manager?.profilePhoto ? (
             <Image
-              source={{ uri: api.getImageUrl(manager.profilePhoto) }}
+              source={{ uri: api.getImageUrl(manager.profilePhoto) || undefined }}
               style={styles.avatar}
             />
           ) : (
@@ -127,7 +133,7 @@ const ManagerProfileScreen = () => {
         {/* Personal Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
-          
+
           <View style={styles.row}>
             <View style={styles.iconBox}><Phone size={20} color="#64748B" /></View>
             <View>
@@ -188,9 +194,9 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   editBtn: { flexDirection: "row", alignItems: "center", padding: 4 },
   editText: { marginLeft: 4, color: "#2563EB", fontWeight: "600" },
-  
+
   content: { padding: 20 },
-  
+
   profileCard: {
     backgroundColor: "#fff", borderRadius: 16, padding: 24, alignItems: "center", marginBottom: 20,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,

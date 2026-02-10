@@ -11,11 +11,12 @@ import {
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router"; // Add useFocusEffect
 import { useState, useCallback } from "react";
 import { api } from "../../utils/api";
-import { 
-  ChevronLeft, 
-  Truck, 
-  FileCheck, 
+import {
+  ChevronLeft,
+  Truck,
+  FileCheck,
   AlertCircle,
+  AlertTriangle,
   History,
   Tag,
   Edit2 // Import Edit Icon
@@ -24,7 +25,7 @@ import {
 const VehicleDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ vehicle: string; userRole: string }>();
-  
+
   const userRole = params.userRole || "admin";
 
   const [vehicle, setVehicle] = useState<any>({});
@@ -82,15 +83,30 @@ const VehicleDetailsScreen = () => {
 
   const getExpiryStatus = (dateInput?: string) => {
     const date = parseDate(dateInput);
-    if (!date) return { text: "Not Set", color: "#94A3B8" };
+    if (!date) return { text: "Not Set", color: "#94A3B8", warning: false };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (date < today) return { text: "Expired", color: "#EF4444" }; 
-    return { text: "Valid", color: "#22C55E" }; 
+
+    if (date < today) return { text: "Expired", color: "#EF4444", warning: true };
+
+    const tenDaysFromNow = new Date(today);
+    tenDaysFromNow.setDate(today.getDate() + 10);
+
+    if (date <= tenDaysFromNow) return { text: "Near Expiry", color: "#F59E0B", warning: true };
+
+    return { text: "Valid", color: "#22C55E", warning: false };
+  };
+
+  const hasExpiringDocs = () => {
+    return (
+      getExpiryStatus(getInsuranceDate()).warning ||
+      getExpiryStatus(getPollutionDate()).warning ||
+      getExpiryStatus(getTaxDate()).warning
+    );
   };
 
   const getStatusColor = (status?: string) => {
-    switch(status) {
+    switch (status) {
       case 'Active': return '#22C55E';
       case 'Sold': return '#EF4444';
       default: return '#F59E0B';
@@ -108,48 +124,59 @@ const VehicleDetailsScreen = () => {
   const handleMarkAsSold = async () => {
     // ... (Existing logic for selling)
     Alert.alert("Confirm Sale", "Are you sure?", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Mark as Sold", style: "destructive", onPress: async () => {
-            if(!vehicle._id) return;
-            setLoading(true);
-            try {
-                const res = await api.updateVehicleStatus(vehicle._id, "Sold");
-                if(res.ok && res.data) { setVehicle(res.data); Alert.alert("Success", "Vehicle marked as sold"); }
-            } catch(e) { Alert.alert("Error", "Network Error"); } finally { setLoading(false); }
-        }}
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Mark as Sold", style: "destructive", onPress: async () => {
+          if (!vehicle._id) return;
+          setLoading(true);
+          try {
+            const res = await api.updateVehicleStatus(vehicle._id, "Sold");
+            if (res.ok && res.data) { setVehicle(res.data); Alert.alert("Success", "Vehicle marked as sold"); }
+          } catch (e) { Alert.alert("Error", "Network Error"); } finally { setLoading(false); }
+        }
+      }
     ]);
   };
 
   const handleEdit = () => {
     router.push({
-        pathname: "/admin/edit-vehicle",
-        params: { vehicleData: JSON.stringify(vehicle) }
+      pathname: "/admin/edit-vehicle",
+      params: { vehicleData: JSON.stringify(vehicle) }
     } as any);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
             <ChevronLeft size={28} color="#0F172A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Vehicle Details</Text>
-          
+
           {/* EDIT BUTTON (Manager Only) */}
           {userRole === 'manager' ? (
-             <TouchableOpacity onPress={handleEdit} style={styles.iconBtn}>
-               <Edit2 size={24} color="#2563EB" />
-             </TouchableOpacity>
+            <TouchableOpacity onPress={handleEdit} style={styles.iconBtn}>
+              <Edit2 size={24} color="#2563EB" />
+            </TouchableOpacity>
           ) : (
-             <View style={{ width: 28 }} />
+            <View style={{ width: 28 }} />
           )}
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          
+
+          {hasExpiringDocs() && (
+            <View style={styles.warningBanner}>
+              <AlertTriangle size={20} color="#92400E" />
+              <Text style={styles.warningBannerText}>
+                Warning: One or more documents are expiring soon or have expired.
+              </Text>
+            </View>
+          )}
+
           {/* ... (Existing Main Card & Info) ... */}
           <View style={styles.mainCard}>
             <View style={styles.iconContainer}>
@@ -157,7 +184,7 @@ const VehicleDetailsScreen = () => {
             </View>
             <Text style={styles.modelText}>{vehicle.regNumber || "No Reg #"}</Text>
             <Text style={styles.regText}>{vehicle.model || "Unknown Model"}</Text>
-            
+
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vehicle.status) + "20" }]}>
               <View style={[styles.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />
               <Text style={[styles.statusText, { color: getStatusColor(vehicle.status) }]}>
@@ -169,7 +196,7 @@ const VehicleDetailsScreen = () => {
           {/* Vehicle Specifications */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Vehicle Specifications</Text>
-            
+
             <View style={styles.infoRow}>
               <View style={styles.infoLeft}>
                 <Text style={styles.label}>VEHICLE TYPE</Text>
@@ -187,40 +214,40 @@ const VehicleDetailsScreen = () => {
 
           {/* ... (Existing Document Status Section) ... */}
           <View style={styles.section}>
-             {/* Insurance, Pollution, Tax items as per your existing file */}
-             <Text style={styles.sectionTitle}>Document Status</Text>
-             {/* ... (Copy paste your existing docItem views here) ... */}
-             <View style={styles.docItem}>
-                <View style={styles.docIcon}><FileCheck size={20} color="#0EA5E9" /></View>
-                <View style={styles.docInfo}>
-                    <Text style={styles.label}>Insurance Expiry</Text>
-                    <Text style={styles.value}>{formatDateForDisplay(getInsuranceDate())}</Text>
-                </View>
-                <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getInsuranceDate()).color + "20" }]}>
-                    <Text style={[styles.docBadgeText, { color: getExpiryStatus(getInsuranceDate()).color }]}>{getExpiryStatus(getInsuranceDate()).text}</Text>
-                </View>
-             </View>
-             {/* Repeat for Pollution and Tax... */}
-             <View style={styles.docItem}>
-                <View style={styles.docIcon}><AlertCircle size={20} color="#0EA5E9" /></View>
-                <View style={styles.docInfo}>
-                    <Text style={styles.label}>Pollution Certificate</Text>
-                    <Text style={styles.value}>{formatDateForDisplay(getPollutionDate())}</Text>
-                </View>
-                <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getPollutionDate()).color + "20" }]}>
-                    <Text style={[styles.docBadgeText, { color: getExpiryStatus(getPollutionDate()).color }]}>{getExpiryStatus(getPollutionDate()).text}</Text>
-                </View>
-             </View>
-              <View style={styles.docItem}>
-                <View style={styles.docIcon}><Tag size={20} color="#0EA5E9" /></View>
-                <View style={styles.docInfo}>
-                    <Text style={styles.label}>Road Tax</Text>
-                    <Text style={styles.value}>{formatDateForDisplay(getTaxDate())}</Text>
-                </View>
-                <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getTaxDate()).color + "20" }]}>
-                    <Text style={[styles.docBadgeText, { color: getExpiryStatus(getTaxDate()).color }]}>{getExpiryStatus(getTaxDate()).text}</Text>
-                </View>
-             </View>
+            {/* Insurance, Pollution, Tax items as per your existing file */}
+            <Text style={styles.sectionTitle}>Document Status</Text>
+            {/* ... (Copy paste your existing docItem views here) ... */}
+            <View style={styles.docItem}>
+              <View style={styles.docIcon}><FileCheck size={20} color="#0EA5E9" /></View>
+              <View style={styles.docInfo}>
+                <Text style={styles.label}>Insurance Expiry</Text>
+                <Text style={styles.value}>{formatDateForDisplay(getInsuranceDate())}</Text>
+              </View>
+              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getInsuranceDate()).color + "20" }]}>
+                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getInsuranceDate()).color }]}>{getExpiryStatus(getInsuranceDate()).text}</Text>
+              </View>
+            </View>
+            {/* Repeat for Pollution and Tax... */}
+            <View style={styles.docItem}>
+              <View style={styles.docIcon}><AlertCircle size={20} color="#0EA5E9" /></View>
+              <View style={styles.docInfo}>
+                <Text style={styles.label}>Pollution Certificate</Text>
+                <Text style={styles.value}>{formatDateForDisplay(getPollutionDate())}</Text>
+              </View>
+              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getPollutionDate()).color + "20" }]}>
+                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getPollutionDate()).color }]}>{getExpiryStatus(getPollutionDate()).text}</Text>
+              </View>
+            </View>
+            <View style={styles.docItem}>
+              <View style={styles.docIcon}><Tag size={20} color="#0EA5E9" /></View>
+              <View style={styles.docInfo}>
+                <Text style={styles.label}>Road Tax</Text>
+                <Text style={styles.value}>{formatDateForDisplay(getTaxDate())}</Text>
+              </View>
+              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getTaxDate()).color + "20" }]}>
+                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getTaxDate()).color }]}>{getExpiryStatus(getTaxDate()).text}</Text>
+              </View>
+            </View>
           </View>
 
           {/* Action Buttons */}
@@ -229,7 +256,7 @@ const VehicleDetailsScreen = () => {
               <History size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
               <Text style={styles.outlineButtonText}>View History</Text>
             </TouchableOpacity>
-            
+
             {userRole === "manager" && vehicle.status !== "Sold" && (
               <TouchableOpacity style={styles.dangerButton} onPress={handleMarkAsSold} disabled={loading}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.dangerButtonText}>Mark as Sold</Text>}
@@ -301,6 +328,23 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderRadius: 8, backgroundColor: "#EF4444",
   },
   dangerButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  warningBannerText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '600',
+  },
 });
 
 export default VehicleDetailsScreen;

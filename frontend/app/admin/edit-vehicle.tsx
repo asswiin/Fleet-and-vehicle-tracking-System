@@ -16,15 +16,15 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState, useEffect } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { api } from "../../utils/api";
-import { 
-  ChevronLeft, 
-  Save, 
-  ChevronDown, 
-  Calendar, 
-  ShieldCheck, 
-  Cloud, 
+import {
+  ChevronLeft,
+  Save,
+  ChevronDown,
+  Calendar,
+  ShieldCheck,
+  Cloud,
   FileText,
-  CheckCircle2 
+  CheckCircle2
 } from "lucide-react-native";
 
 const VEHICLE_TYPES = ["Truck", "Lorry", "Pickups", "Container"];
@@ -74,7 +74,7 @@ const EditVehicleScreen = () => {
     let formatted = "";
 
     // 3. Construct the formatted string
-    
+
     // Part 1: State (First 2 chars)
     if (cleaned.length > 0) {
       formatted = cleaned.substring(0, 2);
@@ -88,7 +88,7 @@ const EditVehicleScreen = () => {
     // Part 3: Series (1 or 2 Letters) & Number (1 to 4 Digits)
     if (cleaned.length >= 5) {
       const remaining = cleaned.substring(4);
-      
+
       // Regex separates Letters (Series) from Digits (Number)
       const match = remaining.match(/^([A-Z]*)([0-9]*)$/);
 
@@ -103,7 +103,7 @@ const EditVehicleScreen = () => {
 
         // Add space before Number if number exists
         if (number.length > 0) {
-           formatted += " " + number;
+          formatted += " " + number;
         }
       } else {
         formatted += " " + remaining;
@@ -165,8 +165,8 @@ const EditVehicleScreen = () => {
       const vehiclesResponse = await api.getVehicles();
       if (vehiclesResponse.ok && vehiclesResponse.data) {
         const isDuplicate = vehiclesResponse.data.some(
-          (vehicle: any) => 
-            vehicle.regNumber === form.regNumber && 
+          (vehicle: any) =>
+            vehicle.regNumber === form.regNumber &&
             vehicle._id !== initialData._id // Exclude current vehicle
         );
 
@@ -184,10 +184,10 @@ const EditVehicleScreen = () => {
           {
             text: "OK",
             onPress: () => {
-                // Navigate back two steps (to list) or one step (to details)
-                // Using replace to refresh details might be better logic, 
-                // but simple back works if we use useFocusEffect in details/list
-                router.back(); 
+              // Navigate back two steps (to list) or one step (to details)
+              // Using replace to refresh details might be better logic, 
+              // but simple back works if we use useFocusEffect in details/list
+              router.back();
             }
           },
         ]);
@@ -212,7 +212,7 @@ const EditVehicleScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        
+
         {/* Reg Number */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Registration Number</Text>
@@ -225,13 +225,14 @@ const EditVehicleScreen = () => {
           />
         </View>
 
-        {/* Model */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Model</Text>
+          <Text style={styles.label}>Model Number</Text>
           <TextInput
             style={styles.input}
             value={form.model}
-            onChangeText={(t) => setForm({ ...form, model: t })}
+            keyboardType="numeric"
+            placeholder="e.g. 2023"
+            onChangeText={(t) => setForm({ ...form, model: t.replace(/[^0-9]/g, '') })}
           />
         </View>
 
@@ -295,7 +296,7 @@ const EditVehicleScreen = () => {
 
         <View style={{ height: 20 }} />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.saveBtn, loading && { opacity: 0.7 }]}
           onPress={handleUpdate}
           disabled={loading}
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
   },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  
+
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },

@@ -19,7 +19,7 @@ export interface User {
   email: string;
   phone?: string;
   role: "admin" | "manager" | "driver";
-  status?: "Active" | "Resigned"; 
+  status?: "Active" | "Resigned";
   dob?: string;
   place?: string;
   profilePhoto?: string;
@@ -305,7 +305,7 @@ console.log("🚀 API Base URL:", API_BASE_URL);
 // 2. Helper to handle responses safely
 const handleResponse = async (response: Response) => {
   const text = await response.text(); // Get raw text first
-  
+
   try {
     const data = JSON.parse(text); // Try to parse as JSON
     return {
@@ -344,7 +344,7 @@ const apiCall = async <T = any>(
     return await handleResponse(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Network error";
-    console.log(`❌ Connection Failed: ${url}`, errorMessage); 
+    console.log(`❌ Connection Failed: ${url}`, errorMessage);
     return { ok: false, status: null, data: null, error: errorMessage };
   }
 };
@@ -365,7 +365,7 @@ export const api = {
   getUsers: () => apiCall("/api/users"),
   getUser: (id: string) => apiCall(`/api/users/${id}`),
   createUser: (data: any) => apiCall("/api/users", { method: "POST", body: JSON.stringify(data) }),
-  
+
   // Ensure this PUT call matches the backend route
   updateUser: (id: string, data: any) =>
     apiCall(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
@@ -380,15 +380,15 @@ export const api = {
     address?: any;
     profilePhotoBase64?: string;
   }) => {
-    return apiCall(`/api/users/${id}/profile`, { 
-      method: "PUT", 
-      body: JSON.stringify(data) 
+    return apiCall(`/api/users/${id}/profile`, {
+      method: "PUT",
+      body: JSON.stringify(data)
     });
   },
 
   updateUserStatus: (id: string, status: string) =>
     apiCall(`/api/users/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-    
+
   createManager: (data: any) => apiCall("/api/users/create-manager", { method: "POST", body: JSON.stringify(data) }),
 
   // AUTH
@@ -419,9 +419,9 @@ export const api = {
       month: now.getMonth(), // 0-indexed
       day: now.getDate()
     };
-    return apiCall(`/api/drivers/${id}/punch`, { 
-      method: "POST", 
-      body: JSON.stringify({ localDate }) 
+    return apiCall(`/api/drivers/${id}/punch`, {
+      method: "POST",
+      body: JSON.stringify({ localDate })
     });
   },
   punchOutDriver: (id: string) => {
@@ -432,13 +432,13 @@ export const api = {
       month: now.getMonth(), // 0-indexed
       day: now.getDate()
     };
-    return apiCall(`/api/drivers/${id}/punch-out`, { 
-      method: "POST", 
-      body: JSON.stringify({ localDate }) 
+    return apiCall(`/api/drivers/${id}/punch-out`, {
+      method: "POST",
+      body: JSON.stringify({ localDate })
     });
   },
   getPunchHistory: (id: string) => apiCall(`/api/drivers/${id}/punch-history`, { method: "GET" }),
-  checkLicenseExists: (license: string, excludeId?: string) => 
+  checkLicenseExists: (license: string, excludeId?: string) =>
     apiCall(`/api/drivers/check-license/${license}${excludeId ? `?excludeId=${excludeId}` : ''}`),
 
   // DRIVER PROFILE UPDATE with Base64 Image Support (Vercel Compatible)
@@ -453,9 +453,9 @@ export const api = {
     profilePhotoBase64?: string;
     licensePhotoBase64?: string;
   }) => {
-    return apiCall(`/api/drivers/${id}`, { 
-      method: "PUT", 
-      body: JSON.stringify(data) 
+    return apiCall(`/api/drivers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data)
     });
   },
   // PARCELS
@@ -491,36 +491,36 @@ export const api = {
       address: string;
     } | null;
   }) => apiCall("/api/notifications", { method: "POST", body: JSON.stringify(data) }),
-  
-  getDriverNotifications: (driverId: string) => 
+
+  getDriverNotifications: (driverId: string) =>
     apiCall<Notification[]>(`/api/notifications/driver/${driverId}`),
-  
-  getUnreadNotificationCount: (driverId: string) => 
+
+  getUnreadNotificationCount: (driverId: string) =>
     apiCall<{ count: number }>(`/api/notifications/driver/${driverId}/unread-count`),
-  
+
   // MANAGER NOTIFICATIONS
-  getManagerNotifications: (managerId: string) => 
+  getManagerNotifications: (managerId: string) =>
     apiCall<Notification[]>(`/api/notifications/manager/${managerId}`),
-  
-  getManagerUnreadCount: (managerId: string) => 
+
+  getManagerUnreadCount: (managerId: string) =>
     apiCall<{ count: number }>(`/api/notifications/manager/${managerId}/unread-count`),
-  
+
   reassignDriver: (notificationId: string, data: { newDriverId: string, vehicleId: string }) =>
-    apiCall(`/api/notifications/${notificationId}/reassign-driver`, { 
-      method: "POST", 
-      body: JSON.stringify(data) 
+    apiCall(`/api/notifications/${notificationId}/reassign-driver`, {
+      method: "POST",
+      body: JSON.stringify(data)
     }),
-  
-  getNotification: (id: string) => 
+
+  getNotification: (id: string) =>
     apiCall<Notification>(`/api/notifications/${id}`),
-  
-  markNotificationAsRead: (id: string) => 
+
+  markNotificationAsRead: (id: string) =>
     apiCall(`/api/notifications/${id}/read`, { method: "PATCH" }),
-  
-  updateNotificationStatus: (id: string, status: string) => 
+
+  updateNotificationStatus: (id: string, status: string) =>
     apiCall(`/api/notifications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  
-  deleteNotification: (id: string) => 
+
+  deleteNotification: (id: string) =>
     apiCall(`/api/notifications/${id}`, { method: "DELETE" }),
 
   // TRIPS
@@ -552,50 +552,52 @@ export const api = {
 
   getTripByTripId: (tripId: string) => apiCall<Trip>(`/api/trips/by-trip-id/${tripId}`),
 
-  getDriverTrips: (driverId: string, status?: string) => 
+  getDriverTrips: (driverId: string, status?: string) =>
     apiCall<Trip[]>(`/api/trips/driver/${driverId}${status ? `?status=${status}` : ''}`),
 
-  getActiveTrip: (driverId: string) => 
+  getActiveTrip: (driverId: string) =>
     apiCall<Trip>(`/api/trips/driver/${driverId}/active`),
 
-  updateTripStatus: (id: string, status: string) => 
+  updateTripStatus: (id: string, status: string) =>
     apiCall(`/api/trips/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
-  startJourney: (tripId: string) => 
+  startJourney: (tripId: string) =>
     apiCall(`/api/trips/${tripId}/start-journey`, { method: "POST" }),
 
-  updateDeliveryStatus: (tripId: string, parcelId: string, deliveryStatus: string, notes?: string) => 
-    apiCall(`/api/trips/${tripId}/delivery/${parcelId}`, { 
-      method: "PATCH", 
-      body: JSON.stringify({ deliveryStatus, notes }) 
+  updateDeliveryStatus: (tripId: string, parcelId: string, deliveryStatus: string, notes?: string) =>
+    apiCall(`/api/trips/${tripId}/delivery/${parcelId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ deliveryStatus, notes })
     }),
 
 
-// Update Trip Resources (Driver/Vehicle)
-  updateTripResources: (tripId: string, data: { driverId?: string; vehicleId?: string }) => 
-    apiCall(`/api/trips/${tripId}/resources`, { 
-      method: "PATCH", 
-      body: JSON.stringify(data) 
+  // Update Trip Resources (Driver/Vehicle)
+  updateTripResources: (tripId: string, data: { driverId?: string; vehicleId?: string }) =>
+    apiCall(`/api/trips/${tripId}/resources`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
     }),
 
-    
-  deleteTrip: (id: string) => 
+
+  deleteTrip: (id: string) =>
     apiCall(`/api/trips/${id}`, { method: "DELETE" }),
 
   // Get declined parcels for reassignment
-  getDeclinedParcels: () => 
+  getDeclinedParcels: () =>
     apiCall<Parcel[]>("/api/trips/declined/parcels"),
 
   // Reassign trip to new driver (vehicle stays the same)
   reassignTrip: (tripId: string, data: {
     newDriverId: string;
     managerId: string;
-  }) => apiCall(`/api/trips/reassign/${tripId}`, { 
-    method: "PATCH", 
-    body: JSON.stringify(data) 
+  }) => apiCall(`/api/trips/reassign/${tripId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data)
   }),
+  // Get currently ongoing trips (filtered by backend)
+  getOngoingTrips: () => apiCall<any[]>("/api/trips/ongoing-list"),
 };
-   
+
 
 export default api;
 

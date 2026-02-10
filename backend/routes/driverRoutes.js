@@ -268,7 +268,12 @@ router.post("/:id/punch", async (req, res) => {
 
     // Update Driver Status for Dashboard
     driver.isAvailable = true;
-    driver.driverStatus = "available";
+
+    // Only set the display status to available if they don't have an active/pending trip
+    const hasActiveTrip = ["Accepted", "On-trip", "pending"].includes(driver.driverStatus);
+    if (!hasActiveTrip) {
+      driver.driverStatus = "available";
+    }
     await driver.save();
 
     res.json({
@@ -328,10 +333,11 @@ router.post("/:id/punch-out", async (req, res) => {
     await activeRecord.save();
 
     // Update Driver Status for Dashboard
-    // Only set offline if the driver does NOT have an active trip
-    const hasActiveTrip = ["Accepted", "On-trip"].includes(driver.driverStatus);
+    driver.isAvailable = false; // Marking as not available for new assignments regardless of current status
+
+    // Only set the display status to offline if they don't have an active/pending trip
+    const hasActiveTrip = ["Accepted", "On-trip", "pending"].includes(driver.driverStatus);
     if (!hasActiveTrip) {
-      driver.isAvailable = false;
       driver.driverStatus = "offline";
     }
     await driver.save();
