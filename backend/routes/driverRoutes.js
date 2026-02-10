@@ -328,8 +328,12 @@ router.post("/:id/punch-out", async (req, res) => {
     await activeRecord.save();
 
     // Update Driver Status for Dashboard
-    driver.isAvailable = false;
-    driver.driverStatus = "offline";
+    // Only set offline if the driver does NOT have an active trip
+    const hasActiveTrip = ["Accepted", "On-trip"].includes(driver.driverStatus);
+    if (!hasActiveTrip) {
+      driver.isAvailable = false;
+      driver.driverStatus = "offline";
+    }
     await driver.save();
 
     res.json({
