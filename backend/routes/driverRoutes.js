@@ -9,7 +9,7 @@ const path = require("path");
 const fs = require("fs");
 const Driver = require("../models/Driver");
 const PunchRecord = require("../models/PunchRecord");
-const { sendCredentialsEmail } = require("../utils/emailService"); 
+const { sendCredentialsEmail } = require("../utils/emailService");
 
 
 // --- MULTER CONFIGURATION ---
@@ -80,7 +80,7 @@ router.post("/register", async (req, res) => {
       gender: gender.toLowerCase(),
       dob: dobDate,
       address,
-      password: randomPassword, 
+      password: randomPassword,
       role: "driver"
     });
 
@@ -88,14 +88,14 @@ router.post("/register", async (req, res) => {
 
     // 7. Send Email
     try {
-        await sendCredentialsEmail(email, name, randomPassword, 'driver');
+      await sendCredentialsEmail(email, name, randomPassword, 'driver');
     } catch (emailErr) {
-        console.error("Failed to send email:", emailErr);
+      console.error("Failed to send email:", emailErr);
     }
 
-    res.status(201).json({ 
-        message: "Driver registered successfully.", 
-        data: newDriver 
+    res.status(201).json({
+      message: "Driver registered successfully.",
+      data: newDriver
     });
 
   } catch (err) {
@@ -116,8 +116,8 @@ router.get("/check-license/:license", async (req, res) => {
     }
 
     const existingDriver = await Driver.findOne(query);
-    
-    res.json({ 
+
+    res.json({
       exists: !!existingDriver,
       driverName: existingDriver?.name || null
     });
@@ -228,7 +228,7 @@ router.post("/:id/punch", async (req, res) => {
   try {
     const driverId = req.params.id;
     const driver = await Driver.findById(driverId);
-    
+
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
     }
@@ -271,9 +271,9 @@ router.post("/:id/punch", async (req, res) => {
     driver.driverStatus = "available";
     await driver.save();
 
-    res.json({ 
-      message: "Punch in recorded successfully.", 
-      data: driver 
+    res.json({
+      message: "Punch in recorded successfully.",
+      data: driver
     });
   } catch (err) {
     console.error("Punch Driver Error:", err);
@@ -286,7 +286,7 @@ router.post("/:id/punch-out", async (req, res) => {
   try {
     const driverId = req.params.id;
     const driver = await Driver.findById(driverId);
-    
+
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
     }
@@ -327,14 +327,17 @@ router.post("/:id/punch-out", async (req, res) => {
     activeRecord.status = "Completed";
     await activeRecord.save();
 
-    // Update Driver Status for Dashboard
-    driver.isAvailable = false;
-    driver.driverStatus = "offline";
+    // Only set offline if the driver does NOT have an active trip
+    const hasActiveTrip = ["Accepted", "On-trip"].includes(driver.driverStatus);
+    if (!hasActiveTrip) {
+      driver.isAvailable = false;
+      driver.driverStatus = "offline";
+    }
     await driver.save();
 
-    res.json({ 
-      message: "Punch out recorded successfully.", 
-      data: driver 
+    res.json({
+      message: "Punch out recorded successfully.",
+      data: driver
     });
   } catch (err) {
     console.error("Punch Out Driver Error:", err);
@@ -358,7 +361,7 @@ router.get("/:id/punch-history", async (req, res) => {
       punchOutTime: record.punchOut
     }));
 
-    res.json({ 
+    res.json({
       data: formattedHistory
     });
   } catch (err) {
