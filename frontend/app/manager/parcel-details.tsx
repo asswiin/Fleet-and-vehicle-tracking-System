@@ -290,10 +290,10 @@ const ParcelDetailsScreen = () => {
         </View>
 
         {/* Trip Assignment Info - Show if parcel is assigned to a trip */}
-        {parcel.tripId && (
+        {parcel.tripId && (parcel.status === "Pending" || parcel.status === "Confirmed" || parcel.status === "In Transit" || parcel.status === "Delivered" || parcel.status === "Assigned") && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
+              <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}> 
                 <Truck size={18} color="#2563EB" />
               </View>
               <Text style={styles.sectionTitle}>Trip Assignment</Text>
@@ -309,7 +309,7 @@ const ParcelDetailsScreen = () => {
                   </Text>
                 </View>
               </View>
-              
+
               {/* Driver Details */}
               {getDriverInfo(parcel.assignedDriver) && (
                 <View style={styles.assignmentSection}>

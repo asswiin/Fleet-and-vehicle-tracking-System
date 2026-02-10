@@ -60,55 +60,106 @@ const TripDetailsScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Trip Info */}
         <View style={styles.infoCard}>
           <Text style={styles.label}>Trip ID</Text>
           <Text style={styles.value}>{trip.tripId}</Text>
-          
           <View style={styles.divider} />
-          
           <Text style={styles.label}>Status</Text>
-          <Text style={[styles.value, { color: trip.status === 'declined' ? '#EF4444' : '#10B981' }]}>
+          <Text style={[styles.value, { color: trip.status === 'declined' ? '#EF4444' : '#10B981' }]}> 
             {trip.status.toUpperCase()}
           </Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Assigned Resources</Text>
-        
-        <View style={styles.resourceCard}>
-          <View style={styles.resourceRow}>
-            <User size={24} color="#64748B" />
-            <View style={styles.resourceInfo}>
-              <Text style={styles.resourceLabel}>Driver</Text>
-              <Text style={styles.resourceValue}>{trip.driverId?.name || "Unassigned"}</Text>
-              <Text style={styles.resourceSub}>{trip.driverId?.phone}</Text>
+        {/* Assigned Resources */}
+        <View style={styles.sectionBox}>
+          <Text style={styles.sectionTitle}>Assigned Resources</Text>
+          <View style={styles.resourceCard}>
+            <View style={styles.resourceRow}>
+              <User size={24} color="#64748B" />
+              <View style={styles.resourceInfo}>
+                <Text style={styles.resourceLabel}>Driver</Text>
+                <Text style={styles.resourceValue}>{trip.driverId?.name || "Unassigned"}</Text>
+                <Text style={styles.resourceSub}>{trip.driverId?.phone}</Text>
+              </View>
             </View>
-          </View>
-          
-          <View style={styles.divider} />
-          
-          <View style={styles.resourceRow}>
-            <Truck size={24} color="#64748B" />
-            <View style={styles.resourceInfo}>
-              <Text style={styles.resourceLabel}>Vehicle</Text>
-              <Text style={styles.resourceValue}>{trip.vehicleId?.regNumber || "Unassigned"}</Text>
-              <Text style={styles.resourceSub}>{trip.vehicleId?.model}</Text>
+            <View style={styles.divider} />
+            <View style={styles.resourceRow}>
+              <Truck size={24} color="#64748B" />
+              <View style={styles.resourceInfo}>
+                <Text style={styles.resourceLabel}>Vehicle</Text>
+                <Text style={styles.resourceValue}>{trip.vehicleId?.regNumber || "Unassigned"}</Text>
+                <Text style={styles.resourceSub}>{trip.vehicleId?.model}</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Parcels ({trip.parcelIds.length})</Text>
-        {trip.parcelIds.map((parcel, index) => (
-          <View key={index} style={styles.parcelCard}>
-            <View style={styles.row}>
-              <Package size={16} color="#2563EB" />
-              <Text style={styles.parcelText}>{parcel.trackingId}</Text>
-            </View>
-            <View style={styles.row}>
-              <MapPin size={16} color="#64748B" />
-              <Text style={styles.parcelSubText} numberOfLines={1}>{parcel.recipient?.address}</Text>
-            </View>
+        {/* Destinations Section */}
+        {trip.deliveryDestinations && trip.deliveryDestinations.length > 0 && (
+          <View style={styles.sectionBox}>
+            <Text style={styles.sectionTitle}>Destinations</Text>
+            {trip.deliveryDestinations.map((dest, idx) => (
+              <View key={idx} style={styles.destinationCard}>
+                <View style={styles.row}>
+                  <MapPin size={16} color="#2563EB" />
+                  <Text style={styles.destinationName}>{dest.locationName}</Text>
+                </View>
+                <Text style={styles.destinationDetail}>Order: <Text style={styles.destinationValue}>{dest.order}</Text></Text>
+                <Text style={styles.destinationDetail}>Status: <Text style={styles.destinationValue}>{dest.deliveryStatus}</Text></Text>
+                {dest.latitude && dest.longitude && (
+                  <Text style={styles.destinationDetail}>Coords: <Text style={styles.destinationValue}>{dest.latitude}, {dest.longitude}</Text></Text>
+                )}
+                {dest.notes && <Text style={styles.destinationDetail}>Notes: <Text style={styles.destinationValue}>{dest.notes}</Text></Text>}
+              </View>
+            ))}
           </View>
-        ))}
+        )}
+
+        {/* Parcels Section */}
+        <View style={styles.sectionBox}>
+          <Text style={styles.sectionTitle}>Parcels ({trip.parcelIds.length})</Text>
+          {trip.parcelIds.map((parcel, index) => (
+            <View key={index} style={styles.parcelCard}>
+              {/* Tracking ID */}
+              <View style={styles.row}>
+                <Package size={16} color="#2563EB" />
+                <Text style={styles.parcelText}>{parcel.trackingId}</Text>
+              </View>
+              {/* Weight & Type */}
+              <View style={styles.row}>
+                <Text style={styles.resourceLabel}>Weight:</Text>
+                <Text style={styles.parcelSubText}>{parcel.weight ? `${parcel.weight} kg` : 'N/A'}</Text>
+                <Text style={styles.resourceLabel}>Type:</Text>
+                <Text style={styles.parcelSubText}>{parcel.type || 'N/A'}</Text>
+              </View>
+              {/* Destination */}
+              <View style={styles.row}>
+                <MapPin size={16} color="#64748B" />
+                <Text style={styles.resourceLabel}>Destination:</Text>
+                <Text style={styles.parcelSubText} numberOfLines={1}>{parcel.recipient?.address || 'N/A'}</Text>
+              </View>
+              {/* Sender Details */}
+              {parcel.sender && (
+                <View style={{marginTop: 4}}>
+                  <Text style={styles.resourceLabel}>Sender:</Text>
+                  <Text style={styles.parcelSubText}>Name: {parcel.sender.name}</Text>
+                  <Text style={styles.parcelSubText}>Phone: {parcel.sender.phone}</Text>
+                  <Text style={styles.parcelSubText}>Address: {parcel.sender.address}</Text>
+                </View>
+              )}
+              {/* Receiver Details */}
+              {parcel.recipient && (
+                <View style={{marginTop: 4}}>
+                  <Text style={styles.resourceLabel}>Receiver:</Text>
+                  <Text style={styles.parcelSubText}>Name: {parcel.recipient.name}</Text>
+                  <Text style={styles.parcelSubText}>Phone: {parcel.recipient.phone}</Text>
+                  <Text style={styles.parcelSubText}>Address: {parcel.recipient.address}</Text>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

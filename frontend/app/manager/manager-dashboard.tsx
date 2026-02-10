@@ -47,6 +47,7 @@ const ManagerDashboard = () => {
   const selectedBranch = params.branch || "";
   
   const [managerData, setManagerData] = useState<UserType | null>(null);
+  const [declinedCount, setDeclinedCount] = useState(0);
 
   // Fetch Manager Details
   const fetchManagerData = useCallback(async () => {
@@ -64,6 +65,16 @@ const ManagerDashboard = () => {
   useFocusEffect(
     useCallback(() => {
       fetchManagerData();
+      // Fetch declined parcels count
+      const fetchDeclined = async () => {
+        const res = await api.getDeclinedParcels();
+        if (res.ok && Array.isArray(res.data)) {
+          setDeclinedCount(res.data.length);
+        } else {
+          setDeclinedCount(0);
+        }
+      };
+      fetchDeclined();
     }, [fetchManagerData])
   );
 
@@ -172,12 +183,18 @@ const ManagerDashboard = () => {
 
 
 
+
 <TouchableOpacity 
   style={styles.actionItem}
-  onPress={() => router.push("/manager/trip-list" as any)} // NEW LINK
+  onPress={() => router.push("/manager/trip-list" as any)}
 >
-  <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
+  <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}> 
     <Truck size={24} color="#0284C7" />
+    {declinedCount > 0 && (
+      <View style={styles.declinedBadge}>
+        <Text style={styles.declinedBadgeText}>{declinedCount}</Text>
+      </View>
+    )}
   </View>
   <Text style={styles.actionLabel}>Manage Trips</Text>
 </TouchableOpacity>
@@ -287,6 +304,27 @@ const styles = StyleSheet.create({
   actionItem: { alignItems: "center", width: "22%" },
   actionIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 6 },
   actionLabel: { fontSize: 10, fontWeight: "600", color: "#4B5563" },
+  declinedBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  declinedBadgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 11,
+    textAlign: 'center',
+  },
   bottomNav: {
     position: "absolute",
     bottom: 0,

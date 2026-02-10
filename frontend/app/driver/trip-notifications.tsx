@@ -72,9 +72,14 @@ const TripNotificationsScreen = () => {
                     {item.status.toUpperCase()}
                   </Text>
                 </View>
+                {/* Show a special icon/label if this is a trip_update notification */}
+                {item.type === 'trip_update' && (
+                  <View style={{ marginLeft: 8, backgroundColor: '#FDE68A', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ color: '#B45309', fontSize: 10, fontWeight: '700' }}>VEHICLE CHANGED</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.message}>{item.message}</Text>
-              
               {/* Parcels and Weight Info */}
               {item.parcelIds && item.parcelIds.length > 0 && (
                 <View style={styles.infoRow}>
@@ -84,7 +89,6 @@ const TripNotificationsScreen = () => {
                   </Text>
                 </View>
               )}
-              
               {/* Destination Info */}
               {item.parcelIds && item.parcelIds.length > 0 && (
                 <View style={styles.destinationContainer}>
@@ -94,7 +98,6 @@ const TripNotificationsScreen = () => {
                   </Text>
                 </View>
               )}
-              
               <View style={styles.cardFooter}>
                 <Clock size={14} color="#94A3B8" />
                 <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</Text>

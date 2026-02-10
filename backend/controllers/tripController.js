@@ -743,6 +743,7 @@ exports.updateTripResources = async (req, res) => {
 
     // --- NOTIFY DRIVER OF CHANGES ---
     // Only send notification if this is an edit (not first assignment) and only one notification per edit
+    // Only send vehicle change notification if trip is still pending (not declined)
     if ((isDriverChanged || isVehicleChanged) && (oldDriverId || oldVehicleId)) {
       // If driver changed, send reassign_driver notification
       if (isDriverChanged) {
@@ -762,22 +763,25 @@ exports.updateTripResources = async (req, res) => {
         });
         await newNotification.save();
       } else if (isVehicleChanged) {
-        // Only send one notification for vehicle change
-        const currentVehicle = await Vehicle.findById(trip.vehicleId);
-        const newNotification = new Notification({
-          driverId: trip.driverId,
-          vehicleId: trip.vehicleId,
-          parcelIds: trip.parcelIds,
-          tripId: trip.tripId,
-          type: "trip_update",
-          status: "pending",
-          message: `Trip #${trip.tripId} vehicle has been updated. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
-          assignedBy: managerId || trip.assignedBy,
-          startLocation: trip.startLocation,
-          deliveryLocations: trip.deliveryDestinations,
-          recipientType: "driver"
-        });
-        await newNotification.save();
+        // Only send vehicle update notification if trip is still pending (driver has not declined)
+        if (trip.status === "pending") {
+          const currentVehicle = await Vehicle.findById(trip.vehicleId);
+          const newNotification = new Notification({
+            driverId: trip.driverId,
+            vehicleId: trip.vehicleId,
+            parcelIds: trip.parcelIds,
+            tripId: trip.tripId,
+            type: "trip_update",
+            status: "pending",
+            message: `Trip #${trip.tripId} vehicle has been updated. Vehicle: ${currentVehicle ? currentVehicle.regNumber : 'N/A'}`,
+            assignedBy: managerId || trip.assignedBy,
+            startLocation: trip.startLocation,
+            deliveryLocations: trip.deliveryDestinations,
+            recipientType: "driver"
+          });
+          await newNotification.save();
+        }
+        // If trip is not pending (e.g., declined), do not send vehicle update notification
       }
     }
 
