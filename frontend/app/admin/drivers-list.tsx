@@ -78,12 +78,8 @@ const DriversListScreen = () => {
           driver.driverStatus !== "Accepted" &&
           driver.driverStatus !== "pending";
       } else if (selectedTab === "Offline") {
-        // Offline = not punched in (and not on trip, accepted or pending)
-        statusMatch = driver.isAvailable === false &&
-          driver.status !== "Resigned" &&
-          driver.driverStatus !== "On-trip" &&
-          driver.driverStatus !== "Accepted" &&
-          driver.driverStatus !== "pending";
+        // Offline = not punched in (and not resigned)
+        statusMatch = driver.isAvailable === false && driver.status !== "Resigned";
       } else if (selectedTab === "Pending") {
         // Pending = driverStatus is explicitly 'pending'
         statusMatch = driver.driverStatus === "pending";
