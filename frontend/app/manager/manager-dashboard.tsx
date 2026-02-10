@@ -38,15 +38,16 @@ const ManagerDashboard = () => {
   const params = useLocalSearchParams();
   
   // Dynamic Name & ID
-  const displayName = params.userName || "Manager";
-  const userId = params.userId;
+  // Use managerData.name if available, else params.userName, else 'Manager'
+  const [managerData, setManagerData] = useState<UserType | null>(null);
+  const userId = params.userId || managerData?._id;
+  const displayName = managerData?.name || params.userName || "Manager";
   
   // Get role selection params for logout
   const selectedRole = params.role || "manager";
   const selectedDistrict = params.district || "";
   const selectedBranch = params.branch || "";
   
-  const [managerData, setManagerData] = useState<UserType | null>(null);
   const [declinedCount, setDeclinedCount] = useState(0);
 
   // Fetch Manager Details
@@ -79,13 +80,15 @@ const ManagerDashboard = () => {
   );
 
   const navigateToProfile = () => {
-    if (userId) {
+    // Always try to use managerData._id if available
+    const id = userId || managerData?._id;
+    if (id) {
       router.push({
         pathname: "/manager/manager-profile",
-        params: { userId: userId }
+        params: { userId: id }
       } as any);
     } else {
-      console.warn("User ID missing, cannot navigate to profile.");
+      Alert.alert("Error", "User ID missing, cannot navigate to profile.");
     }
   };
 

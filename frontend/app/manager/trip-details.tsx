@@ -130,8 +130,6 @@ const TripDetailsScreen = () => {
               <View style={styles.row}>
                 <Text style={styles.resourceLabel}>Weight:</Text>
                 <Text style={styles.parcelSubText}>{parcel.weight ? `${parcel.weight} kg` : 'N/A'}</Text>
-                <Text style={styles.resourceLabel}>Type:</Text>
-                <Text style={styles.parcelSubText}>{parcel.type || 'N/A'}</Text>
               </View>
               {/* Destination */}
               <View style={styles.row}>
@@ -140,12 +138,12 @@ const TripDetailsScreen = () => {
                 <Text style={styles.parcelSubText} numberOfLines={1}>{parcel.recipient?.address || 'N/A'}</Text>
               </View>
               {/* Sender Details */}
-              {parcel.sender && (
+              {(parcel as any).sender && (
                 <View style={{marginTop: 4}}>
                   <Text style={styles.resourceLabel}>Sender:</Text>
-                  <Text style={styles.parcelSubText}>Name: {parcel.sender.name}</Text>
-                  <Text style={styles.parcelSubText}>Phone: {parcel.sender.phone}</Text>
-                  <Text style={styles.parcelSubText}>Address: {parcel.sender.address}</Text>
+                  <Text style={styles.parcelSubText}>Name: {(parcel as any).sender.name}</Text>
+                  <Text style={styles.parcelSubText}>Phone: {(parcel as any).sender.phone}</Text>
+                  <Text style={styles.parcelSubText}>Address: {(parcel as any).sender.address}</Text>
                 </View>
               )}
               {/* Receiver Details */}
@@ -153,7 +151,7 @@ const TripDetailsScreen = () => {
                 <View style={{marginTop: 4}}>
                   <Text style={styles.resourceLabel}>Receiver:</Text>
                   <Text style={styles.parcelSubText}>Name: {parcel.recipient.name}</Text>
-                  <Text style={styles.parcelSubText}>Phone: {parcel.recipient.phone}</Text>
+                  {(parcel.recipient as any).phone && <Text style={styles.parcelSubText}>Phone: {(parcel.recipient as any).phone}</Text>}
                   <Text style={styles.parcelSubText}>Address: {parcel.recipient.address}</Text>
                 </View>
               )}
@@ -188,6 +186,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   parcelText: { fontSize: 14, fontWeight: "600", color: "#0F172A" },
   parcelSubText: { fontSize: 12, color: "#64748B", flex: 1 },
+  sectionBox: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 20 },
+  destinationCard: { backgroundColor: "#F8FAFC", padding: 12, borderRadius: 12, marginBottom: 8 },
+  destinationName: { fontSize: 14, fontWeight: "600", color: "#0F172A", marginLeft: 8 },
+  destinationDetail: { fontSize: 12, color: "#64748B", marginTop: 4 },
+  destinationValue: { fontWeight: "600", color: "#0F172A" },
 });
 
 export default TripDetailsScreen;

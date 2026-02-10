@@ -33,7 +33,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "http://172.20.10.5:5000"
+      "apiUrl": "http://172.20.10.5:5000",
+      "router": {},
+      "eas": {
+        "projectId": "41cd8a6c-cfda-4a04-b432-2463dcf6e8c1"
+      }
     }
   }
 }
