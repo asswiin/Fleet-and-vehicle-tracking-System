@@ -16,19 +16,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Package, User, MapPin } from "lucide-react-native";
 import { api, type Parcel } from "../../utils/api";
 
-type Driver = {
-  _id: string;
-  name: string;
-  phone: string;
-  email?: string;
-};
 
-type Vehicle = {
-  _id: string;
-  licensePlate: string;
-  model: string;
-  capacity?: number;
-};
 
 const EditParcelScreen = () => {
   const router = useRouter();
@@ -39,8 +27,7 @@ const EditParcelScreen = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
 
   const [form, setForm] = useState({
     senderName: "",
@@ -53,6 +40,7 @@ const EditParcelScreen = () => {
     senderState: "Kerala",
     recipientName: "",
     recipientPhone: "",
+    recipientEmail: "",
     recipientHouse: "",
     recipientStreet: "",
     recipientCity: "",
@@ -61,8 +49,6 @@ const EditParcelScreen = () => {
     weight: "",
     parcelType: "",
     paymentAmount: "",
-    assignedDriver: "",
-    assignedVehicle: "",
   });
 
   const normalizePhone = (raw?: string) => {
@@ -87,11 +73,11 @@ const EditParcelScreen = () => {
       setParcel(p);
       const senderAddr = p.sender?.address || "";
       const recipientAddr = p.recipient?.address || "";
-      
+
       // Parse address string to components
       const senderParts = senderAddr.split(",").map((s: string) => s.trim());
       const recipientParts = recipientAddr.split(",").map((s: string) => s.trim());
-      
+
       setForm({
         senderName: p.sender?.name || "",
         senderPhone: normalizePhone(p.sender?.phone),
@@ -103,6 +89,7 @@ const EditParcelScreen = () => {
         senderState: senderParts[4] || "Kerala",
         recipientName: p.recipient?.name || "",
         recipientPhone: normalizePhone(p.recipient?.phone),
+        recipientEmail: p.recipient?.email || "",
         recipientHouse: recipientParts[0] || "",
         recipientStreet: recipientParts[1] || "",
         recipientCity: recipientParts[2] || "",
@@ -111,8 +98,6 @@ const EditParcelScreen = () => {
         weight: p.weight?.toString() || "",
         parcelType: p.type || "",
         paymentAmount: p.paymentAmount?.toString() || "",
-        assignedDriver: typeof p.assignedDriver === "object" ? p.assignedDriver?._id?.toString() || "" : p.assignedDriver || "",
-        assignedVehicle: typeof p.assignedVehicle === "object" ? p.assignedVehicle?._id?.toString() || "" : p.assignedVehicle || "",
       });
     } else {
       setError(response.error || "Failed to load parcel");
@@ -120,32 +105,18 @@ const EditParcelScreen = () => {
     setLoading(false);
   }, [parcelId]);
 
-  const loadDrivers = async () => {
-    const response = await api.getDrivers();
-    if (response.ok && response.data) {
-      setDrivers(response.data);
-    }
-  };
 
-  const loadVehicles = async () => {
-    const response = await api.getVehicles();
-    if (response.ok && response.data) {
-      setVehicles(response.data);
-    }
-  };
 
   useEffect(() => {
     loadParcel();
-    loadDrivers();
-    loadVehicles();
   }, [loadParcel]);
 
   const validate = () => {
     if (!form.senderName || !form.senderPhone || !form.senderEmail || !form.senderHouse ||
-        !form.senderStreet || !form.senderCity || !form.senderDistrict ||
-        !form.recipientName || !form.recipientPhone || !form.recipientHouse ||
-        !form.recipientStreet || !form.recipientCity || !form.recipientDistrict ||
-        !form.weight || !form.parcelType || !form.paymentAmount) {
+      !form.senderStreet || !form.senderCity || !form.senderDistrict ||
+      !form.recipientName || !form.recipientPhone || !form.recipientEmail || !form.recipientHouse ||
+      !form.recipientStreet || !form.recipientCity || !form.recipientDistrict ||
+      !form.weight || !form.parcelType || !form.paymentAmount) {
       Alert.alert("Missing Fields", "Please fill in all required fields.");
       return false;
     }
@@ -158,7 +129,12 @@ const EditParcelScreen = () => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.senderEmail)) {
-      Alert.alert("Invalid Email", "Enter a valid sender email address.");
+      Alert.alert("Invalid Sender Email", "Enter a valid sender email address.");
+      return false;
+    }
+
+    if (!emailRegex.test(form.recipientEmail)) {
+      Alert.alert("Invalid Recipient Email", "Enter a valid recipient email address.");
       return false;
     }
 
@@ -195,13 +171,12 @@ const EditParcelScreen = () => {
       recipient: {
         name: form.recipientName.trim(),
         phone: `+91${form.recipientPhone}`,
+        email: form.recipientEmail.trim(),
         address: recipientAddress,
       },
       weight: Number(form.weight),
       type: form.parcelType.trim(),
       paymentAmount: Number(form.paymentAmount),
-      assignedDriver: form.assignedDriver.trim() || null,
-      assignedVehicle: form.assignedVehicle.trim() || null,
     };
 
     const response = await api.updateParcel(parcelId, payload);
@@ -273,7 +248,7 @@ const EditParcelScreen = () => {
 
           {/* Sender Details */}
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}> 
+            <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
               <User size={18} color="#2563EB" />
             </View>
             <Text style={styles.sectionTitle}>Sender Details</Text>
@@ -318,7 +293,7 @@ const EditParcelScreen = () => {
 
           {/* Recipient Details */}
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}> 
+            <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
               <MapPin size={18} color="#D97706" />
             </View>
             <Text style={styles.sectionTitle}>Recipient Details</Text>
@@ -329,6 +304,11 @@ const EditParcelScreen = () => {
               value={form.recipientPhone}
               onChange={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, recipientPhone: t }); }}
               placeholder="9876543210"
+            />
+            <LabeledInput label="Email" value={form.recipientEmail}
+              keyboardType="email-address" autoCapitalize="none"
+              onChange={(t) => setForm({ ...form, recipientEmail: t })}
+              placeholder="recipient@example.com"
             />
             <LabeledInput label="House / Flat" value={form.recipientHouse} onChange={(t) => setForm({ ...form, recipientHouse: t })} />
             <LabeledInput label="Street" value={form.recipientStreet} onChange={(t) => setForm({ ...form, recipientStreet: t })} />
@@ -358,7 +338,7 @@ const EditParcelScreen = () => {
 
           {/* Parcel Details */}
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}> 
+            <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}>
               <Package size={18} color="#166534" />
             </View>
             <Text style={styles.sectionTitle}>Parcel Details</Text>
@@ -373,8 +353,7 @@ const EditParcelScreen = () => {
               onChange={(t) => setForm({ ...form, paymentAmount: t })}
               placeholder="499"
             />
-            <LabeledInput label="Assigned Driver ID" value={form.assignedDriver} onChange={(t) => setForm({ ...form, assignedDriver: t })} placeholder="Driver ID" />
-            <LabeledInput label="Assigned Vehicle ID" value={form.assignedVehicle} onChange={(t) => setForm({ ...form, assignedVehicle: t })} placeholder="Vehicle ID" />
+
           </View>
 
           <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.7 }]} disabled={submitting} onPress={handleSubmit}>
@@ -395,7 +374,7 @@ const EditParcelScreen = () => {
   );
 };
 
-const LabeledInput = ({ label, value, onChange, placeholder, keyboardType, maxLength, multiline, numberOfLines, autoCapitalize, icon, prefixText } : {
+const LabeledInput = ({ label, value, onChange, placeholder, keyboardType, maxLength, multiline, numberOfLines, autoCapitalize, icon, prefixText }: {
   label: string;
   value: string;
   onChange: (text: string) => void;

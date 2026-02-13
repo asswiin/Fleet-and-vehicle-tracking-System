@@ -55,7 +55,7 @@ async function seedDatabase() {
     // Verify users exist
     const allUsers = await User.find().select("-password");
     console.log(`\n📊 Total users in database: ${allUsers.length}`);
-    
+
     await mongoose.connection.close();
     console.log("\n✅ Database seeded successfully!");
   } catch (err) {

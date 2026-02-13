@@ -25,7 +25,7 @@ import {
   Eye,
 } from "lucide-react-native";
 import { api, Notification } from "../../utils/api";
-import { MapView, Marker, PROVIDER_DEFAULT, isMapAvailable } from "../../components/MapViewWrapper.native";
+import { MapView, Marker, PROVIDER_DEFAULT, isMapAvailable } from "@/components/MapViewWrapper";
 
 const { width, height } = Dimensions.get("window");
 
@@ -73,14 +73,14 @@ const TripConfirmationScreen = () => {
 
   const handleAccept = async () => {
     if (!notification) return;
-    
+
     setProcessing(true);
     try {
       const response = await api.updateNotificationStatus(notificationId, "accepted");
       if (response.ok) {
         Alert.alert(
-          "Trip Accepted! ✓", 
-          `Your status is now "Accepted".\n${notification.parcelIds.length} parcel(s) marked as "Confirmed".\n\nYou can now start your journey.`, 
+          "Trip Accepted! ✓",
+          `Your status is now "Accepted".\n${notification.parcelIds.length} parcel(s) marked as "Confirmed".\n\nYou can now start your journey.`,
           [
             {
               text: "OK",
@@ -190,11 +190,11 @@ const TripConfirmationScreen = () => {
   // Calculate map region to fit all markers
   const getMapRegion = () => {
     const allCoords: { latitude: number; longitude: number }[] = [];
-    
+
     if (startLocation?.latitude && startLocation?.longitude) {
       allCoords.push({ latitude: startLocation.latitude, longitude: startLocation.longitude });
     }
-    
+
     deliveryLocations.forEach((loc) => {
       if (loc.latitude && loc.longitude) {
         allCoords.push({ latitude: loc.latitude, longitude: loc.longitude });
@@ -213,7 +213,7 @@ const TripConfirmationScreen = () => {
 
     const latitudes = allCoords.map(c => c.latitude);
     const longitudes = allCoords.map(c => c.longitude);
-    
+
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);
     const minLng = Math.min(...longitudes);
@@ -267,7 +267,7 @@ const TripConfirmationScreen = () => {
             <View style={styles.sectionHeader}>
               <Route size={20} color="#2563EB" />
               <Text style={styles.sectionTitle}>Delivery Route</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.expandMapBtn}
                 onPress={() => setShowFullMap(!showFullMap)}
               >
@@ -302,7 +302,7 @@ const TripConfirmationScreen = () => {
                       </View>
                     </Marker>
                   )}
-                  
+
                   {/* Delivery Location Markers */}
                   {deliveryLocations.map((location, index) => {
                     const parcel = notification.parcelIds.find(p => p._id === location.parcelId);
@@ -378,7 +378,7 @@ const TripConfirmationScreen = () => {
           {notification.parcelIds.map((parcel, index) => {
             const parcelLocation = getParcelLocation(parcel._id);
             const markerColor = MARKER_COLORS[index % MARKER_COLORS.length];
-            
+
             return (
               <View key={parcel._id} style={styles.parcelCard}>
                 <View style={styles.parcelHeader}>
@@ -398,7 +398,7 @@ const TripConfirmationScreen = () => {
                     <Text style={styles.weightText}>{parcel.weight} kg</Text>
                   </View>
                 </View>
-                
+
                 {/* Location Details */}
                 {parcelLocation && (
                   <View style={styles.locationDetails}>
@@ -413,7 +413,7 @@ const TripConfirmationScreen = () => {
                     </Text>
                   </View>
                 )}
-                
+
                 {/* Recipient Address if available */}
                 {parcel.recipient?.address && (
                   <View style={styles.addressContainer}>
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16, paddingBottom: 100 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { fontSize: 16, color: "#64748B" },
-  
+
   tripIdCard: {
     backgroundColor: "#667eea",
     borderRadius: 16,

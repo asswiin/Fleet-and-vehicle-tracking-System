@@ -33,7 +33,7 @@ import {
   ExternalLink,
 } from "lucide-react-native";
 import { api, Notification } from "../../utils/api";
-import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "../../components/MapViewWrapper.native";
+import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "@/components/MapViewWrapper";
 
 const { width, height } = Dimensions.get("window");
 
@@ -58,7 +58,7 @@ const TripAssignmentDetailScreen = () => {
   const [focusedParcelId, setFocusedParcelId] = useState<string | null>(null);
 
   // Route State
-  const [routeCoordinates, setRouteCoordinates] = useState<{latitude: number, longitude: number}[]>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
   const [routeDistance, setRouteDistance] = useState<string>("0.0");
   const [routeDuration, setRouteDuration] = useState<string>("0m");
   const [isRouting, setIsRouting] = useState(false);
@@ -97,8 +97,8 @@ const TripAssignmentDetailScreen = () => {
 
   // --- OSRM Routing Logic ---
 
-  const decodePolyline = (encoded: string): {latitude: number, longitude: number}[] => {
-    const points: {latitude: number, longitude: number}[] = [];
+  const decodePolyline = (encoded: string): { latitude: number, longitude: number }[] => {
+    const points: { latitude: number, longitude: number }[] = [];
     let index = 0, lat = 0, lng = 0;
 
     while (index < encoded.length) {
@@ -157,7 +157,7 @@ const TripAssignmentDetailScreen = () => {
         .join(';');
 
       const url = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=polyline`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -165,7 +165,7 @@ const TripAssignmentDetailScreen = () => {
         const route = data.routes[0];
         const points = decodePolyline(route.geometry);
         setRouteCoordinates(points);
-        
+
         const km = route.distance / 1000;
         setRouteDistance(km.toFixed(1));
         setRouteDuration(formatDuration(route.duration));
@@ -298,20 +298,20 @@ const TripAssignmentDetailScreen = () => {
     try {
       // Build waypoints from delivery locations
       const sortedLocations = [...notification.deliveryLocations].sort((a, b) => (a.order || 0) - (b.order || 0));
-      
+
       const origin = `${notification.startLocation.latitude},${notification.startLocation.longitude}`;
       const destination = `${sortedLocations[sortedLocations.length - 1].latitude},${sortedLocations[sortedLocations.length - 1].longitude}`;
-      
+
       // Build waypoints string (exclude last location since it's the destination)
       const waypointsArray = sortedLocations.slice(0, -1).map(loc => `${loc.latitude},${loc.longitude}`);
       const waypoints = waypointsArray.length > 0 ? `&waypoints=${waypointsArray.join('|')}` : '';
-      
+
       // Construct Google Maps URL
       const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints}`;
-      
+
       // Check if URL can be opened
       const canOpen = await Linking.canOpenURL(url);
-      
+
       if (canOpen) {
         await Linking.openURL(url);
       } else {
@@ -330,11 +330,11 @@ const TripAssignmentDetailScreen = () => {
 
   const getMapRegion = () => {
     const allCoords: { latitude: number; longitude: number }[] = [];
-    
+
     if (startLocation?.latitude && startLocation?.longitude) {
       allCoords.push({ latitude: startLocation.latitude, longitude: startLocation.longitude });
     }
-    
+
     deliveryLocations.forEach((loc) => {
       if (loc.latitude && loc.longitude) {
         allCoords.push({ latitude: loc.latitude, longitude: loc.longitude });
@@ -352,7 +352,7 @@ const TripAssignmentDetailScreen = () => {
 
     const latitudes = allCoords.map(c => c.latitude);
     const longitudes = allCoords.map(c => c.longitude);
-    
+
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);
     const minLng = Math.min(...longitudes);
@@ -371,8 +371,8 @@ const TripAssignmentDetailScreen = () => {
 
   const getParcelLocation = (parcelId: string) => {
     return deliveryLocations.find(loc => {
-      const locParcelId = typeof loc.parcelId === 'object' 
-        ? (loc.parcelId as any)._id || (loc.parcelId as any).toString() 
+      const locParcelId = typeof loc.parcelId === 'object'
+        ? (loc.parcelId as any)._id || (loc.parcelId as any).toString()
         : loc.parcelId;
       return locParcelId === parcelId || String(locParcelId) === String(parcelId);
     });
@@ -433,7 +433,7 @@ const TripAssignmentDetailScreen = () => {
       {/* Content Card */}
       <View style={styles.contentCard}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
+
           {/* Map Section */}
           <View style={styles.mapSection}>
             <View style={styles.mapHeader}>
@@ -451,21 +451,21 @@ const TripAssignmentDetailScreen = () => {
               {hasLocationData && (
                 <View style={styles.mapActions}>
                   {focusedParcelId && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.resetMapBtn}
                       onPress={resetMapView}
                     >
                       <Text style={styles.resetMapText}>Show All</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.googleMapsBtn}
                     onPress={openGoogleMaps}
                   >
                     <ExternalLink size={14} color="#fff" />
                     <Text style={styles.googleMapsBtnText}>Google Maps</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.expandMapBtn}
                     onPress={() => setShowFullMap(!showFullMap)}
                   >
@@ -513,7 +513,7 @@ const TripAssignmentDetailScreen = () => {
                       </View>
                     </Marker>
                   )}
-                  
+
                   {/* Delivery Location Markers */}
                   {deliveryLocations.map((location, index) => {
                     const parcel = notification.parcelIds?.find(p => p._id === location.parcelId);
@@ -529,7 +529,7 @@ const TripAssignmentDetailScreen = () => {
                         description={parcel?.recipient?.name || `Delivery ${index + 1}`}
                       >
                         <View style={[
-                          styles.deliveryMarker, 
+                          styles.deliveryMarker,
                           { backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length] },
                           isFocused && styles.focusedMarker
                         ]}>
@@ -553,7 +553,7 @@ const TripAssignmentDetailScreen = () => {
                   </Text>
                 </View>
               )}
-              
+
               {isRouting && (
                 <View style={styles.routingLoader}>
                   <ActivityIndicator size="small" color="#2563EB" />
@@ -618,7 +618,7 @@ const TripAssignmentDetailScreen = () => {
           <View style={styles.divider} />
 
           {/* Parcels Section */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.parcelSectionHeader}
             onPress={() => setExpandedParcels(!expandedParcels)}
           >
@@ -644,10 +644,10 @@ const TripAssignmentDetailScreen = () => {
             const parcelLocation = getParcelLocation(parcel._id);
             const markerColor = MARKER_COLORS[index % MARKER_COLORS.length];
             const isFocused = focusedParcelId === parcel._id;
-            
+
             return (
-              <TouchableOpacity 
-                key={parcel._id} 
+              <TouchableOpacity
+                key={parcel._id}
                 style={[
                   styles.parcelCard,
                   isFocused && styles.parcelCardFocused
@@ -664,7 +664,7 @@ const TripAssignmentDetailScreen = () => {
                     <Text style={styles.parcelWeight}>{parcel.weight} kg</Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.recipientSection}>
                   <View style={styles.recipientRow}>
                     <MapPin size={14} color="#64748B" />
@@ -1235,7 +1235,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: "#EFF6FF",
   },
-  
+
   // Location Card
   locationCard: {
     backgroundColor: "#F0FDF4",

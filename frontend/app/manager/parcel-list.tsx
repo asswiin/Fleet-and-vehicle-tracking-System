@@ -31,6 +31,14 @@ const getVehicleRegNumber = (vehicle: Parcel['assignedVehicle']) => {
   return vehicle.regNumber;
 };
 
+// Helper to extract city from address string (House, Street, City, District, State)
+const getCity = (address?: string) => {
+  if (!address) return "--";
+  const parts = address.split(",");
+  if (parts.length >= 3) return parts[2].trim();
+  return address.trim();
+};
+
 interface StatusStyle {
   bg: string;
   text: string;
@@ -67,12 +75,12 @@ const ParcelListScreen = () => {
 
   // Filter Logic
   const filteredParcels = parcels.filter(parcel => {
-    const matchesSearch = 
+    const matchesSearch =
       (parcel.trackingId?.toLowerCase() || "").includes(searchText.toLowerCase()) ||
       (parcel.sender?.name?.toLowerCase() || "").includes(searchText.toLowerCase()) ||
       (parcel.recipient?.name?.toLowerCase() || "").includes(searchText.toLowerCase()) ||
       (parcel.recipient?.address?.toLowerCase() || "").includes(searchText.toLowerCase());
-    
+
     let statusMatch = true;
     if (selectedTab !== "All") {
       const currentStatus = parcel.status || "Booked";
@@ -91,33 +99,33 @@ const ParcelListScreen = () => {
   // Helper for Status Badge Styles
   const getStatusStyles = (status?: string): StatusStyle => {
     const label = status || "Booked";
-    
-    switch(label) {
-      case 'Booked': 
+
+    switch (label) {
+      case 'Booked':
         return { bg: '#EFF6FF', text: '#1D4ED8', borderColor: '#DBEAFE', label: 'Booked' };
-      case 'Pending': 
+      case 'Pending':
         return { bg: '#FFF7ED', text: '#C2410C', borderColor: '#FFEDD5', label: 'Pending' };
-      case 'Confirmed': 
+      case 'Confirmed':
         return { bg: '#F0FDF4', text: '#166534', borderColor: '#DCFCE7', label: 'Confirmed' };
-      case 'Assigned': 
+      case 'Assigned':
         return { bg: '#F3E8FF', text: '#7C3AED', borderColor: '#DDD6FE', label: 'Assigned' };
-      case 'In Transit': 
+      case 'In Transit':
         return { bg: '#FEF3C7', text: '#D97706', borderColor: '#FDE68A', label: 'In Transit' };
-      case 'Delivered': 
+      case 'Delivered':
         return { bg: '#ECFDF3', text: '#15803D', borderColor: '#BBF7D0', label: 'Delivered' };
-      case 'Cancelled': 
+      case 'Cancelled':
         return { bg: '#FEE2E2', text: '#DC2626', borderColor: '#FECACA', label: 'Cancelled' };
-      default: 
+      default:
         return { bg: '#F1F5F9', text: '#475569', borderColor: '#E2E8F0', label: label };
     }
   };
 
   const renderStatus = (status?: string) => {
     const statusStyle = getStatusStyles(status);
-    
+
     return (
       <View style={[
-        styles.statusBadge, 
+        styles.statusBadge,
         { backgroundColor: statusStyle.bg, borderColor: statusStyle.borderColor }
       ]}>
         <Text style={[styles.statusText, { color: statusStyle.text }]}>
@@ -133,8 +141,8 @@ const ParcelListScreen = () => {
 
   const renderParcelCard = (item: Parcel) => {
     return (
-      <TouchableOpacity 
-        key={item._id} 
+      <TouchableOpacity
+        key={item._id}
         style={styles.card}
         onPress={() => handleParcelPress(item._id)}
         activeOpacity={0.7}
@@ -147,16 +155,22 @@ const ParcelListScreen = () => {
           {renderStatus(item.status)}
         </View>
 
-        <View style={styles.infoRow}> 
+        <View style={styles.infoRow}>
           <User size={14} color="#64748B" />
           <Text style={styles.infoLabel}>From:</Text>
           <Text style={styles.infoValue} numberOfLines={1}>{item.sender?.name || "Unknown"}</Text>
         </View>
 
-        <View style={styles.infoRow}> 
+        <View style={styles.infoRow}>
           <MapPin size={14} color="#64748B" />
           <Text style={styles.infoLabel}>To:</Text>
           <Text style={styles.infoValue} numberOfLines={1}>{item.recipient?.name || "Unknown"}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <MapPin size={14} color="#64748B" />
+          <Text style={styles.infoLabel}>City:</Text>
+          <Text style={styles.infoValue} numberOfLines={1}>{getCity(item.recipient?.address)}</Text>
         </View>
 
         <View style={styles.metaRow}>
@@ -225,9 +239,9 @@ const ParcelListScreen = () => {
 
       {/* Filter Tabs */}
       <View style={styles.tabsWrapper}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsContainer}
         >
           {FILTER_TABS.map((tab) => {
@@ -305,10 +319,10 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 6 },
   headerTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
-  searchWrapper: { 
-    paddingHorizontal: 16, 
-    paddingVertical: 12, 
-    backgroundColor: "#fff" 
+  searchWrapper: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff"
   },
   searchContainer: {
     flexDirection: "row",
@@ -321,9 +335,9 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
   searchInput: { flex: 1, fontSize: 14, color: "#0F172A" },
-  tabsWrapper: { 
-    paddingVertical: 8, 
-    backgroundColor: "#fff", 
+  tabsWrapper: {
+    paddingVertical: 8,
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
@@ -351,25 +365,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardHeader: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    marginBottom: 12 
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12
   },
   cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
-  infoRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
     gap: 6
   },
   infoLabel: { fontSize: 13, color: "#64748B", fontWeight: "600", minWidth: 40 },
   infoValue: { fontSize: 13, color: "#0F172A", fontWeight: "700", flex: 1 },
-  metaRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,

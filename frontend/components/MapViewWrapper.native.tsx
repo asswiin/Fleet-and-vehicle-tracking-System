@@ -1,7 +1,11 @@
-// Native platform implementation
-import MapViewNative, { Marker, Circle, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
-import { View, Text, StyleSheet } from 'react-native';
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import MapViewNative, { Marker, Circle, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+
+export interface MapViewMethods {
+  animateToRegion: (region: any, duration?: number) => void;
+  fitToCoordinates: (coordinates: any[], options?: any) => void;
+}
 
 const MapView = MapViewNative;
 

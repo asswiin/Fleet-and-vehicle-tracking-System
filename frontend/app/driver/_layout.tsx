@@ -16,6 +16,7 @@ export default function DriverLayout() {
       <Stack.Screen name="select-location" />
       <Stack.Screen name="select-vehicle" />
       <Stack.Screen name="trip-notifications" />
+      <Stack.Screen name="sos" />
     </Stack>
   );
 }

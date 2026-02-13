@@ -16,6 +16,21 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET parcel by tracking ID
+router.get("/track/:trackingId", async (req, res) => {
+  try {
+    const parcel = await Parcel.findOne({ trackingId: req.params.trackingId })
+      .populate("assignedDriver", "name mobile email profilePhoto driverStatus")
+      .populate("assignedVehicle", "regNumber model type status");
+    if (!parcel) {
+      return res.status(404).json({ message: "Parcel with this tracking ID not found" });
+    }
+    res.json({ data: parcel });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // GET single parcel by ID
 router.get("/:id", async (req, res) => {
   try {
@@ -47,13 +62,13 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { trackingId, _id, ...updatePayload } = req.body; // prevent trackingId/_id overwrite
-    
+
     // Get the old parcel to check for changes
     const oldParcel = await Parcel.findById(req.params.id);
     if (!oldParcel) {
       return res.status(404).json({ message: "Parcel not found" });
     }
-    
+
     const parcel = await Parcel.findByIdAndUpdate(
       req.params.id,
       updatePayload,
@@ -72,7 +87,7 @@ router.put("/:id", async (req, res) => {
       // Create notification for the driver
       const driverId = parcel.assignedDriver;
       const notificationType = driverChanged ? "reassign_driver" : "trip_update";
-      const message = driverChanged 
+      const message = driverChanged
         ? `You have been assigned to deliver parcel ${parcel.trackingId}`
         : `Vehicle for parcel ${parcel.trackingId} has been updated`;
 

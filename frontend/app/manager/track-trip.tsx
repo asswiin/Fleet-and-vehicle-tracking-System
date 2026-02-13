@@ -22,9 +22,10 @@ import {
     Clock,
     Weight,
     Layers,
+    Tag,
 } from "lucide-react-native";
 import { api, type Trip } from "../../utils/api";
-import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "../../components/MapViewWrapper.native";
+import { MapView, Marker, Polyline, isMapAvailable } from "@/components/MapViewWrapper";
 
 const { width, height } = Dimensions.get("window");
 
@@ -34,6 +35,7 @@ const TrackTripScreen = () => {
     const mapRef = useRef<any>(null);
 
     const [trip, setTrip] = useState<Trip | null>(null);
+    const [ongoingTrip, setOngoingTrip] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
     const [distance, setDistance] = useState<string>("0.0");
@@ -41,11 +43,19 @@ const TrackTripScreen = () => {
 
     const fetchTripDetails = async () => {
         if (!tripId) return;
-        setLoading(true);
         try {
-            const response = await api.getTrip(tripId);
-            if (response.ok && response.data) {
-                setTrip(response.data);
+            // Initial fetch of trip basic details if not already loaded
+            if (!trip) {
+                const response = await api.getTrip(tripId);
+                if (response.ok && response.data) {
+                    setTrip(response.data);
+                }
+            }
+
+            // Fetch live tracking data
+            const ongoingRes = await api.getOngoingTrip(tripId);
+            if (ongoingRes.ok && ongoingRes.data) {
+                setOngoingTrip(ongoingRes.data);
             }
         } catch (error) {
             console.error(error);
@@ -57,7 +67,9 @@ const TrackTripScreen = () => {
     useFocusEffect(
         useCallback(() => {
             fetchTripDetails();
-        }, [tripId])
+            const interval = setInterval(fetchTripDetails, 10000); // Poll every 10 seconds
+            return () => clearInterval(interval);
+        }, [tripId, trip])
     );
 
     useEffect(() => {
@@ -170,6 +182,19 @@ const TrackTripScreen = () => {
                                     pinColor={d.deliveryStatus === 'delivered' ? '#10B981' : '#EF4444'}
                                 />
                             ))}
+                            {ongoingTrip?.lastKnownLocation?.latitude && (
+                                <Marker
+                                    coordinate={{
+                                        latitude: ongoingTrip.lastKnownLocation.latitude,
+                                        longitude: ongoingTrip.lastKnownLocation.longitude
+                                    }}
+                                    title="Vehicle Location"
+                                >
+                                    <View style={styles.liveMarker}>
+                                        <Truck size={20} color="#fff" />
+                                    </View>
+                                </Marker>
+                            )}
                             {routeCoordinates.length > 0 && (
                                 <Polyline coordinates={routeCoordinates} strokeColor="#2563EB" strokeWidth={4} />
                             )}
@@ -234,7 +259,14 @@ const TrackTripScreen = () => {
                                     <Text style={styles.stepNum}>{dest.order}</Text>
                                 </View>
                                 <View style={styles.destInfo}>
-                                    <Text style={styles.destName}>{dest.locationName}</Text>
+                                    <View style={styles.destHeader}>
+                                        <Text style={styles.destName}>{dest.locationName}</Text>
+                                        {trip.parcelIds.find(p => p._id === dest.parcelId)?.type && (
+                                            <View style={styles.miniTypeBadge}>
+                                                <Text style={styles.miniTypeText}>{trip.parcelIds.find(p => p._id === dest.parcelId)?.type}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     <Text style={[styles.destStatus, { color: dest.deliveryStatus === 'delivered' ? '#10B981' : '#F59E0B' }]}>
                                         {dest.deliveryStatus.toUpperCase()}
                                     </Text>
@@ -242,6 +274,51 @@ const TrackTripScreen = () => {
                                 {dest.deliveredAt && (
                                     <Text style={styles.timeText}>{new Date(dest.deliveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                                 )}
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Parcels Section */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Parcels In This Trip ({trip.parcelIds.length})</Text>
+                        {trip.parcelIds.map((parcel, idx) => (
+                            <View key={parcel._id || idx} style={styles.parcelCard}>
+                                <View style={styles.parcelHeader}>
+                                    <Package size={18} color="#2563EB" />
+                                    <Text style={styles.parcelTrackingId}>{parcel.trackingId}</Text>
+                                    <View style={[styles.miniStatus, { backgroundColor: parcel.status === 'delivered' ? '#DCFCE7' : '#FEF3C7' }]}>
+                                        <Text style={[styles.miniStatusText, { color: parcel.status === 'delivered' ? '#16A34A' : '#D97706' }]}>
+                                            {parcel.status}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.parcelBody}>
+                                    <View style={styles.parcelInfoLine}>
+                                        <User size={14} color="#64748B" />
+                                        <Text style={styles.parcelInfoText}>
+                                            <Text style={{ fontWeight: '700' }}>To: </Text>
+                                            {parcel.recipient?.name || "N/A"}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.parcelInfoLine}>
+                                        <MapPin size={14} color="#64748B" />
+                                        <Text style={styles.parcelInfoText} numberOfLines={2}>
+                                            <Text style={{ fontWeight: '700' }}>Address: </Text>
+                                            {parcel.recipient?.address || "N/A"}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.parcelFooter}>
+                                        <View style={styles.footerItem}>
+                                            <Tag size={12} color="#64748B" />
+                                            <Text style={styles.footerText}>{parcel.type || "General"}</Text>
+                                        </View>
+                                        <View style={styles.footerItem}>
+                                            <Weight size={12} color="#64748B" />
+                                            <Text style={styles.footerText}>{parcel.weight} kg</Text>
+                                        </View>
+                                    </View>
+                                </View>
                             </View>
                         ))}
                     </View>
@@ -283,8 +360,107 @@ const styles = StyleSheet.create({
     stepNum: { color: "#fff", fontSize: 12, fontWeight: "700" },
     destInfo: { flex: 1 },
     destName: { fontSize: 14, fontWeight: "600", color: "#0F172A" },
+    destHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    miniTypeBadge: {
+        backgroundColor: "#F1F5F9",
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: "#E2E8F0",
+    },
+    miniTypeText: {
+        fontSize: 10,
+        fontWeight: "600",
+        color: "#64748B",
+        textTransform: "capitalize",
+    },
     destStatus: { fontSize: 11, fontWeight: "700", marginTop: 2 },
     timeText: { fontSize: 12, color: "#64748B" },
+    liveMarker: {
+        backgroundColor: "#2563EB",
+        padding: 6,
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: "#fff",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        elevation: 3
+    },
+    parcelCard: {
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "#E2E8F0",
+        shadowColor: "#000",
+        shadowOpacity: 0.02,
+        shadowRadius: 5,
+        elevation: 1
+    },
+    parcelHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 12,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: "#F1F5F9"
+    },
+    parcelTrackingId: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#2563EB",
+        flex: 1
+    },
+    miniStatus: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8
+    },
+    miniStatusText: {
+        fontSize: 10,
+        fontWeight: "700",
+        textTransform: "uppercase"
+    },
+    parcelBody: {
+        gap: 8
+    },
+    parcelInfoLine: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8
+    },
+    parcelInfoText: {
+        fontSize: 13,
+        color: "#475569",
+        flex: 1
+    },
+    parcelFooter: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        marginTop: 4,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: "#F1F5F9"
+    },
+    footerItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4
+    },
+    footerText: {
+        fontSize: 12,
+        color: "#64748B",
+        fontWeight: "600"
+    }
 });
 
 export default TrackTripScreen;

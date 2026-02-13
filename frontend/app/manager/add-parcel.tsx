@@ -13,11 +13,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { 
-  ChevronLeft, 
-  User, 
-  MapPin, 
-  Package, 
+import {
+  ChevronLeft,
+  User,
+  MapPin,
+  Package,
   QrCode,
   Smartphone
 } from "lucide-react-native";
@@ -38,6 +38,7 @@ const AddParcelScreen = () => {
     senderState: "Kerala",
     recipientName: "",
     recipientPhone: "",
+    recipientEmail: "",
     recipientHouse: "",
     recipientStreet: "",
     recipientCity: "",
@@ -60,6 +61,7 @@ const AddParcelScreen = () => {
       !form.senderDistrict ||
       !form.recipientName ||
       !form.recipientPhone ||
+      !form.recipientEmail ||
       !form.recipientHouse ||
       !form.recipientStreet ||
       !form.recipientCity ||
@@ -81,7 +83,12 @@ const AddParcelScreen = () => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.senderEmail)) {
-      Alert.alert("Invalid Email", "Please enter a valid sender email address.");
+      Alert.alert("Invalid Sender Email", "Please enter a valid sender email address.");
+      return;
+    }
+
+    if (!emailRegex.test(form.recipientEmail)) {
+      Alert.alert("Invalid Recipient Email", "Please enter a valid recipient email address.");
       return;
     }
 
@@ -109,6 +116,7 @@ const AddParcelScreen = () => {
         recipient: {
           name: form.recipientName,
           phone: `+91${form.recipientPhone}`,
+          email: form.recipientEmail.trim(),
           address: recipientAddress,
         },
         weight: parseFloat(form.weight),
@@ -122,8 +130,8 @@ const AddParcelScreen = () => {
 
       if (response.ok) {
         Alert.alert(
-          "Success", 
-          `Consignment Registered!\nTracking ID: ${response.data.trackingId || 'Generated'}`, 
+          "Success",
+          `Consignment Registered!\nTracking ID: ${response.data.trackingId || 'Generated'}`,
           [{ text: "OK", onPress: () => router.back() }]
         );
       } else {
@@ -148,12 +156,12 @@ const AddParcelScreen = () => {
         <View style={{ width: 28 }} />
       </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          
+
           {/* --- SENDER DETAILS --- */}
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
@@ -296,6 +304,19 @@ const AddParcelScreen = () => {
             </View>
 
             <View style={styles.inputGroup}>
+              <Text style={styles.label}>EMAIL</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="recipient@example.com"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={form.recipientEmail}
+                onChangeText={(t) => setForm({ ...form, recipientEmail: t })}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>HOUSE / FLAT</Text>
               <TextInput
                 style={styles.input}
@@ -402,7 +423,7 @@ const AddParcelScreen = () => {
           <View style={{ height: 20 }} />
 
           {/* SUBMIT BUTTON */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.submitBtn, loading && { opacity: 0.7 }]}
             onPress={handleSubmit}
             disabled={loading}
@@ -432,9 +453,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backBtn: { padding: 4 },
-  
+
   content: { padding: 20 },
-  
+
   // Section Headers
   sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12, marginTop: 10 },
   iconCircle: {
@@ -463,9 +484,9 @@ const styles = StyleSheet.create({
   phoneInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1E293B" },
   textArea: { height: 100 },
   readOnlyField: { backgroundColor: "#F1F5F9", borderColor: "#E2E8F0" },
-  
+
   row: { flexDirection: "row" },
-  
+
   // Suffix Input (for KG)
   suffixInputWrapper: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC",

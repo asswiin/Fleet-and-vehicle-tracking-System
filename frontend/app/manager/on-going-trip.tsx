@@ -72,8 +72,10 @@ const OnGoingTripScreen = () => {
                             </View>
                         </View>
                     </View>
-                    <View style={styles.statusBadge}>
-                        <Text style={styles.statusText}>IN TRANSIT</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: item.status === 'accepted' ? '#FEF3C7' : '#EFF6FF' }]}>
+                        <Text style={[styles.statusText, { color: item.status === 'accepted' ? '#92400E' : '#2563EB' }]}>
+                            {item.status === 'accepted' ? 'ACCEPTED' : 'IN TRANSIT'}
+                        </Text>
                     </View>
                 </View>
 

@@ -30,7 +30,7 @@ import {
   Edit3,
   Check,
 } from "lucide-react-native";
-import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "../../components/MapViewWrapper.native";
+import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "@/components/MapViewWrapper";
 import { api, type Parcel } from "../../utils/api";
 
 const { width, height } = Dimensions.get("window");
@@ -71,7 +71,7 @@ const SelectLocationScreen = () => {
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [locations, setLocations] = useState<LocationPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Start Location (You can also make this dynamic if needed)
   const [startLocation, setStartLocation] = useState({
     latitude: 11.312005858164463,
@@ -82,8 +82,8 @@ const SelectLocationScreen = () => {
   // Location selection modal state
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedParcelIndex, setSelectedParcelIndex] = useState<number | null>(null);
-  const [tempSelectedCoords, setTempSelectedCoords] = useState<{latitude: number, longitude: number, name?: string} | null>(null);
-  
+  const [tempSelectedCoords, setTempSelectedCoords] = useState<{ latitude: number, longitude: number, name?: string } | null>(null);
+
   // Search State
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -91,7 +91,7 @@ const SelectLocationScreen = () => {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Route coordinates
-  const [routeCoordinates, setRouteCoordinates] = useState<{latitude: number, longitude: number}[]>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [routeDistance, setRouteDistance] = useState<string>("0.0");
   const [routeDuration, setRouteDuration] = useState<string>("0m");
@@ -117,10 +117,10 @@ const SelectLocationScreen = () => {
           parcelIds.includes(p._id)
         );
         setParcels(selectedParcels);
-        
+
         const locationPoints = await generateLocationPoints(selectedParcels);
         setLocations(locationPoints);
-        
+
         if (locationPoints.length > 0) {
           fitMapToMarkers(locationPoints);
         }
@@ -135,20 +135,20 @@ const SelectLocationScreen = () => {
 
   const generateLocationPoints = async (parcels: Parcel[]): Promise<LocationPoint[]> => {
     const points: LocationPoint[] = [];
-    
+
     for (let i = 0; i < parcels.length; i++) {
       const parcel = parcels[i];
       let lat = parcel.deliveryLocation?.latitude;
       let lng = parcel.deliveryLocation?.longitude;
       const hasLocation = !!(lat && lng);
-      
+
       if (!lat || !lng) {
         lat = 0;
         lng = 0;
       }
-      
+
       const order = parcelOrderParam[parcel._id] || (i + 1);
-      
+
       points.push({
         parcelId: parcel._id,
         trackingId: parcel.trackingId || `PKG-${i + 1}`,
@@ -160,7 +160,7 @@ const SelectLocationScreen = () => {
         isLocationSet: hasLocation,
       });
     }
-    
+
     points.sort((a, b) => a.order - b.order);
     return points;
   };
@@ -171,7 +171,7 @@ const SelectLocationScreen = () => {
         { latitude: startLocation.latitude, longitude: startLocation.longitude },
         ...points.map(p => ({ latitude: p.latitude, longitude: p.longitude }))
       ];
-      
+
       setTimeout(() => {
         mapRef.current?.fitToCoordinates(coordinates, {
           edgePadding: { top: 100, right: 50, bottom: 150, left: 50 },
@@ -228,30 +228,83 @@ const SelectLocationScreen = () => {
   };
 
   const performAddressSearch = async (query: string) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     try {
-      // Using Nominatim OpenStreetMap API (Free)
-      // q: query
-      // format: json
-      // limit: number of results
-      // countrycodes: in (India) - remove this if you want global search
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=in`;
-      
-      const response = await fetch(url, {
+      // --- 1. Try Photon API first (usually more resilient than Nominatim) ---
+      try {
+        const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`;
+        const photonResponse = await fetch(photonUrl, {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (photonResponse.ok) {
+          const photonData = await photonResponse.json();
+          if (photonData.features && Array.isArray(photonData.features) && photonData.features.length > 0) {
+            const mappedResults = photonData.features.map((f: any, index: number) => {
+              const props = f.properties;
+              const coords = f.geometry.coordinates;
+
+              const parts = [props.name, props.city, props.state, props.country].filter(Boolean);
+
+              return {
+                place_id: index + Date.now(),
+                lat: coords[1].toString(),
+                lon: coords[0].toString(),
+                display_name: parts.join(', '),
+                name: props.name || props.city || "Search Result"
+              };
+            });
+
+            setSearchResults(mappedResults);
+            return;
+          }
+        }
+      } catch (photonError) {
+        console.warn("Photon search failed, falling back to Nominatim:", photonError);
+      }
+
+      // --- 2. Fallback to Nominatim ---
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=in`;
+
+      const response = await fetch(nominatimUrl, {
+        signal: controller.signal,
         headers: {
-          'User-Agent': 'LogisticsApp/1.0' // It's polite to identify your app
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'FleetTracker-Mobile/1.0 (Contact: support@fleettracker.local)'
         }
       });
+
+      if (!response.ok) {
+        if (response.status === 429) throw new Error("Too many search requests. Please wait a moment.");
+        if (response.status === 509) throw new Error("Search service bandwidth limit reached. Please try again later or use the map.");
+        throw new Error(`Location service unavailable (${response.status})`);
+      }
+
       const data = await response.json();
 
       if (Array.isArray(data)) {
         setSearchResults(data);
       } else {
+        console.warn("Nominatim returned non-array data:", data);
         setSearchResults([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Search error:", error);
-      Alert.alert("Search Error", "Could not fetch location results. Please check internet.");
+      let errorMessage = "Could not fetch location results.";
+
+      if (error.name === 'AbortError') {
+        errorMessage = "Search request timed out. Please check your internet connection.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert("Search Error", `${errorMessage}\n\nPlease check your internet connection or select manually from the map.`);
     } finally {
+      clearTimeout(timeoutId);
       setIsSearching(false);
     }
   };
@@ -262,15 +315,15 @@ const SelectLocationScreen = () => {
     // Extract a shorter name from display_name (usually the first part)
     const shortName = item.display_name.split(',')[0];
 
-    setTempSelectedCoords({ 
-      latitude: lat, 
+    setTempSelectedCoords({
+      latitude: lat,
       longitude: lng,
-      name: shortName 
+      name: shortName
     });
-    
+
     // Clear search to show the map view
     setSearchResults([]);
-    setModalSearchQuery(""); 
+    setModalSearchQuery("");
 
     // Animate map to this location
     mapRef.current?.animateToRegion({
@@ -338,12 +391,12 @@ const SelectLocationScreen = () => {
       );
       return distA - distB;
     });
-    
+
     const reordered = optimized.map((loc, idx) => ({
       ...loc,
       order: idx + 1,
     }));
-    
+
     setLocations(reordered);
     Alert.alert("Route Optimized", "Delivery order has been optimized based on distance from starting point.");
   };
@@ -374,6 +427,7 @@ const SelectLocationScreen = () => {
         totalWeight: totalWeight.toString(),
         vehicleId: vehicleId,
         driverId: driverId,
+        managerId: params.managerId as string,
         deliveryLocations: JSON.stringify(locationData),
         startLocation: JSON.stringify(startLocation),
       },
@@ -385,8 +439,8 @@ const SelectLocationScreen = () => {
     return colors[(order - 1) % colors.length];
   };
 
-  const decodePolyline = (encoded: string): {latitude: number, longitude: number}[] => {
-    const points: {latitude: number, longitude: number}[] = [];
+  const decodePolyline = (encoded: string): { latitude: number, longitude: number }[] => {
+    const points: { latitude: number, longitude: number }[] = [];
     let index = 0, lat = 0, lng = 0;
 
     while (index < encoded.length) {
@@ -418,7 +472,7 @@ const SelectLocationScreen = () => {
   };
 
   // OSRM Routing (Free)
-  const fetchRoute = async (waypoints: {latitude: number, longitude: number}[]) => {
+  const fetchRoute = async (waypoints: { latitude: number, longitude: number }[]) => {
     if (waypoints.length < 2) {
       setRouteCoordinates([]);
       setRouteDistance("0.0");
@@ -433,19 +487,34 @@ const SelectLocationScreen = () => {
         .join(';');
 
       const url = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=polyline`;
-      
-      const response = await fetch(url);
+
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'FleetVehicleTracker/1.0'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`OSRM Error: ${response.status} ${response.statusText}`);
+        // Fallback to direct distance
+        setRouteCoordinates(waypoints);
+        calculateFallbackDistance(waypoints);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         const points = decodePolyline(route.geometry);
         setRouteCoordinates(points);
-        
+
         const km = route.distance / 1000;
         setRouteDistance(km.toFixed(1));
         setRouteDuration(formatDuration(route.duration));
       } else {
+        console.warn('OSRM returned no routes or error code:', data.code);
         setRouteCoordinates(waypoints);
         calculateFallbackDistance(waypoints);
       }
@@ -459,10 +528,10 @@ const SelectLocationScreen = () => {
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; 
+    const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = 
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -470,7 +539,7 @@ const SelectLocationScreen = () => {
     return R * c;
   };
 
-  const calculateFallbackDistance = (waypoints: {latitude: number, longitude: number}[]) => {
+  const calculateFallbackDistance = (waypoints: { latitude: number, longitude: number }[]) => {
     let totalDist = 0;
     for (let i = 0; i < waypoints.length - 1; i++) {
       totalDist += calculateDistance(
@@ -487,7 +556,7 @@ const SelectLocationScreen = () => {
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     } else {
@@ -595,7 +664,7 @@ const SelectLocationScreen = () => {
                 </Marker>
               ))}
             </MapView>
-            
+
             {isLoadingRoute && (
               <View style={styles.routeLoadingOverlay}>
                 <ActivityIndicator size="small" color="#2563EB" />
@@ -639,7 +708,7 @@ const SelectLocationScreen = () => {
             Parcels ({locations.filter(l => l.isLocationSet).length}/{locations.length} locations set)
           </Text>
         </View>
-        
+
         <ScrollView style={styles.locationList} showsVerticalScrollIndicator={false}>
           <View style={[styles.locationItem, styles.startingPoint]}>
             <View style={[styles.orderBadge, { backgroundColor: '#10B981' }]}>
@@ -655,15 +724,15 @@ const SelectLocationScreen = () => {
           </View>
 
           {locations.map((location, index) => (
-            <View 
-              key={location.parcelId} 
+            <View
+              key={location.parcelId}
               style={[
                 styles.locationItem,
                 !location.isLocationSet && styles.locationNotSet
               ]}
             >
               <View style={[
-                styles.orderBadge, 
+                styles.orderBadge,
                 { backgroundColor: location.isLocationSet ? getMarkerColor(location.order) : '#94A3B8' }
               ]}>
                 <Text style={styles.orderText}>{location.order}</Text>
@@ -688,7 +757,7 @@ const SelectLocationScreen = () => {
                   </View>
                 )}
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   styles.setLocationBtn,
                   location.isLocationSet && styles.editLocationBtn
@@ -758,7 +827,7 @@ const SelectLocationScreen = () => {
                 </Text>
               )}
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={confirmLocationSelection}
               disabled={!tempSelectedCoords}
             >
@@ -822,13 +891,13 @@ const SelectLocationScreen = () => {
             {!isSearching && searchResults.length === 0 && (
               <View style={styles.mapInstructions}>
                 <Text style={styles.mapInstructionsText}>
-                  {modalSearchQuery.length > 0 && modalSearchQuery.length < 3 
-                    ? "Keep typing to search..." 
+                  {modalSearchQuery.length > 0 && modalSearchQuery.length < 3
+                    ? "Keep typing to search..."
                     : "📍 Use search or tap map to set location"}
                 </Text>
               </View>
             )}
-            
+
             {isMapAvailable ? (
               <MapView
                 ref={mapRef}
@@ -899,9 +968,9 @@ const SelectLocationScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: "#F8FAFC" 
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFC"
   },
   header: {
     flexDirection: "row",
@@ -1256,7 +1325,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
-  
+
   // Modal Styles
   modalContainer: {
     flex: 1,

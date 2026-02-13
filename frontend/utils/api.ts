@@ -139,6 +139,7 @@ export interface Parcel {
   recipient?: {
     name?: string;
     phone?: string;
+    email?: string;
     address?: string;
   };
   weight?: number;
@@ -255,8 +256,10 @@ export interface Trip {
     weight: number;
     recipient: {
       name: string;
+      email?: string;
       address: string;
     };
+    type?: string;
     status: string;
   }>;
   status: string;
@@ -461,6 +464,7 @@ export const api = {
   // PARCELS
   getParcels: () => apiCall<Parcel[]>("/api/parcels"),
   getParcel: (id: string) => apiCall<Parcel>(`/api/parcels/${id}`),
+  getParcelByTrackingId: (trackingId: string) => apiCall<Parcel>(`/api/parcels/track/${trackingId}`),
   createParcel: (data: any) => apiCall("/api/parcels", { method: "POST", body: JSON.stringify(data) }),
   updateParcel: (id: string, data: any) => apiCall(`/api/parcels/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   updateParcelStatus: (id: string, status: string) =>
@@ -596,12 +600,17 @@ export const api = {
   }),
   // Get currently ongoing trips (filtered by backend)
   getOngoingTrips: () => apiCall<any[]>("/api/trips/ongoing-list"),
+
+  // Get specific ongoing trip details for live tracking
+  getOngoingTrip: (tripId: string) => apiCall<any>(`/api/trips/ongoing/${tripId}`),
+
+  // Update trip live location (called by driver app)
+  updateTripLocation: (tripId: string, data: { latitude: number, longitude: number, address?: string }) =>
+    apiCall(`/api/trips/${tripId}/location`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
+    }),
 };
-
-
-export default api;
-
-
 
 
 

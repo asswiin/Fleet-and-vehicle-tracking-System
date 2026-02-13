@@ -10,11 +10,11 @@ import {
   Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { 
-  Package, 
-  ArrowLeft, 
-  MapPin, 
-  User, 
+import {
+  Package,
+  ArrowLeft,
+  MapPin,
+  User,
   IndianRupee,
   Calendar,
   Weight,
@@ -46,7 +46,7 @@ const ParcelDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const parcelId = params.parcelId as string;
-  
+
   const [parcel, setParcel] = useState<Parcel | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -57,7 +57,7 @@ const ParcelDetailsScreen = () => {
       setError("No parcel ID provided");
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     const response = await api.getParcel(parcelId);
@@ -109,29 +109,29 @@ const ParcelDetailsScreen = () => {
 
   const renderStatus = (status?: string) => {
     const label = status || "Booked";
-    
+
     let bgColor = '#EFF6FF';
     let textColor = '#1D4ED8';
     let borderColor = '#DBEAFE';
-    
-    switch(label) {
-      case 'Booked': 
+
+    switch (label) {
+      case 'Booked':
         bgColor = '#EFF6FF'; textColor = '#1D4ED8'; borderColor = '#DBEAFE';
         break;
-      case 'Assigned': 
+      case 'Assigned':
         bgColor = '#F3E8FF'; textColor = '#7C3AED'; borderColor = '#DDD6FE';
         break;
-      case 'In Transit': 
+      case 'In Transit':
         bgColor = '#FEF3C7'; textColor = '#D97706'; borderColor = '#FDE68A';
         break;
-      case 'Delivered': 
+      case 'Delivered':
         bgColor = '#ECFDF3'; textColor = '#15803D'; borderColor = '#BBF7D0';
         break;
-      case 'Cancelled': 
+      case 'Cancelled':
         bgColor = '#FEE2E2'; textColor = '#DC2626'; borderColor = '#FECACA';
         break;
     }
-    
+
     return (
       <View style={[styles.statusBadge, { backgroundColor: bgColor, borderColor: borderColor }]}>
         <Text style={[styles.statusText, { color: textColor }]}>
@@ -221,6 +221,10 @@ const ParcelDetailsScreen = () => {
               <Text style={styles.detailValue}>{parcel.sender?.phone || "N/A"}</Text>
             </View>
             <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Email</Text>
+              <Text style={styles.detailValue}>{parcel.sender?.email || "N/A"}</Text>
+            </View>
+            <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Address</Text>
               <Text style={[styles.detailValue, { flex: 1 }]}>{parcel.sender?.address || "N/A"}</Text>
             </View>
@@ -243,6 +247,10 @@ const ParcelDetailsScreen = () => {
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Phone</Text>
               <Text style={styles.detailValue}>{parcel.recipient?.phone || "N/A"}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Email</Text>
+              <Text style={styles.detailValue}>{parcel.recipient?.email || "N/A"}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Address</Text>
@@ -293,7 +301,7 @@ const ParcelDetailsScreen = () => {
         {parcel.tripId && (parcel.status === "Pending" || parcel.status === "Confirmed" || parcel.status === "In Transit" || parcel.status === "Delivered" || parcel.status === "Assigned") && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}> 
+              <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
                 <Truck size={18} color="#2563EB" />
               </View>
               <Text style={styles.sectionTitle}>Trip Assignment</Text>
@@ -304,8 +312,8 @@ const ParcelDetailsScreen = () => {
                 <Text style={styles.tripId}>{parcel.tripId}</Text>
                 <View style={styles.tripStatusBadge}>
                   <Text style={styles.tripStatusText}>
-                    {parcel.status === "In Transit" ? "🚚 En Route" : 
-                     parcel.status === "Delivered" ? "✓ Completed" : "📦 Assigned"}
+                    {parcel.status === "In Transit" ? "🚚 En Route" :
+                      parcel.status === "Delivered" ? "✓ Completed" : "📦 Assigned"}
                   </Text>
                 </View>
               </View>
@@ -326,10 +334,10 @@ const ParcelDetailsScreen = () => {
                       </View>
                     )}
                     {getDriverInfo(parcel.assignedDriver)?.driverStatus && (
-                      <View style={[styles.driverStatusBadge, 
-                        getDriverInfo(parcel.assignedDriver)?.driverStatus === "On-trip" 
-                          ? styles.onTripBadge 
-                          : styles.activeBadge
+                      <View style={[styles.driverStatusBadge,
+                      getDriverInfo(parcel.assignedDriver)?.driverStatus === "On-trip"
+                        ? styles.onTripBadge
+                        : styles.activeBadge
                       ]}>
                         <Text style={styles.driverStatusText}>
                           {getDriverInfo(parcel.assignedDriver)?.driverStatus}
@@ -419,14 +427,14 @@ const ParcelDetailsScreen = () => {
         {parcel.status === "Booked" && (
           <View style={styles.section}>
             <Text style={styles.actionsTitle}>Quick Actions</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={() => router.push({ pathname: "/manager/edit-parcel", params: { parcelId } })}
             >
               <Text style={styles.actionButtonText}>Edit Parcel Details</Text>
               <PencilLine size={18} color="#2563EB" />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, { borderColor: "#FEE2E2", backgroundColor: "#FEF2F2" }]}
               onPress={handleDelete}
               disabled={deleting}

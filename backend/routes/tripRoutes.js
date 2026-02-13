@@ -44,4 +44,10 @@ router.delete("/:id", tripController.deleteTrip);
 // Update resources (Driver/Vehicle) for an existing trip
 router.patch("/:id/resources", tripController.updateTripResources);
 
+// Update live location (called by driver app)
+router.patch("/:id/location", tripController.updateTripLocation);
+
+// Get specific ongoing trip details for live tracking
+router.get("/ongoing/:id", tripController.getOngoingTrip);
+
 module.exports = router;

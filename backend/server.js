@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 
+
 require("dotenv").config();
 
 const app = express();
@@ -20,11 +21,12 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/users", require("./routes/userRoutes"));
-app.use("/api/vehicles",require("./routes/vehicleRoutes"));
+app.use("/api/vehicles", require("./routes/vehicleRoutes"));
 app.use("/api/drivers", require("./routes/driverRoutes"));
 app.use("/api/parcels", require("./routes/parcelRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/trips", require("./routes/tripRoutes"));
+
 
 const PORT = process.env.PORT || 5000;
 
@@ -32,7 +34,7 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected successfully✅");
-    app.listen(PORT,'0.0.0.0',  () =>
+    app.listen(PORT, '0.0.0.0', () =>
       console.log(`Server running on port ${PORT}`)
     );
   })

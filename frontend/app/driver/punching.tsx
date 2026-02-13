@@ -24,9 +24,9 @@ import { useState, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import { api, Driver } from "../../utils/api";
-import { MapView, Marker, Circle, PROVIDER_DEFAULT, isMapAvailable, WebMapFallback } from "../../components/MapViewWrapper";
+import { MapView, Marker, Circle, PROVIDER_DEFAULT, isMapAvailable, WebMapFallback } from "@/components/MapViewWrapper";
 
-type MapViewType = typeof MapView;
+type MapViewType = any;
 
 // ==================================================
 // 📍 CONFIGURATION

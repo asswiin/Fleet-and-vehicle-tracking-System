@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Parcel Tracking | SREE GOKULAM</title>
+    <!-- Vue.js 3 Production CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --card-bg: rgba(255, 255, 255, 0.98);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body,
+        html {
+            height: 100%;
+            overflow: hidden;
+            background-color: #f1f5f9;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 90% Map Section */
+        #map-container {
+            flex: 9;
+            width: 100%;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* 10% Progress Section */
+        #status-container {
+            flex: 1;
+            min-height: 120px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        .stepper {
+            display: flex;
+            width: 100%;
+            max-width: 900px;
+            justify-content: space-between;
+            position: relative;
+            padding-bottom: 5px;
+        }
+
+        .stepper::before {
+            content: '';
+            position: absolute;
+            top: 14px;
+            left: 10%;
+            right: 10%;
+            height: 4px;
+            background: #f1f5f9;
+            z-index: 0;
+            border-radius: 10px;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 14px;
+            left: 10%;
+            height: 4px;
+            background: var(--primary);
+            z-index: 1;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 10px;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            width: 100px;
+        }
+
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            transition: all 0.4s ease;
+            border: 3px solid white;
+            box-shadow: 0 0 0 1px #e2e8f0;
+        }
+
+        .step.active .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+            transform: scale(1.1);
+        }
+
+        .step.completed .step-circle {
+            background: var(--success);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .step.active .step-label {
+            color: var(--primary);
+        }
+
+        .step.completed .step-label {
+            color: var(--success);
+        }
+
+        /* Floating Info Cards */
+        .info-card {
+            position: absolute;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            padding: 16px 20px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        #header-card {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #ride-details-card {
+            top: 100px;
+            left: 20px;
+            width: calc(100% - 40px);
+            max-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #destination-card {
+            bottom: 20px;
+            left: 20px;
+            width: calc(100% - 40px);
+            max-width: 450px;
+        }
+
+        .detail-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .detail-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .detail-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Error/Empty State */
+        .overlay-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f8fafc;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .track-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            font-size: 16px;
+            margin: 20px 0;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .track-input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .pulse-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #2563eb;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+            }
+
+            100% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+
+        [v-cloak] {
+            display: none;
+        }
+
+        /* Marker Icons */
+        .marker-pin {
+            width: 40px;
+            height: 40px;
+            border-radius: 50% 50% 50% 0;
+            background: var(--primary);
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -20px 0 0 -20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .marker-pin::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            margin: 8px 0 0 8px;
+            background: white;
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .truck-icon-inner {
+            transform: rotate(45deg);
+            font-size: 20px;
+            z-index: 2;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <!-- Missing/Enter Tracking ID Screen -->
+        <div v-if="!trackingId || error" class="overlay-fullscreen">
+            <h1 style="font-size: 28px; color: var(--text-main);">🔍 Track Your Parcel</h1>
+            <p style="color: var(--text-muted); margin-top: 10px;">{{ displayError }}</p>
+            <input type="text" v-model="inputTrackingId" placeholder="e.g. TRK12345678" class="track-input"
+                @keyup.enter="submitTrackingId">
+            <button @click="submitTrackingId" class="btn">Track Now</button>
+        </div>
+
+        <!-- Main Tracking View -->
+        <template v-else>
+            <div id="map-container">
+                <!-- Top Info Card -->
+                <div id="header-card" class="info-card">
+                    <div>
+                        <span
+                            style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Tracking
+                            Parcel</span>
+                        <div style="font-size: 18px; font-weight: 800; color: var(--text-main);">#{{ parcel?.trackingId
+                            }}
+                        </div>
+                    </div>
+                    <div v-if="parcel?.status === 'In Transit'"
+                        style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center;">
+                        <div class="pulse-indicator"></div> Live updates
+                    </div>
+                    <div v-else class="status-tag" :style="{ color: statusColor, background: statusColor + '15' }">
+                        {{ parcel?.status }}
+                    </div>
+                </div>
+
+                <!-- ETA/Distance Details -->
+                <div v-if="parcel?.status === 'In Transit' && routeDetails" id="ride-details-card" class="info-card">
+                    <div class="detail-row">
+                        <div class="detail-icon">⏱️</div>
+                        <div>
+                            <div class="detail-label">Estimated Time</div>
+                            <div class="detail-value">{{ routeDetails.duration }} mins away</div>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-icon">🛣️</div>
+                        <div>
+                            <div class="detail-label">Remaining Distance</div>
+                            <div class="detail-value">{{ routeDetails.distance }} km</div>
+                        </div>
+                    </div>
+                    <div v-if="routeDetails.name" class="detail-row">
+                        <div class="detail-icon">📍</div>
+                        <div>
+                            <div class="detail-label">Current Route</div>
+                            <div class="detail-value" style="font-size: 12px;">{{ routeDetails.name }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Info Card -->
+                <div id="destination-card" class="info-card">
+                    <div style="display: flex; gap: 20px;">
+                        <div style="flex: 1;">
+                            <p
+                                style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">
+                                From Source</p>
+                            <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                <div style="font-size: 16px;">🏠</div>
+                                <div>
+                                    <p
+                                        style="font-size: 13px; color: var(--text-main); font-weight: 600; line-height: 1.2;">
+                                        {{ trip?.startLocation?.address || 'Pickup Point' }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="width: 1px; background: #e2e8f0; height: 40px; align-self: center;"></div>
+                        <div style="flex: 1;">
+                            <p
+                                style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">
+                                Delivering To</p>
+                            <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                <div style="font-size: 16px;">📍</div>
+                                <div>
+                                    <p
+                                        style="font-size: 14px; font-weight: 800; color: var(--text-main); line-height: 1.2;">
+                                        {{ parcel?.recipient?.name }}
+                                    </p>
+                                    <p
+                                        style="font-size: 12px; color: var(--text-muted); line-height: 1.3; margin-top: 2px;">
+                                        {{ parcel?.recipient?.address }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="map"></div>
+            </div>
+
+            <!-- Preloader -->
+            <div v-if="loading && !parcel" class="overlay-fullscreen">
+                <div class="pulse-indicator" style="width: 40px; height: 40px;"></div>
+                <p style="margin-top: 20px; font-weight: 600;">Connecting to Fleet System...</p>
+            </div>
+
+            <!-- Stepper -->
+            <div id="status-container">
+                <div class="stepper">
+                    <div class="progress-line" :style="{ width: progressWidth }"></div>
+                    <div v-for="step in steps" :key="step.id" class="step"
+                        :class="{ active: currentStep === step.id, completed: currentStep > step.id }">
+                        <div class="step-circle">{{ currentStep > step.id ? '✓' : step.id }}</div>
+                        <span class="step-label">{{ step.label }}</span>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+
+    <script>
+        const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+        createApp({
+            setup() {
+                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const API_URL = isLocal ? 'http://localhost:5000' : 'https://fleet-vehicle-backend.vercel.app';
+
+                const trackingId = ref(new URLSearchParams(window.location.search).get('trackingId'));
+                const inputTrackingId = ref('');
+                const parcel = ref(null);
+                const trip = ref(null);
+                const routeDetails = ref(null);
+                const loading = ref(true);
+                const error = ref(null);
+                const currentStep = ref(1);
+
+                const displayError = computed(() => error.value || 'Please enter your tracking ID to see the live location.');
+
+                // Map Objects
+                let map = null;
+                let truckMarker = null;
+                let sourceMarker = null;
+                let destMarker = null;
+                let routePath = null;
+                let pollInterval = null;
+
+                const steps = [
+                    { id: 1, label: 'Dispatch', status: 'Booked' },
+                    { id: 2, label: 'Driving', status: 'In Transit' },
+                    { id: 3, label: 'Delivered', status: 'Delivered' }
+                ];
+
+                const progressWidth = computed(() => {
+                    if (currentStep.value === 1) return '0%';
+                    if (currentStep.value === 2) return '40%';
+                    return '80%';
+                });
+
+                const statusColor = computed(() => {
+                    const status = parcel.value?.status;
+                    if (status === 'Delivered') return '#10b981';
+                    if (status === 'In Transit') return '#2563eb';
+                    return '#64748b';
+                });
+
+                const initMap = (lat, lon) => {
+                    if (map) return;
+                    map = L.map('map', { zoomControl: false, attributionControl: false }).setView([lat, lon], 14);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+
+                    // Custom Div Icons for better aesthetics
+                    const truckHtml = `
+                        <div class="marker-pin" style="background: #2563eb;">
+                            <div class="truck-icon-inner">🚚</div>
+                        </div>`;
+
+                    const sourceHtml = `
+                        <div class="marker-pin" style="background: #64748b;">
+                            <div class="truck-icon-inner">🏠</div>
+                        </div>`;
+
+                    const destHtml = `
+                        <div class="marker-pin" style="background: #ef4444;">
+                            <div class="truck-icon-inner">📍</div>
+                        </div>`;
+
+                    sourceMarker = L.marker([lat, lon], { icon: L.divIcon({ className: '', html: sourceHtml, iconSize: [40, 40], iconAnchor: [20, 40] }) }).addTo(map);
+                    truckMarker = L.marker([lat, lon], { icon: L.divIcon({ className: '', html: truckHtml, iconSize: [40, 40], iconAnchor: [20, 40] }) }).addTo(map);
+                    destMarker = L.marker([lat, lon], { icon: L.divIcon({ className: '', html: destHtml, iconSize: [40, 40], iconAnchor: [20, 40] }) }).addTo(map);
+
+                    routePath = L.polyline([], { color: '#2563eb', weight: 6, opacity: 0.8, lineJoin: 'round', lineCap: 'round', dashArray: '1, 10' }).addTo(map);
+                };
+
+                const fetchRoute = async (start, end) => {
+                    try {
+                        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`);
+                        const data = await res.json();
+                        if (data.routes?.length > 0) {
+                            const route = data.routes[0];
+                            const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                            routePath.setLatLngs(coords);
+                            routePath.setStyle({ dashArray: null, color: '#2563eb' }); // Make it solid blue for the actual route
+
+                            routeDetails.value = {
+                                distance: (route.distance / 1000).toFixed(1),
+                                duration: Math.ceil(route.duration / 60),
+                                name: route.name || 'Main Road'
+                            };
+
+                            const bounds = L.latLngBounds([start, end]);
+                            if (sourceMarker.getOpacity() > 0) bounds.extend(sourceMarker.getLatLng());
+                            map.fitBounds(bounds, { padding: [100, 100], animate: true });
+                        }
+                    } catch (e) { console.error('Route error', e); }
+                };
+
+                const track = async () => {
+                    if (!trackingId.value) return;
+                    try {
+                        const res = await fetch(`${API_URL}/api/parcels/track/${trackingId.value}`);
+                        const json = await res.json();
+                        if (!json.data) {
+                            error.value = 'Parcel not found. Please check your ID.';
+                            return;
+                        }
+
+                        const p = json.data;
+                        parcel.value = p;
+
+                        // Identify Trip Source
+                        if (p.tripId && !trip.value) {
+                            try {
+                                const tripRes = await fetch(`${API_URL}/api/trips/by-trip-id/${p.tripId}`);
+                                if (tripRes.ok) {
+                                    trip.value = await tripRes.json();
+                                } else {
+                                    // Try Mongo ID fallback
+                                    const tripRes2 = await fetch(`${API_URL}/api/trips/${p.tripId}`);
+                                    if (tripRes2.ok) trip.value = await tripRes2.json();
+                                }
+                            } catch (e) { console.error('Trip fetch error', e); }
+                        }
+
+                        const stepMatch = steps.find(s => s.status === p.status);
+                        if (stepMatch) currentStep.value = stepMatch.id;
+
+                        const dLat = p.deliveryLocation.latitude;
+                        const dLon = p.deliveryLocation.longitude;
+
+                        if (!map) initMap(dLat, dLon);
+                        destMarker.setLatLng([dLat, dLon]);
+
+                        // Handle Source Marker
+                        if (trip.value?.startLocation) {
+                            const sLoc = trip.value.startLocation;
+                            sourceMarker.setLatLng([sLoc.latitude, sLoc.longitude]);
+                            sourceMarker.setOpacity(1);
+                        } else {
+                            sourceMarker.setOpacity(0);
+                        }
+
+                        if (p.status === 'In Transit' && p.tripId) {
+                            try {
+                                const ongoingRes = await fetch(`${API_URL}/api/trips/ongoing/${p.tripId}`);
+                                if (ongoingRes.ok) {
+                                    const ongoing = await ongoingRes.json();
+                                    const sLoc = trip.value?.startLocation;
+
+                                    // Current point is Truck if moving, otherwise falling back to Source
+                                    const currentLat = ongoing?.lastKnownLocation?.latitude || sLoc?.latitude;
+                                    const currentLon = ongoing?.lastKnownLocation?.longitude || sLoc?.longitude;
+
+                                    if (currentLat && currentLon) {
+                                        // Update truck marker
+                                        truckMarker.setLatLng([currentLat, currentLon]);
+                                        truckMarker.setOpacity(1);
+
+                                        // Always fetch route at least once, or when location changes significantly
+                                        await fetchRoute([currentLat, currentLon], [dLat, dLon]);
+                                    } else {
+                                        // Still show straight dashed line if no location found at all
+                                        if (sLoc) {
+                                            routePath.setLatLngs([[sLoc.latitude, sLoc.longitude], [dLat, dLon]]);
+                                            routePath.setStyle({ dashArray: '10, 10', color: '#64748b' });
+                                        }
+                                    }
+                                }
+                            } catch (e) { console.error('Ongoing update error', e); }
+                        } else if (p.status === 'Delivered') {
+                            truckMarker.setLatLng([dLat, dLon]);
+                            truckMarker.setOpacity(1);
+                            routePath.setLatLngs([]);
+                            map.setView([dLat, dLon], 16);
+                        } else {
+                            truckMarker.setOpacity(0);
+                            if (trip.value?.startLocation) {
+                                const sLoc = trip.value.startLocation;
+                                // Draw a preview line from source to dest
+                                routePath.setLatLngs([[sLoc.latitude, sLoc.longitude], [dLat, dLon]]);
+                                routePath.setStyle({ dashArray: '10, 10', color: '#64748b' });
+                                map.fitBounds(routePath.getBounds(), { padding: [100, 100], animate: true });
+                            } else {
+                                routePath.setLatLngs([]);
+                            }
+                        }
+                        loading.value = false;
+                    } catch (e) { console.error('Track error', e); }
+                };
+
+                const submitTrackingId = () => {
+                    if (inputTrackingId.value.trim()) {
+                        window.location.search = `?trackingId=${inputTrackingId.value.trim()}`;
+                    }
+                };
+
+                onMounted(() => {
+                    track();
+                    pollInterval = setInterval(track, 10000);
+                });
+
+                onUnmounted(() => { if (pollInterval) clearInterval(pollInterval); });
+
+                return {
+                    trackingId, inputTrackingId, parcel, trip, routeDetails, loading, error, displayError, steps, currentStep,
+                    progressWidth, statusColor, submitTrackingId
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

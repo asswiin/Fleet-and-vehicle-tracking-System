@@ -334,8 +334,10 @@ const ManagerDashboard = () => {
                         <Text style={styles.driverNameSub}>{trip.driverId?.name || "Driver"}</Text>
                       </View>
                     </View>
-                    <View style={styles.inTransitBadge}>
-                      <Text style={styles.inTransitText}>IN TRANSIT</Text>
+                    <View style={[styles.inTransitBadge, { backgroundColor: trip.status === 'accepted' ? '#FEF3C7' : '#EFF6FF' }]}>
+                      <Text style={[styles.inTransitText, { color: trip.status === 'accepted' ? '#92400E' : '#2563EB' }]}>
+                        {trip.status === 'accepted' ? 'ACCEPTED' : 'IN TRANSIT'}
+                      </Text>
                     </View>
                   </View>
 

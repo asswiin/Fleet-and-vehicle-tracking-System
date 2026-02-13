@@ -31,7 +31,8 @@ import {
 } from "lucide-react-native";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { api, Trip } from "../../utils/api";
-import { MapView, Marker, Polyline, isMapAvailable } from "../../components/MapViewWrapper.native";
+import { MapView, Marker, Polyline, PROVIDER_DEFAULT, isMapAvailable } from "@/components/MapViewWrapper";
+import * as Location from "expo-location";
 
 const { width, height } = Dimensions.get("window");
 
@@ -39,7 +40,7 @@ const ActiveTripPage = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const driverId = params.driverId as string;
-  
+
   const [loading, setLoading] = useState(true);
   const [startingJourney, setStartingJourney] = useState(false);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
@@ -47,10 +48,50 @@ const ActiveTripPage = () => {
   const mapRef = useRef<any>(null);
 
   // Route State
-  const [routeCoordinates, setRouteCoordinates] = useState<{latitude: number, longitude: number}[]>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
   const [routeDistance, setRouteDistance] = useState<string>("0.0");
   const [routeDuration, setRouteDuration] = useState<string>("0m");
   const [isRouting, setIsRouting] = useState(false);
+  const [driverLocation, setDriverLocation] = useState<Location.LocationObject | null>(null);
+
+  // useEffect to watch location if trip is in-progress
+  useEffect(() => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+
+    const startWatching = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return;
+      }
+
+      locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 30000, // 30 seconds
+          distanceInterval: 50, // 50 meters
+        },
+        (location) => {
+          setDriverLocation(location);
+          if (activeTrip && activeTrip.status === 'in-progress') {
+            api.updateTripLocation(activeTrip._id, {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
+            });
+          }
+        }
+      );
+    };
+
+    if (activeTrip && activeTrip.status === 'in-progress') {
+      startWatching();
+    }
+
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+  }, [activeTrip?.status, activeTrip?._id]);
 
   // Fetch active trip data
   const fetchActiveTrip = async () => {
@@ -64,7 +105,7 @@ const ActiveTripPage = () => {
       setLoading(true);
       setError(null);
       const response = await api.getActiveTrip(driverId);
-      
+
       if (response.ok && response.data) {
         setActiveTrip(response.data);
       } else {
@@ -86,8 +127,8 @@ const ActiveTripPage = () => {
 
   // --- OSRM Routing Logic ---
 
-  const decodePolyline = (encoded: string): {latitude: number, longitude: number}[] => {
-    const points: {latitude: number, longitude: number}[] = [];
+  const decodePolyline = (encoded: string): { latitude: number, longitude: number }[] => {
+    const points: { latitude: number, longitude: number }[] = [];
     let index = 0, lat = 0, lng = 0;
 
     while (index < encoded.length) {
@@ -146,7 +187,7 @@ const ActiveTripPage = () => {
         .join(';');
 
       const url = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=polyline`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -154,7 +195,7 @@ const ActiveTripPage = () => {
         const route = data.routes[0];
         const points = decodePolyline(route.geometry);
         setRouteCoordinates(points);
-        
+
         const km = route.distance / 1000;
         setRouteDistance(km.toFixed(1));
         setRouteDuration(formatDuration(route.duration));
@@ -181,20 +222,20 @@ const ActiveTripPage = () => {
     try {
       // Build waypoints from delivery locations
       const sortedLocations = [...activeTrip.deliveryDestinations].sort((a, b) => a.order - b.order);
-      
+
       const origin = `${activeTrip.startLocation.latitude},${activeTrip.startLocation.longitude}`;
       const destination = `${sortedLocations[sortedLocations.length - 1].latitude},${sortedLocations[sortedLocations.length - 1].longitude}`;
-      
+
       // Build waypoints string (exclude last location since it's the destination)
       const waypointsArray = sortedLocations.slice(0, -1).map(loc => `${loc.latitude},${loc.longitude}`);
       const waypoints = waypointsArray.length > 0 ? `&waypoints=${waypointsArray.join('|')}` : '';
-      
+
       // Construct Google Maps URL
       const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints}`;
-      
+
       // Check if URL can be opened
       const canOpen = await Linking.canOpenURL(url);
-      
+
       if (canOpen) {
         await Linking.openURL(url);
       } else {
@@ -224,7 +265,7 @@ const ActiveTripPage = () => {
             try {
               setStartingJourney(true);
               const response = await api.startJourney(activeTrip._id);
-              
+
               if (response.ok) {
                 Alert.alert(
                   "Journey Started! 🚀",
@@ -478,7 +519,7 @@ const ActiveTripPage = () => {
                 <MapIcon size={18} color="#1E293B" />
                 <Text style={styles.mapTitle}>Route Map</Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.googleMapsBtn}
                 onPress={openGoogleMaps}
               >
@@ -521,6 +562,21 @@ const ActiveTripPage = () => {
                     pinColor={dest.deliveryStatus === "delivered" ? "#10B981" : "#EF4444"}
                   />
                 ))}
+
+                {/* Driver Current Location Marker */}
+                {driverLocation && (
+                  <Marker
+                    coordinate={{
+                      latitude: driverLocation.coords.latitude,
+                      longitude: driverLocation.coords.longitude,
+                    }}
+                    title="Your Location"
+                  >
+                    <View style={styles.driverMarker}>
+                      <Truck size={20} color="#fff" />
+                    </View>
+                  </Marker>
+                )}
 
                 {/* Actual Route Polyline from OSRM */}
                 {routeCoordinates.length > 1 && (
@@ -646,8 +702,8 @@ const ActiveTripPage = () => {
                         parcel.status === "In Transit"
                           ? "#10B981"
                           : parcel.status === "Delivered"
-                          ? "#3B82F6"
-                          : "#F59E0B",
+                            ? "#3B82F6"
+                            : "#F59E0B",
                     },
                   ]}
                 >
@@ -1196,6 +1252,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  driverMarker: {
+    backgroundColor: "#2563EB",
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
 

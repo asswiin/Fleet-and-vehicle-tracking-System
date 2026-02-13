@@ -37,7 +37,7 @@ const DriverDashboard = () => {
   const driverName = (driverData?.name || params.userName || "Driver 1").toString();
   const driverId = params.userId; // Capture the ID
   const initials = driverName.substring(0, 2).toUpperCase();
-  
+
   // Get role selection params for logout
   const selectedRole = params.role || "driver";
   const selectedDistrict = params.district || "";
@@ -75,14 +75,16 @@ const DriverDashboard = () => {
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: () => router.replace({
-        pathname: "/shared/login",
-        params: {
-          role: selectedRole,
-          district: selectedDistrict,
-          branch: selectedBranch,
-        }
-      } as any) },
+      {
+        text: "Log Out", style: "destructive", onPress: () => router.replace({
+          pathname: "/shared/login",
+          params: {
+            role: selectedRole,
+            district: selectedDistrict,
+            branch: selectedBranch,
+          }
+        } as any)
+      },
     ]);
   };
 
@@ -148,7 +150,7 @@ const DriverDashboard = () => {
         <View style={styles.gridContainer}>
 
           {/* Card 1: Active Trip */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.card}
             onPress={() => {
               if (driverId) {
@@ -176,7 +178,7 @@ const DriverDashboard = () => {
           </TouchableOpacity>
 
           {/* Card 3: Alerts */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.card}
             onPress={() => {
               if (driverId) {
@@ -198,7 +200,10 @@ const DriverDashboard = () => {
           </TouchableOpacity>
 
           {/* Card 3: SOS */}
-          <TouchableOpacity style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push("/driver/sos")}
+          >
             <View style={[styles.iconCircle, { backgroundColor: "#FEE2E2" }]}>
               <Text style={styles.sosText}>SOS</Text>
             </View>
@@ -226,7 +231,7 @@ const DriverDashboard = () => {
           <Text style={[styles.navText, { color: "#2563EB" }]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
             if (driverId) {

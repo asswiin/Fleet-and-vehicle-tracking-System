@@ -45,13 +45,13 @@ const TripSummaryScreen = () => {
   const totalWeight = parseFloat((params.totalWeight as string) || "0");
   const vehicleId = (params.vehicleId as string) || "";
   const driverId = (params.driverId as string) || "";
-  
+
   // Parse delivery locations from params
-  const deliveryLocations: DeliveryLocation[] = params.deliveryLocations 
-    ? JSON.parse(params.deliveryLocations as string) 
+  const deliveryLocations: DeliveryLocation[] = params.deliveryLocations
+    ? JSON.parse(params.deliveryLocations as string)
     : [];
-  const startLocation: StartLocation | null = params.startLocation 
-    ? JSON.parse(params.startLocation as string) 
+  const startLocation: StartLocation | null = params.startLocation
+    ? JSON.parse(params.startLocation as string)
     : null;
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -85,7 +85,7 @@ const TripSummaryScreen = () => {
         let selectedParcels = parcelsRes.data.filter((p: Parcel) =>
           parcelIds.includes(p._id)
         );
-        
+
         // Merge delivery location data with parcels and sort by order
         if (deliveryLocations.length > 0) {
           selectedParcels = selectedParcels.map((parcel: Parcel) => {
@@ -99,7 +99,7 @@ const TripSummaryScreen = () => {
               } : undefined,
             };
           });
-          
+
           // Sort parcels by delivery order
           selectedParcels.sort((a: Parcel, b: Parcel) => {
             const orderA = a.deliveryLocation?.order || 999;
@@ -107,7 +107,7 @@ const TripSummaryScreen = () => {
             return orderA - orderB;
           });
         }
-        
+
         setParcels(selectedParcels);
       }
     } catch (error) {
@@ -129,7 +129,7 @@ const TripSummaryScreen = () => {
       // Update each parcel status to "Pending" and add delivery location with locationName
       for (const parcel of parcels) {
         await api.updateParcelStatus(parcel._id, "Pending");
-        
+
         // Update parcel with delivery location including locationName if available
         if (parcel.deliveryLocation) {
           // Find the matching location from deliveryLocations to get locationName
@@ -148,7 +148,7 @@ const TripSummaryScreen = () => {
       // Create notification for the driver with location data
       // NOTE: Vehicle and driver status will be updated to "On-trip" when driver ACCEPTS the trip
       const tripId = `TR-${Date.now().toString().slice(-6)}-X`;
-      
+
       // Create Trip record with all details including destinations
       const tripRes = await api.createTrip({
         tripId,
@@ -198,7 +198,10 @@ const TripSummaryScreen = () => {
         {
           text: "OK",
           onPress: () => {
-            router.push("manager/manager-dashboard" as any);
+            router.push({
+              pathname: "manager/manager-dashboard",
+              params: { userId: params.managerId as string }
+            } as any);
           },
         },
       ]);
@@ -211,7 +214,7 @@ const TripSummaryScreen = () => {
   };
 
 
- 
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -322,38 +325,39 @@ const TripSummaryScreen = () => {
                   <View style={styles.divider} />
                 </>
               )}
-              
+
               {/* Delivery Stops */}
               {parcels.map((parcel, index) => {
                 const locationData = deliveryLocations.find(loc => loc.parcelId === parcel._id);
                 return (
-                <React.Fragment key={parcel._id}>
-                  <View style={styles.cardRow}>
-                    <View style={styles.routeItemLeft}>
-                      <View style={[styles.routeOrderBadge, { backgroundColor: '#2563EB' }]}>
-                        <Text style={styles.routeOrderText}>
-                          {locationData?.order || index + 1}
-                        </Text>
+                  <React.Fragment key={parcel._id}>
+                    <View style={styles.cardRow}>
+                      <View style={styles.routeItemLeft}>
+                        <View style={[styles.routeOrderBadge, { backgroundColor: '#2563EB' }]}>
+                          <Text style={styles.routeOrderText}>
+                            {locationData?.order || index + 1}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.routeLabel}>
+                            {parcel.trackingId || `Stop ${index + 1}`}
+                          </Text>
+                          <Text style={styles.routeRecipient}>
+                            {parcel.recipient?.name || 'Unknown'}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.routeLabel}>
-                          {parcel.trackingId || `Stop ${index + 1}`}
-                        </Text>
-                        <Text style={styles.routeRecipient}>
-                          {parcel.recipient?.name || 'Unknown'}
+                      <View style={styles.routeDestination}>
+                        <MapPin size={12} color="#059669" />
+                        <Text style={styles.routeDestinationText} numberOfLines={1}>
+                          {locationData?.locationName || 'Location set'}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.routeDestination}>
-                      <MapPin size={12} color="#059669" />
-                      <Text style={styles.routeDestinationText} numberOfLines={1}>
-                        {locationData?.locationName || 'Location set'}
-                      </Text>
-                    </View>
-                  </View>
-                  {index < parcels.length - 1 && <View style={styles.divider} />}
-                </React.Fragment>
-              );})}
+                    {index < parcels.length - 1 && <View style={styles.divider} />}
+                  </React.Fragment>
+                );
+              })}
             </View>
           </View>
         )}
@@ -368,39 +372,40 @@ const TripSummaryScreen = () => {
             {parcels.map((parcel, index) => {
               const locationData = deliveryLocations.find(loc => loc.parcelId === parcel._id);
               return (
-              <View key={parcel._id} style={styles.parcelItem}>
-                <View style={styles.parcelContent}>
-                  <View style={[styles.parcelNumber, { backgroundColor: locationData ? '#2563EB' : '#64748B' }]}>
-                    <Text style={styles.parcelNumberText}>
-                      {locationData?.order || index + 1}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.parcelId}>
-                      {parcel.trackingId || parcel._id.slice(-8)}
-                    </Text>
-                    {parcel.recipient?.name && (
-                      <Text style={styles.parcelRecipient}>
-                        To: {parcel.recipient.name}
+                <View key={parcel._id} style={styles.parcelItem}>
+                  <View style={styles.parcelContent}>
+                    <View style={[styles.parcelNumber, { backgroundColor: locationData ? '#2563EB' : '#64748B' }]}>
+                      <Text style={styles.parcelNumberText}>
+                        {locationData?.order || index + 1}
                       </Text>
-                    )}
-                    {parcel.weight && (
-                      <Text style={styles.parcelWeight}>
-                        Weight: {parcel.weight}kg
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.parcelId}>
+                        {parcel.trackingId || parcel._id.slice(-8)}
                       </Text>
-                    )}
-                    {locationData && (
-                      <View style={styles.locationBadge}>
-                        <MapPin size={12} color="#10B981" />
-                        <Text style={styles.locationBadgeText}>
-                          {locationData.locationName || 'Location set'}
+                      {parcel.recipient?.name && (
+                        <Text style={styles.parcelRecipient}>
+                          To: {parcel.recipient.name}
                         </Text>
-                      </View>
-                    )}
+                      )}
+                      {parcel.weight && (
+                        <Text style={styles.parcelWeight}>
+                          Weight: {parcel.weight}kg
+                        </Text>
+                      )}
+                      {locationData && (
+                        <View style={styles.locationBadge}>
+                          <MapPin size={12} color="#10B981" />
+                          <Text style={styles.locationBadgeText}>
+                            {locationData.locationName || 'Location set'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
-              </View>
-            );})}
+              );
+            })}
           </View>
         </View>
 

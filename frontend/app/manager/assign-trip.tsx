@@ -115,6 +115,7 @@ const AssignTripScreen = () => {
         totalWeight: totalWeight.toString(),
         vehicleId: vehicleId,
         driverId: selectedDriver,
+        managerId: params.managerId as string,
       },
     } as any);
   };
