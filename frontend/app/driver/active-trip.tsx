@@ -36,6 +36,12 @@ import * as Location from "expo-location";
 
 const { width, height } = Dimensions.get("window");
 
+// Color palette for markers
+const MARKER_COLORS = [
+  "#2563EB", "#DC2626", "#059669", "#D97706", "#7C3AED",
+  "#DB2777", "#0891B2", "#4F46E5", "#EA580C", "#16A34A"
+];
+
 const ActiveTripPage = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -166,7 +172,7 @@ const ActiveTripPage = () => {
     return `${minutes}m`;
   };
 
-  const calculateRoute = async () => {
+  const calculateRoute = useCallback(async () => {
     if (!activeTrip || !activeTrip.startLocation) return;
 
     // Prepare Waypoints (Start -> Stop 1 -> Stop 2 ...)
@@ -209,7 +215,13 @@ const ActiveTripPage = () => {
     } finally {
       setIsRouting(false);
     }
-  };
+  }, [activeTrip]);
+
+  useEffect(() => {
+    if (activeTrip && activeTrip.startLocation) {
+      calculateRoute();
+    }
+  }, [activeTrip?.tripId, calculateRoute]);
 
   // --- End Routing Logic ---
 
@@ -539,33 +551,44 @@ const ActiveTripPage = () => {
                 {/* Start Location Marker */}
                 {activeTrip.startLocation?.latitude && activeTrip.startLocation?.longitude && (
                   <Marker
+                    key={`start-marker-${activeTrip._id}`}
                     coordinate={{
                       latitude: activeTrip.startLocation.latitude,
                       longitude: activeTrip.startLocation.longitude,
                     }}
-                    title="Start Location"
-                    description={activeTrip.startLocation.address || "Pickup Point"}
-                    pinColor="#2563EB"
-                  />
+                    title="Starting Point"
+                    description={activeTrip.startLocation.address || "Trip starts here"}
+                  >
+                    <View style={styles.startMarker}>
+                      <Navigation size={14} color="#fff" />
+                    </View>
+                  </Marker>
                 )}
 
                 {/* Delivery Destination Markers */}
                 {destinations.map((dest, index) => (
                   <Marker
-                    key={dest.parcelId || index}
+                    key={`dest-marker-${dest.parcelId || index}-${index}`}
                     coordinate={{
                       latitude: dest.latitude,
                       longitude: dest.longitude,
                     }}
                     title={`Stop ${dest.order}: ${dest.locationName}`}
                     description={`Delivery ${index + 1}`}
-                    pinColor={dest.deliveryStatus === "delivered" ? "#10B981" : "#EF4444"}
-                  />
+                  >
+                    <View style={[
+                      styles.deliveryMarker,
+                      { backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length] }
+                    ]}>
+                      <Text style={styles.markerText}>{dest.order}</Text>
+                    </View>
+                  </Marker>
                 ))}
 
                 {/* Driver Current Location Marker */}
                 {driverLocation && (
                   <Marker
+                    key={`driver-marker-${activeTrip._id}`}
                     coordinate={{
                       latitude: driverLocation.coords.latitude,
                       longitude: driverLocation.coords.longitude,
@@ -581,20 +604,22 @@ const ActiveTripPage = () => {
                 {/* Actual Route Polyline from OSRM */}
                 {routeCoordinates.length > 1 && (
                   <Polyline
+                    key={`route-polyline-${activeTrip._id}-${routeCoordinates.length}`}
                     coordinates={routeCoordinates}
                     strokeColor="#2563EB"
                     strokeWidth={4}
+                    lineDashPattern={[0]}
                   />
                 )}
-
-                {/* Routing Loader */}
-                {isRouting && (
-                  <View style={styles.routingLoader}>
-                    <ActivityIndicator size="small" color="#2563EB" />
-                    <Text style={styles.routingText}>Calculating route...</Text>
-                  </View>
-                )}
               </MapView>
+
+              {/* Routing Loader Moved outside MapView */}
+              {isRouting && (
+                <View style={styles.routingLoader}>
+                  <ActivityIndicator size="small" color="#2563EB" />
+                  <Text style={styles.routingText}>Calculating route...</Text>
+                </View>
+              )}
             </View>
 
             {/* Route Info Card */}
@@ -1264,6 +1289,38 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  startMarker: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    elevation: 5,
+  },
+  deliveryMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    elevation: 5,
+  },
+  markerText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#fff",
   },
 });
 

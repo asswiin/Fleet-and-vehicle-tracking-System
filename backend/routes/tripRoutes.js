@@ -50,4 +50,7 @@ router.patch("/:id/location", tripController.updateTripLocation);
 // Get specific ongoing trip details for live tracking
 router.get("/ongoing/:id", tripController.getOngoingTrip);
 
+// Toggle SOS status
+router.patch("/:id/sos", tripController.toggleSOS);
+
 module.exports = router;

@@ -9,9 +9,10 @@ import {
   Dimensions,
   Image,
   Alert,
+  Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Search,
   Bell,
@@ -43,6 +44,26 @@ const ManagerDashboard = () => {
   const rawUserName = params.userName as string;
 
   const [managerData, setManagerData] = useState<UserType | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
 
   // Robust ID selection: prioritize params, then state
   const userId = (rawUserId && rawUserId !== "undefined" && rawUserId !== "null")
@@ -323,7 +344,15 @@ const ManagerDashboard = () => {
               const progress = totalParcels > 0 ? (deliveredParcels / totalParcels) * 100 : 0;
 
               return (
-                <View key={trip._id} style={styles.deliveryCard}>
+                <TouchableOpacity
+                  key={trip._id}
+                  style={styles.deliveryCard}
+                  onPress={() => router.push({
+                    pathname: "/manager/track-trip",
+                    params: { tripId: trip._id }
+                  } as any)}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.cardTop}>
                     <View style={styles.cardHeaderLeft}>
                       <View style={styles.truckIconBg}>
@@ -341,6 +370,13 @@ const ManagerDashboard = () => {
                     </View>
                   </View>
 
+                  {trip.sos && (
+                    <Animated.View style={[styles.sosBadge, { transform: [{ scale: pulseAnim }] }]}>
+                      <AlertTriangle size={14} color="#fff" />
+                      <Text style={styles.sosBadgeText}>SOS EMERGENCY REPORTED</Text>
+                    </Animated.View>
+                  )}
+
                   <View style={styles.progressRow}>
                     <Text style={styles.progressTimeText}>--:-- PM</Text>
                     <Text style={styles.progressPercentText}>{Math.round(progress)}%</Text>
@@ -356,18 +392,12 @@ const ManagerDashboard = () => {
                       <MessageSquare size={18} color="#374151" style={{ marginRight: 8 }} />
                       <Text style={styles.actionBtnLabel}>Message</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.trackIconButton}
-                      onPress={() => router.push({
-                        pathname: "/manager/track-trip",
-                        params: { tripId: trip._id }
-                      } as any)}
-                    >
-                      <Navigation size={18} color="#fff" style={{ marginRight: 8 }} />
-                      <Text style={[styles.actionBtnLabel, { color: "#fff" }]}>Track</Text>
-                    </TouchableOpacity>
+                    <View style={styles.trackLinkDash}>
+                      <Text style={styles.trackLinkTextDash}>Live Track</Text>
+                      <Navigation size={14} color="#2563EB" />
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
@@ -618,19 +648,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  trackIconButton: {
+  trackLinkDash: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: "#2563EB",
+    gap: 6,
+  },
+  trackLinkTextDash: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2563EB",
   },
   actionBtnLabel: {
     fontSize: 13,
     fontWeight: "600",
     color: "#374151",
+  },
+  sosBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 6,
+  },
+  sosBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
 });
 

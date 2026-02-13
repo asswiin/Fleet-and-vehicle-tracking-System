@@ -747,3 +747,36 @@ exports.getOngoingTrip = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch ongoing trip", error: error.message });
   }
 };
+
+// Toggle SOS status for a trip
+exports.toggleSOS = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sos } = req.body;
+
+    let trip;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      trip = await Trip.findById(id);
+    } else {
+      trip = await Trip.findOne({ tripId: id });
+    }
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    trip.sos = sos;
+    await trip.save();
+
+    // Also update OngoingTrip if it exists
+    await OngoingTrip.findOneAndUpdate(
+      { trip: trip._id },
+      { $set: { updatedAt: new Date() } } // Just to trigger update or we could add SOS to OngoingTrip model too if needed
+    );
+
+    res.status(200).json({ message: `SOS status updated to ${sos}`, trip });
+  } catch (error) {
+    console.error("Toggle SOS error:", error);
+    res.status(500).json({ message: "Failed to toggle SOS", error: error.message });
+  }
+};

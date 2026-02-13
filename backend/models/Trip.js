@@ -98,6 +98,11 @@ const tripSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // SOS status
+    sos: {
+      type: Boolean,
+      default: false,
+    },
     // Total distance (can be calculated later)
     totalDistance: {
       type: Number,

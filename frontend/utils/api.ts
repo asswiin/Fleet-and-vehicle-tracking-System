@@ -293,6 +293,7 @@ export interface Trip {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  sos?: boolean;
 }
 
 
@@ -609,6 +610,12 @@ export const api = {
     apiCall(`/api/trips/${tripId}/location`, {
       method: "PATCH",
       body: JSON.stringify(data)
+    }),
+
+  toggleSOS: (id: string, sos: boolean) =>
+    apiCall(`/api/trips/${id}/sos`, {
+      method: "PATCH",
+      body: JSON.stringify({ sos })
     }),
 };
 

@@ -11,41 +11,191 @@ import {
     Platform,
     Linking,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
     ArrowLeft,
     TriangleAlert,
-    Phone,
     Truck,
     Wrench,
-    Fuel,
     Navigation,
-    MapPin,
-    Bell,
+    Phone,
+    AlertCircle,
 } from "lucide-react-native";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as Location from "expo-location";
 import { MapView, Marker, Circle, PROVIDER_DEFAULT, isMapAvailable } from "@/components/MapViewWrapper";
-import { Animated } from "react-native";
+import { Animated, Alert, ActivityIndicator } from "react-native";
+import { api, Trip } from "../../utils/api";
 
 const { width } = Dimensions.get("window");
 
 const SOSPage = () => {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const driverId = params.driverId as string;
+
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
+    const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+    const [loadingTrip, setLoadingTrip] = useState(false);
+    const [sosActive, setSosActive] = useState(false);
+    const [togglingSos, setTogglingSos] = useState(false);
+
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const opacityAnim = useRef(new Animated.Value(0.6)).current;
+    const mapRef = useRef<any>(null);
+
+    const fetchActiveTrip = useCallback(async () => {
+        if (!driverId) return;
+        try {
+            setLoadingTrip(true);
+            const res = await api.getActiveTrip(driverId);
+            if (res.ok && res.data) {
+                setActiveTrip(res.data);
+                setSosActive(!!res.data.sos);
+            }
+        } catch (e) {
+            console.error("Error fetching active trip:", e);
+        } finally {
+            setLoadingTrip(false);
+        }
+    }, [driverId]);
+
+    const handleSOS = async () => {
+        if (!activeTrip) {
+            Alert.alert("Error", "No active trip found to report SOS for.");
+            return;
+        }
+
+        const newStatus = !sosActive;
+        const alertTitle = newStatus ? "Send SOS?" : "Clear SOS?";
+        const alertMsg = newStatus
+            ? "This will alert your manager and dispatch immediate help to your current location."
+            : "Are you sure you want to clear the emergency signal?";
+
+        Alert.alert(alertTitle, alertMsg, [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: newStatus ? "SEND SOS" : "CLEAR",
+                style: newStatus ? "destructive" : "default",
+                onPress: async () => {
+                    try {
+                        setTogglingSos(true);
+                        const res = await api.toggleSOS(activeTrip._id, newStatus);
+                        if (res.ok) {
+                            setSosActive(newStatus);
+                            Alert.alert("Success", newStatus ? "SOS sent successfully!" : "SOS cleared.");
+                        } else {
+                            Alert.alert("Error", res.error || "Failed to update SOS status");
+                        }
+                    } catch (e) {
+                        console.error("SOS toggle error:", e);
+                    } finally {
+                        setTogglingSos(false);
+                    }
+                }
+            }
+        ]);
+    };
+
+    const centerToLocation = () => {
+        if (location && mapRef.current) {
+            mapRef.current.animateToRegion({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+            }, 1000);
+        }
+    };
+
+    const [nearbyServices, setNearbyServices] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    const searchNearbyServices = async (lat: number, lng: number) => {
+        setIsSearching(true);
+        try {
+            // Using Photon (OSM-based) API for POI search near coordinates
+            const url = `https://photon.komoot.io/api/?q=car+service&lat=${lat}&lon=${lng}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.features) {
+                const formatted = data.features.slice(0, 5).map((f: any) => {
+                    const coords = f.geometry.coordinates;
+                    const props = f.properties;
+
+                    // Simple distance calculation in km
+                    const dist = calculateDistance(lat, lng, coords[1], coords[0]);
+
+                    return {
+                        id: props.osm_id || Math.random(),
+                        name: props.name || "Repair Center",
+                        address: [props.street, props.city].filter(Boolean).join(", ") || "Nearby Location",
+                        distance: dist.toFixed(1) + " km",
+                        latitude: coords[1],
+                        longitude: coords[0],
+                        phone: "91" + Math.floor(Math.random() * 9000000000 + 1000000000), // Mock phone
+                    };
+                });
+                setNearbyServices(formatted);
+            }
+        } catch (e) {
+            console.error("Discovery error:", e);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
+    const openDirections = (lat: number, lng: number) => {
+        const url = Platform.select({
+            ios: `maps:0,0?q=${lat},${lng}`,
+            android: `geo:0,0?q=${lat},${lng}`,
+            web: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+        });
+        if (url) Linking.openURL(url);
+    };
+
+    const handleCall = (phone: string) => {
+        Linking.openURL(`tel:${phone}`);
+    };
 
     useEffect(() => {
+        let subscription: any = null;
         (async () => {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') return;
+
             let loc = await Location.getCurrentPositionAsync({});
             setLocation(loc);
+
+            // Auto search when location is first found
+            searchNearbyServices(loc.coords.latitude, loc.coords.longitude);
+
+            subscription = await Location.watchPositionAsync(
+                {
+                    accuracy: Location.Accuracy.Balanced,
+                    distanceInterval: 10,
+                    timeInterval: 5000,
+                },
+                (newLocation) => {
+                    setLocation(newLocation);
+                }
+            );
         })();
 
-        // SOS Pulse Animation
-        Animated.loop(
+        fetchActiveTrip();
+        const pulse = Animated.loop(
             Animated.parallel([
                 Animated.sequence([
                     Animated.timing(pulseAnim, {
@@ -72,45 +222,15 @@ const SOSPage = () => {
                     }),
                 ]),
             ])
-        ).start();
-    }, []);
+        );
+        pulse.start();
 
-    const serviceCenters = [
-        {
-            id: 1,
-            name: "Service Center 1",
-            distance: "-- km",
-            status: "Open Now",
-            statusColor: "#10B981",
-            icon: <Wrench size={24} color="#64748B" />,
-            phone: "1234567890",
-            isOpen: true,
-        },
-        {
-            id: 2,
-            name: "Service Center 2",
-            distance: "-- km",
-            status: "24/7 Service",
-            statusColor: "#10B981",
-            icon: <Truck size={24} color="#64748B" />,
-            phone: "0987654321",
-            isOpen: true,
-        },
-        {
-            id: 3,
-            name: "Service Center 4",
-            distance: "-- km",
-            status: "Closed",
-            statusColor: "#EF4444",
-            icon: <Fuel size={24} color="#64748B" />,
-            phone: "1122334455",
-            isOpen: false,
-        },
-    ];
+        return () => {
+            if (subscription) subscription.remove();
+            pulse.stop();
+        };
+    }, [fetchActiveTrip]);
 
-    const handleCall = (phone: string) => {
-        Linking.openURL(`tel:${phone}`);
-    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -127,16 +247,19 @@ const SOSPage = () => {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* Breakdown Banner */}
-                <View style={styles.alertBanner}>
-                    <TriangleAlert size={20} color="#fff" />
-                    <Text style={styles.alertText}>VEHICLE BREAKDOWN REPORTED</Text>
-                </View>
+                {/* SOS Status Banner */}
+                {sosActive && (
+                    <View style={styles.alertBanner}>
+                        <TriangleAlert size={20} color="#fff" />
+                        <Text style={styles.alertText}>EMERGENCY ALERT ACTIVE</Text>
+                    </View>
+                )}
 
                 {/* Map Section */}
-                <View style={styles.mapContainer}>
+                <View style={[styles.mapContainer, sosActive && { borderColor: '#EF4444', borderBottomWidth: 2 }]}>
                     {isMapAvailable && location ? (
                         <MapView
+                            ref={mapRef}
                             style={styles.map}
                             initialRegion={{
                                 latitude: location.coords.latitude,
@@ -145,38 +268,60 @@ const SOSPage = () => {
                                 longitudeDelta: 0.05,
                             }}
                             provider={PROVIDER_DEFAULT}
+                            showsUserLocation={true}
+                            showsMyLocationButton={false}
                         >
+                            {/* SOS Pulse Circles - Only show if SOS is active */}
+                            {sosActive && (
+                                <>
+                                    <Marker
+                                        coordinate={{
+                                            latitude: location.coords.latitude,
+                                            longitude: location.coords.longitude,
+                                        }}
+                                        anchor={{ x: 0.5, y: 0.5 }}
+                                    >
+                                        <View style={styles.sosMarkerContainer}>
+                                            <Animated.View
+                                                style={[
+                                                    styles.pulseCircle,
+                                                    {
+                                                        transform: [{ scale: pulseAnim }],
+                                                        opacity: opacityAnim
+                                                    }
+                                                ]}
+                                            />
+                                            <View style={styles.sosMarker}>
+                                                <Text style={styles.sosMarkerText}>SOS</Text>
+                                            </View>
+                                        </View>
+                                    </Marker>
+                                    <Circle
+                                        center={{
+                                            latitude: location.coords.latitude,
+                                            longitude: location.coords.longitude,
+                                        }}
+                                        radius={2000}
+                                        strokeColor="rgba(239, 68, 68, 0.2)"
+                                        fillColor="rgba(239, 68, 68, 0.1)"
+                                    />
+                                </>
+                            )}
+
+                            {/* Driver Current Location Dot */}
                             <Marker
                                 coordinate={{
                                     latitude: location.coords.latitude,
                                     longitude: location.coords.longitude,
                                 }}
+                                anchor={{ x: 0.5, y: 0.5 }}
+                                zIndex={10}
                             >
-                                <View style={styles.sosMarkerContainer}>
-                                    <Animated.View
-                                        style={[
-                                            styles.pulseCircle,
-                                            {
-                                                transform: [{ scale: pulseAnim }],
-                                                opacity: opacityAnim
-                                            }
-                                        ]}
-                                    />
-                                    <View style={styles.sosMarker}>
-                                        <Text style={styles.sosMarkerText}>SOS</Text>
-                                    </View>
+                                <View style={styles.driverDotContainer}>
+                                    <View style={styles.driverDotHalo} />
+                                    <View style={styles.driverDot} />
                                 </View>
                             </Marker>
-
-                            <Circle
-                                center={{
-                                    latitude: location.coords.latitude,
-                                    longitude: location.coords.longitude,
-                                }}
-                                radius={2000}
-                                strokeColor="rgba(239, 68, 68, 0.2)"
-                                fillColor="rgba(239, 68, 68, 0.1)"
-                            />
                         </MapView>
                     ) : (
                         <View style={styles.mapPlaceholder}>
@@ -186,38 +331,102 @@ const SOSPage = () => {
                     )}
 
                     {/* Current Location FAB */}
-                    <TouchableOpacity style={styles.locationFab}>
-                        <Navigation size={20} color="#EF4444" />
+                    <TouchableOpacity
+                        style={styles.locationFab}
+                        onPress={centerToLocation}
+                        activeOpacity={0.7}
+                    >
+                        <Navigation size={20} color="#2563EB" />
                     </TouchableOpacity>
                 </View>
 
-                {/* Service Centers List */}
-                <View style={styles.serviceSection}>
-                    <Text style={styles.sectionTitle}>Nearby Service Centers</Text>
-                    <Text style={styles.sectionSubtitle}>Select a provider to dispatch help immediately.</Text>
+                {/* Primary SOS Action Button */}
+                <View style={styles.sosActionSection}>
+                    <TouchableOpacity
+                        style={[
+                            styles.sosButton,
+                            sosActive ? styles.sosButtonActive : styles.sosButtonInactive,
+                            togglingSos && { opacity: 0.8 }
+                        ]}
+                        onPress={handleSOS}
+                        disabled={togglingSos || loadingTrip}
+                        activeOpacity={0.8}
+                    >
+                        {togglingSos ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <>
+                                <View style={styles.sosButtonIconContainer}>
+                                    <TriangleAlert size={32} color={sosActive ? "#fff" : "#EF4444"} />
+                                </View>
+                                <View>
+                                    <Text style={styles.sosButtonTitle}>
+                                        {sosActive ? "CLEAR EMERGENCY" : "SEND SOS ALERT"}
+                                    </Text>
+                                    <Text style={styles.sosButtonSubtitle}>
+                                        {sosActive ? "Disable emergency signal" : "Tap for immediate help"}
+                                    </Text>
+                                </View>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
 
-                    {serviceCenters.map((center) => (
-                        <View key={center.id} style={styles.serviceCard}>
-                            <View style={styles.serviceIconContainer}>
-                                {center.icon}
-                            </View>
-                            <View style={styles.serviceInfo}>
-                                <Text style={styles.serviceName}>{center.name}</Text>
-                                <View style={styles.serviceMeta}>
-                                    <Text style={styles.serviceDistance}>{center.distance}</Text>
-                                    <Text style={styles.bullet}> • </Text>
-                                    <Text style={[styles.serviceStatus, { color: center.statusColor }]}>{center.status}</Text>
+                {/* Service Centers Action Button */}
+                <View style={styles.serviceSection}>
+                    <View style={styles.sectionHeader}>
+                        <View>
+                            <Text style={styles.sectionTitle}>Nearby Support</Text>
+                            <Text style={styles.sectionSubtitle}>Select a provider to get immediate help.</Text>
+                        </View>
+                        {isSearching && <ActivityIndicator color="#2563EB" />}
+                    </View>
+
+                    {nearbyServices.length > 0 ? (
+                        nearbyServices.map((service) => (
+                            <View key={service.id} style={styles.serviceCard}>
+                                <View style={styles.serviceCardContent}>
+                                    <View style={styles.serviceIconContainer}>
+                                        <Wrench size={20} color="#64748B" />
+                                    </View>
+                                    <View style={styles.serviceMainInfo}>
+                                        <Text style={styles.serviceName} numberOfLines={1}>{service.name}</Text>
+                                        <Text style={styles.serviceAddress} numberOfLines={1}>{service.address}</Text>
+                                        <Text style={styles.serviceDistText}>{service.distance} away</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.serviceActionsRow}>
+                                    <TouchableOpacity
+                                        style={styles.actionBtnCall}
+                                        onPress={() => handleCall(service.phone)}
+                                    >
+                                        <Phone size={16} color="#059669" />
+                                        <Text style={styles.actionBtnTextCall}>Call</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.actionBtnNav}
+                                        onPress={() => openDirections(service.latitude, service.longitude)}
+                                    >
+                                        <Navigation size={16} color="#fff" />
+                                        <Text style={styles.actionBtnTextNav}>Route</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
+                        ))
+                    ) : !isSearching && (
+                        <View style={styles.emptyServices}>
+                            <AlertCircle size={32} color="#CBD5E1" />
+                            <Text style={styles.emptyServicesText}>No service centers found nearby.</Text>
                             <TouchableOpacity
-                                style={[styles.callButton, !center.isOpen && styles.callButtonDisabled]}
-                                onPress={() => center.isOpen && handleCall(center.phone)}
-                                disabled={!center.isOpen}
+                                style={styles.retryBtn}
+                                onPress={() => location && searchNearbyServices(location.coords.latitude, location.coords.longitude)}
                             >
-                                <Text style={[styles.callButtonText, !center.isOpen && styles.callButtonTextDisabled]}>CALL</Text>
+                                <Text style={styles.retryBtnText}>Retry Search</Text>
                             </TouchableOpacity>
                         </View>
-                    ))}
+                    )}
                 </View>
 
             </ScrollView>
@@ -322,6 +531,28 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
     },
 
+    driverDotContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 40,
+        height: 40,
+    },
+    driverDot: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#2563EB',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    driverDotHalo: {
+        position: 'absolute',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: 'rgba(37, 99, 235, 0.3)',
+    },
+
     serviceSection: {
         padding: 24,
     },
@@ -336,67 +567,168 @@ const styles = StyleSheet.create({
         color: "#64748B",
         marginBottom: 24,
     },
-    serviceCard: {
+    sectionHeader: {
         flexDirection: "row",
-        alignItems: "center",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 24,
+    },
+    serviceCard: {
         backgroundColor: "#fff",
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: "#F1F5F9",
-        elevation: 2,
+        borderColor: "#E2E8F0",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    serviceCardContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 16,
     },
     serviceIconContainer: {
         width: 48,
         height: 48,
-        borderRadius: 12,
+        borderRadius: 14,
         backgroundColor: "#F1F5F9",
         alignItems: "center",
         justifyContent: "center",
         marginRight: 16,
     },
-    serviceInfo: { flex: 1 },
+    serviceMainInfo: {
+        flex: 1,
+    },
     serviceName: {
         fontSize: 16,
         fontWeight: "700",
         color: "#0F172A",
-        marginBottom: 4,
     },
-    serviceMeta: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    serviceDistance: {
+    serviceAddress: {
         fontSize: 13,
         color: "#64748B",
-        fontWeight: "500",
+        marginTop: 2,
     },
-    bullet: { color: "#94A3B8" },
-    serviceStatus: {
-        fontSize: 13,
+    serviceDistText: {
+        fontSize: 12,
         fontWeight: "600",
+        color: "#2563EB",
+        marginTop: 4,
     },
-    callButton: {
-        backgroundColor: "#10B981",
-        paddingHorizontal: 20,
+    serviceActionsRow: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    actionBtnCall: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         paddingVertical: 10,
-        borderRadius: 10,
+        borderRadius: 12,
+        backgroundColor: "#ECFDF5",
+        borderWidth: 1,
+        borderColor: "#A7F3D0",
+        gap: 8,
     },
-    callButtonDisabled: {
-        backgroundColor: "#F1F5F9",
-    },
-    callButtonText: {
-        color: "#fff",
+    actionBtnTextCall: {
         fontSize: 14,
         fontWeight: "700",
+        color: "#065F46",
     },
-    callButtonTextDisabled: {
-        color: "#94A3B8",
+    actionBtnNav: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: "#2563EB",
+        gap: 8,
+    },
+    actionBtnTextNav: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#fff",
+    },
+    emptyServices: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 40,
+        backgroundColor: "#fff",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#F1F5F9",
+    },
+    emptyServicesText: {
+        fontSize: 14,
+        color: "#64748B",
+        marginTop: 12,
+        marginBottom: 16,
+    },
+    retryBtn: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: "#F1F5F9",
+        borderRadius: 10,
+    },
+    retryBtnText: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#475569",
+    },
+    sosActionSection: {
+        padding: 24,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    sosButton: {
+        width: '100%',
+        height: 90,
+        borderRadius: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 20,
+        elevation: 8,
+        shadowColor: "#EF4444",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    sosButtonInactive: {
+        backgroundColor: "#fff",
+        borderWidth: 2,
+        borderColor: "#EF4444",
+    },
+    sosButtonActive: {
+        backgroundColor: "#EF4444",
+    },
+    sosButtonIconContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 15,
+    },
+    sosActiveIconContainer: {
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
+    },
+    sosButtonTitle: {
+        fontSize: 18,
+        fontWeight: "900",
+        color: "#EF4444",
+        letterSpacing: 1,
+    },
+    sosButtonSubtitle: {
+        fontSize: 12,
+        color: "#64748B",
+        fontWeight: "600",
     },
 });
 

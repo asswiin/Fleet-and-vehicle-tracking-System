@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
     View,
     Text,
@@ -9,9 +9,10 @@ import {
     ActivityIndicator,
     RefreshControl,
     StatusBar,
+    Animated,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { ArrowLeft, Truck, MessageSquare, Navigation, User as UserIcon } from "lucide-react-native";
+import { ArrowLeft, Truck, MessageSquare, Navigation, User as UserIcon, AlertTriangle } from "lucide-react-native";
 import { api, type Trip } from "../../utils/api";
 
 const OnGoingTripScreen = () => {
@@ -19,6 +20,26 @@ const OnGoingTripScreen = () => {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        const pulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 1.2,
+                    duration: 800,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 800,
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        pulse.start();
+        return () => pulse.stop();
+    }, []);
 
     const fetchActiveTrips = useCallback(async () => {
         try {
@@ -58,7 +79,14 @@ const OnGoingTripScreen = () => {
         const progress = calculateProgress(item);
 
         return (
-            <View style={styles.tripCard}>
+            <TouchableOpacity
+                style={styles.tripCard}
+                onPress={() => router.push({
+                    pathname: "/manager/track-trip",
+                    params: { tripId: item._id }
+                } as any)}
+                activeOpacity={0.7}
+            >
                 <View style={styles.cardHeader}>
                     <View style={styles.vehicleInfo}>
                         <View style={styles.iconCircle}>
@@ -79,6 +107,13 @@ const OnGoingTripScreen = () => {
                     </View>
                 </View>
 
+                {item.sos && (
+                    <Animated.View style={[styles.sosBadge, { transform: [{ scale: pulseAnim }] }]}>
+                        <AlertTriangle size={14} color="#fff" />
+                        <Text style={styles.sosBadgeText}>SOS EMERGENCY REPORTED</Text>
+                    </Animated.View>
+                )}
+
                 <View style={styles.progressSection}>
                     <View style={styles.progressHeader}>
                         <Text style={styles.progressTime}>Trip ID: {item.tripId}</Text>
@@ -93,20 +128,14 @@ const OnGoingTripScreen = () => {
                 <View style={styles.cardActions}>
                     <TouchableOpacity style={styles.messageBtn}>
                         <MessageSquare size={18} color="#374151" />
-                        <Text style={styles.actionBtnText}>Message</Text>
+                        <Text style={styles.actionBtnText}>Message Driver</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.trackBtn}
-                        onPress={() => router.push({
-                            pathname: "/manager/track-trip",
-                            params: { tripId: item._id }
-                        } as any)}
-                    >
-                        <Navigation size={18} color="#fff" />
-                        <Text style={[styles.actionBtnText, { color: "#fff" }]}>Track</Text>
-                    </TouchableOpacity>
+                    <View style={styles.trackLink}>
+                        <Text style={styles.trackLinkText}>View Live Map</Text>
+                        <Navigation size={14} color="#2563EB" />
+                    </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         );
     };
 
@@ -285,15 +314,18 @@ const styles = StyleSheet.create({
         borderColor: "#E5E7EB",
         gap: 8,
     },
-    trackBtn: {
+    trackLink: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 10,
-        borderRadius: 10,
-        backgroundColor: "#2563EB",
-        gap: 8,
+        gap: 6,
+    },
+    trackLinkText: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#2563EB",
     },
     actionBtnText: {
         fontSize: 14,
@@ -311,6 +343,22 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#6B7280",
         textAlign: "center",
+    },
+    sosBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#EF4444",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        marginBottom: 16,
+        gap: 8,
+    },
+    sosBadgeText: {
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: "900",
+        letterSpacing: 0.5,
     },
 });
 

@@ -202,7 +202,16 @@ const DriverDashboard = () => {
           {/* Card 3: SOS */}
           <TouchableOpacity
             style={styles.card}
-            onPress={() => router.push("/driver/sos")}
+            onPress={() => {
+              if (driverId) {
+                router.push({
+                  pathname: "/driver/sos",
+                  params: { driverId: driverId }
+                } as any);
+              } else {
+                router.push("/driver/sos");
+              }
+            }}
           >
             <View style={[styles.iconCircle, { backgroundColor: "#FEE2E2" }]}>
               <Text style={styles.sosText}>SOS</Text>
