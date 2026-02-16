@@ -44,6 +44,8 @@ export interface Vehicle {
   insuranceDate?: string;
   pollutionDate?: string;
   taxDate?: string;
+  vehiclePhotos?: string[];
+  profilePhoto?: string;
 }
 
 interface LoginCredentials {
@@ -188,6 +190,7 @@ export interface Notification {
     regNumber: string;
     model: string;
     type: string;
+    profilePhoto?: string;
   };
   parcelIds: Array<{
     _id: string;
@@ -606,16 +609,16 @@ export const api = {
   getOngoingTrip: (tripId: string) => apiCall<any>(`/api/trips/ongoing/${tripId}`),
 
   // Update trip live location (called by driver app)
-  updateTripLocation: (tripId: string, data: { latitude: number, longitude: number, address?: string }) =>
+  updateTripLocation: (tripId: string, data: { latitude: number, longitude: number, address?: string, progress?: number }) =>
     apiCall(`/api/trips/${tripId}/location`, {
       method: "PATCH",
       body: JSON.stringify(data)
     }),
 
-  toggleSOS: (id: string, sos: boolean) =>
+  toggleSOS: (id: string, sos: boolean, location?: { latitude?: number, longitude?: number, address?: string }) =>
     apiCall(`/api/trips/${id}/sos`, {
       method: "PATCH",
-      body: JSON.stringify({ sos })
+      body: JSON.stringify({ sos, ...location })
     }),
 };
 

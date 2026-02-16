@@ -35,6 +35,7 @@ const SOSPage = () => {
     const driverId = params.driverId as string;
 
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
+    const [simulatedLocation, setSimulatedLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
     const [loadingTrip, setLoadingTrip] = useState(false);
     const [sosActive, setSosActive] = useState(false);
@@ -80,7 +81,11 @@ const SOSPage = () => {
                 onPress: async () => {
                     try {
                         setTogglingSos(true);
-                        const res = await api.toggleSOS(activeTrip._id, newStatus);
+                        const res = await api.toggleSOS(activeTrip._id, newStatus, {
+                            latitude: simulatedLocation?.latitude || location?.coords.latitude,
+                            longitude: simulatedLocation?.longitude || location?.coords.longitude,
+                            address: "SOS Manual Trigger"
+                        });
                         if (res.ok) {
                             setSosActive(newStatus);
                             Alert.alert("Success", newStatus ? "SOS sent successfully!" : "SOS cleared.");
@@ -97,11 +102,13 @@ const SOSPage = () => {
         ]);
     };
 
+    const displayPos = simulatedLocation || (location ? location.coords : null);
+
     const centerToLocation = () => {
-        if (location && mapRef.current) {
+        if (displayPos && mapRef.current) {
             mapRef.current.animateToRegion({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
+                latitude: displayPos.latitude,
+                longitude: displayPos.longitude,
                 latitudeDelta: 0.01,
                 longitudeDelta: 0.01,
             }, 1000);
@@ -157,11 +164,20 @@ const SOSPage = () => {
         return R * c;
     };
 
-    const openDirections = (lat: number, lng: number) => {
+    const openDirections = (destLat: number, destLng: number) => {
+        const originLat = displayPos?.latitude;
+        const originLng = displayPos?.longitude;
+
         const url = Platform.select({
-            ios: `maps:0,0?q=${lat},${lng}`,
-            android: `geo:0,0?q=${lat},${lng}`,
-            web: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+            ios: originLat
+                ? `http://maps.apple.com/?saddr=${originLat},${originLng}&daddr=${destLat},${destLng}`
+                : `maps:0,0?q=${destLat},${destLng}`,
+            android: originLat
+                ? `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${destLat},${destLng}`
+                : `geo:0,0?q=${destLat},${destLng}`,
+            web: originLat
+                ? `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${destLat},${destLng}`
+                : `https://www.google.com/maps/search/?api=1&query=${destLat},${destLng}`
         });
         if (url) Linking.openURL(url);
     };
@@ -231,6 +247,35 @@ const SOSPage = () => {
         };
     }, [fetchActiveTrip]);
 
+    // Poll for simulation location if trip is active
+    useEffect(() => {
+        let pollTimer: any;
+        if (activeTrip && (activeTrip.status === 'in-progress' || activeTrip.status === 'accepted')) {
+            const pollSimLocation = async () => {
+                try {
+                    const res = await api.getOngoingTrip(activeTrip._id);
+                    if (res.ok && res.data && res.data.lastKnownLocation) {
+                        const newLat = res.data.lastKnownLocation.latitude;
+                        const newLng = res.data.lastKnownLocation.longitude;
+                        setSimulatedLocation({
+                            latitude: newLat,
+                            longitude: newLng
+                        });
+                        // Also update nearby services based on simulated location
+                        searchNearbyServices(newLat, newLng);
+                    }
+                } catch (e) {
+                    // Fail silently for polling
+                }
+            };
+            pollSimLocation();
+            pollTimer = setInterval(pollSimLocation, 3000);
+        }
+        return () => {
+            if (pollTimer) clearInterval(pollTimer);
+        };
+    }, [activeTrip]);
+
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -257,18 +302,18 @@ const SOSPage = () => {
 
                 {/* Map Section */}
                 <View style={[styles.mapContainer, sosActive && { borderColor: '#EF4444', borderBottomWidth: 2 }]}>
-                    {isMapAvailable && location ? (
+                    {isMapAvailable && displayPos ? (
                         <MapView
                             ref={mapRef}
                             style={styles.map}
                             initialRegion={{
-                                latitude: location.coords.latitude,
-                                longitude: location.coords.longitude,
+                                latitude: displayPos.latitude,
+                                longitude: displayPos.longitude,
                                 latitudeDelta: 0.05,
                                 longitudeDelta: 0.05,
                             }}
                             provider={PROVIDER_DEFAULT}
-                            showsUserLocation={true}
+                            showsUserLocation={false}
                             showsMyLocationButton={false}
                         >
                             {/* SOS Pulse Circles - Only show if SOS is active */}
@@ -276,8 +321,8 @@ const SOSPage = () => {
                                 <>
                                     <Marker
                                         coordinate={{
-                                            latitude: location.coords.latitude,
-                                            longitude: location.coords.longitude,
+                                            latitude: displayPos.latitude,
+                                            longitude: displayPos.longitude,
                                         }}
                                         anchor={{ x: 0.5, y: 0.5 }}
                                     >
@@ -298,8 +343,8 @@ const SOSPage = () => {
                                     </Marker>
                                     <Circle
                                         center={{
-                                            latitude: location.coords.latitude,
-                                            longitude: location.coords.longitude,
+                                            latitude: displayPos.latitude,
+                                            longitude: displayPos.longitude,
                                         }}
                                         radius={2000}
                                         strokeColor="rgba(239, 68, 68, 0.2)"
@@ -307,12 +352,23 @@ const SOSPage = () => {
                                     />
                                 </>
                             )}
+                            {/* Driver Location Highlight Circle */}
+                            <Circle
+                                center={{
+                                    latitude: displayPos.latitude,
+                                    longitude: displayPos.longitude,
+                                }}
+                                radius={1000}
+                                strokeColor="rgba(37, 99, 235, 0.4)"
+                                fillColor="rgba(37, 99, 235, 0.15)"
+                                strokeWidth={2}
+                            />
 
                             {/* Driver Current Location Dot */}
                             <Marker
                                 coordinate={{
-                                    latitude: location.coords.latitude,
-                                    longitude: location.coords.longitude,
+                                    latitude: displayPos.latitude,
+                                    longitude: displayPos.longitude,
                                 }}
                                 anchor={{ x: 0.5, y: 0.5 }}
                                 zIndex={10}
@@ -320,6 +376,11 @@ const SOSPage = () => {
                                 <View style={styles.driverDotContainer}>
                                     <View style={styles.driverDotHalo} />
                                     <View style={styles.driverDot} />
+                                    {simulatedLocation && (
+                                        <View style={{ backgroundColor: '#2563EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 }}>
+                                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>DRIVER</Text>
+                                        </View>
+                                    )}
                                 </View>
                             </Marker>
                         </MapView>

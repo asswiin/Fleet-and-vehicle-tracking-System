@@ -1,9 +1,9 @@
 // app/trip-notifications.tsx
 
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, StatusBar } from "react-native";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, StatusBar, Image } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ArrowLeft, Bell, Clock, ChevronRight, MapPin, Package } from "lucide-react-native";
+import { ArrowLeft, Bell, Clock, ChevronRight, MapPin, Package, Truck } from "lucide-react-native";
 import { api, Notification } from "../../utils/api";
 
 const TripNotificationsScreen = () => {
@@ -48,14 +48,14 @@ const TripNotificationsScreen = () => {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#2563EB" style={{marginTop: 50}} />
+        <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.card, item.status === 'pending' && styles.cardPending]}
               onPress={() => {
                 // NAVIGATE TO THE CONFIRMATION PAGE
@@ -66,7 +66,16 @@ const TripNotificationsScreen = () => {
               }}
             >
               <View style={styles.cardHeader}>
-                <Text style={styles.tripId}>Trip #{item.tripId}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={styles.vehicleIconContainer}>
+                    {item.vehicleId?.profilePhoto ? (
+                      <Image source={{ uri: item.vehicleId.profilePhoto }} style={styles.vehicleImage} />
+                    ) : (
+                      <Truck size={20} color="#2563EB" />
+                    )}
+                  </View>
+                  <Text style={styles.tripId}>Trip #{item.tripId}</Text>
+                </View>
                 <View style={[styles.badge, item.status === 'pending' ? styles.badgePending : styles.badgeDone]}>
                   <Text style={[styles.badgeText, item.status === 'pending' ? styles.textPending : styles.textDone]}>
                     {item.status.toUpperCase()}
@@ -100,7 +109,7 @@ const TripNotificationsScreen = () => {
               )}
               <View style={styles.cardFooter}>
                 <Clock size={14} color="#94A3B8" />
-                <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</Text>
+                <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -120,14 +129,14 @@ const styles = StyleSheet.create({
   message: { fontSize: 14, color: "#64748B", marginBottom: 8 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   infoText: { fontSize: 13, color: "#64748B" },
-  destinationContainer: { 
-    flexDirection: "row", 
-    alignItems: "flex-start", 
-    gap: 6, 
-    backgroundColor: "#EFF6FF", 
-    padding: 10, 
+  destinationContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#EFF6FF",
+    padding: 10,
     borderRadius: 8,
-    marginBottom: 12 
+    marginBottom: 12
   },
   destinationText: { fontSize: 13, color: "#1E40AF", flex: 1, fontWeight: "500" },
   cardFooter: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -138,6 +147,17 @@ const styles = StyleSheet.create({
   badgeText: {},
   textPending: { fontSize: 10, fontWeight: "700", color: "#2563EB" },
   textDone: { fontSize: 10, fontWeight: "700", color: "#64748B" },
+  vehicleIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+    overflow: 'hidden'
+  },
+  vehicleImage: { width: 36, height: 36 },
 });
 
 export default TripNotificationsScreen;

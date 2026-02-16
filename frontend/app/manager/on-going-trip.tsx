@@ -12,7 +12,7 @@ import {
     Animated,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { ArrowLeft, Truck, MessageSquare, Navigation, User as UserIcon, AlertTriangle } from "lucide-react-native";
+import { ArrowLeft, Truck, MessageSquare, Navigation, User as UserIcon, AlertTriangle, MapPin } from "lucide-react-native";
 import { api, type Trip } from "../../utils/api";
 
 const OnGoingTripScreen = () => {
@@ -45,8 +45,11 @@ const OnGoingTripScreen = () => {
         try {
             const response = await api.getOngoingTrips();
             if (response.ok && response.data) {
-                // Map from OngoingTrip wrapper to actual Trip data
-                const active = response.data.map((item: any) => item.trip).filter(Boolean);
+                // Map from OngoingTrip wrapper to actual Trip data, adding liveProgress
+                const active = response.data.map((item: any) => ({
+                    ...item.trip,
+                    liveProgress: item.progress || 0
+                })).filter(Boolean);
                 setTrips(active);
             }
         } catch (error) {
@@ -69,9 +72,18 @@ const OnGoingTripScreen = () => {
         fetchActiveTrips();
     }, [fetchActiveTrips]);
 
-    const calculateProgress = (trip: Trip) => {
+    const calculateProgress = (trip: any) => {
+        // 1. If delivered, show 100%
+        if (trip.status === "completed" || trip.status === "Delivered") return 100;
+
+        // 2. Use live progress from vehicle movement if available
+        if (trip.liveProgress !== undefined && trip.liveProgress > 0) {
+            return trip.liveProgress;
+        }
+
+        // 3. Fallback to parcel delivery status
         if (!trip.parcelIds || trip.parcelIds.length === 0) return 0;
-        const delivered = trip.parcelIds.filter(p => p.status === "delivered" || p.status === "Completed").length;
+        const delivered = trip.parcelIds.filter((p: any) => p.status === "delivered" || p.status === "Completed").length;
         return (delivered / trip.parcelIds.length) * 100;
     };
 
@@ -100,6 +112,14 @@ const OnGoingTripScreen = () => {
                             </View>
                         </View>
                     </View>
+                    <View style={styles.destinationRow}>
+                        <MapPin size={12} color="#2563EB" />
+                        <Text style={styles.destinationName} numberOfLines={1}>
+                            {item.deliveryDestinations && item.deliveryDestinations.length > 0
+                                ? item.deliveryDestinations[item.deliveryDestinations.length - 1].locationName
+                                : "No Destination"}
+                        </Text>
+                    </View>
                     <View style={[styles.statusBadge, { backgroundColor: item.status === 'accepted' ? '#FEF3C7' : '#EFF6FF' }]}>
                         <Text style={[styles.statusText, { color: item.status === 'accepted' ? '#92400E' : '#2563EB' }]}>
                             {item.status === 'accepted' ? 'ACCEPTED' : 'IN TRANSIT'}
@@ -116,7 +136,13 @@ const OnGoingTripScreen = () => {
 
                 <View style={styles.progressSection}>
                     <View style={styles.progressHeader}>
-                        <Text style={styles.progressTime}>Trip ID: {item.tripId}</Text>
+                        <View>
+                            <Text style={styles.tripIdHeader}>TRIP ID: {item.tripId}</Text>
+                            <Text style={styles.trackingIdText}>
+                                TRACK ID: {item.parcelIds?.[0]?.trackingId || "N/A"}
+                                {item.parcelIds && item.parcelIds.length > 1 ? ` (+${item.parcelIds.length - 1} more)` : ""}
+                            </Text>
+                        </View>
                         <Text style={styles.progressPercent}>{Math.round(progress)}%</Text>
                     </View>
                     <View style={styles.progressBarBg}>
@@ -247,6 +273,21 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: "#6B7280",
     },
+    destinationRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#F0F9FF",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        gap: 4,
+        maxWidth: "40%",
+    },
+    destinationName: {
+        fontSize: 11,
+        fontWeight: "600",
+        color: "#0369A1",
+    },
     statusBadge: {
         backgroundColor: "#EFF6FF",
         paddingHorizontal: 10,
@@ -271,9 +312,21 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#6B7280",
     },
-    progressPercent: {
+    tripIdHeader: {
         fontSize: 12,
+        fontWeight: "700",
+        color: "#374151",
+        textTransform: "uppercase",
+    },
+    trackingIdText: {
+        fontSize: 10,
         fontWeight: "600",
+        color: "#6B7280",
+        marginTop: 2,
+    },
+    progressPercent: {
+        fontSize: 14,
+        fontWeight: "800",
         color: "#1F2937",
     },
     progressBarBg: {

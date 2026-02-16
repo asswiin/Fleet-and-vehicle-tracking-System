@@ -14,6 +14,7 @@ import {
   StatusBar,
   Dimensions,
   Linking,
+  Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -601,8 +602,14 @@ const TripAssignmentDetailScreen = () => {
 
           {/* Vehicle Required */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIcon, { backgroundColor: "#F3E8FF" }]}>
-              <Truck size={20} color="#9333EA" />
+            <View style={styles.vehicleImageContainer}>
+              {notification.vehicleId?.profilePhoto ? (
+                <Image source={{ uri: notification.vehicleId.profilePhoto }} style={styles.vehicleImage} />
+              ) : (
+                <View style={[styles.detailIcon, { backgroundColor: "#F3E8FF" }]}>
+                  <Truck size={20} color="#9333EA" />
+                </View>
+              )}
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>ASSIGNED VEHICLE</Text>
@@ -1384,6 +1391,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#0F172A",
+  },
+  vehicleImageContainer: {
+    marginRight: 12,
+  },
+  vehicleImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
   },
 });
 

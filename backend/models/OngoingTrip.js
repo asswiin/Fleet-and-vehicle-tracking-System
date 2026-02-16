@@ -8,6 +8,12 @@ const ongoingTripSchema = new mongoose.Schema(
             required: true,
             unique: true,
         },
+        tripId: {
+            type: String,
+        },
+        trackingId: {
+            type: String,
+        },
         vehicle: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Vehicle",

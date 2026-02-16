@@ -40,6 +40,8 @@ const TrackTripScreen = () => {
     const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
     const [distance, setDistance] = useState<string>("0.0");
     const [duration, setDuration] = useState<string>("0m");
+    const [rawDistance, setRawDistance] = useState<number>(0);
+    const [rawDuration, setRawDuration] = useState<number>(0);
 
     const fetchTripDetails = async () => {
         if (!tripId) return;
@@ -111,8 +113,15 @@ const TrackTripScreen = () => {
             if (data.code === 'Ok' && data.routes?.[0]) {
                 const route = data.routes[0];
                 setRouteCoordinates(decodePolyline(route.geometry));
-                setDistance((route.distance / 1000).toFixed(1));
-                const totalMinutes = Math.floor(route.duration / 60);
+
+                const distKm = route.distance / 1000;
+                const durMin = route.duration / 60;
+
+                setRawDistance(distKm);
+                setRawDuration(durMin);
+
+                setDistance(distKm.toFixed(1));
+                const totalMinutes = Math.floor(durMin);
                 setDuration(totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : `${totalMinutes}m`);
             }
         } catch (e) {
@@ -159,6 +168,12 @@ const TrackTripScreen = () => {
                     <Text style={styles.statusText}>{trip.status.toUpperCase()}</Text>
                 </View>
             </View>
+
+            {trip.sos && (
+                <View style={{ backgroundColor: '#EF4444', padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                    <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13, letterSpacing: 0.5 }}>🚨 SOS EMERGENCY REPORTED</Text>
+                </View>
+            )}
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Map Section */}
@@ -208,13 +223,27 @@ const TrackTripScreen = () => {
 
                     <View style={styles.routeStats}>
                         <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{distance}</Text>
-                            <Text style={styles.statLabel}>KM</Text>
+                            <Text style={styles.statValue}>
+                                {(() => {
+                                    const progress = ongoingTrip?.progress || 0;
+                                    const remaining = rawDistance * (1 - progress / 100);
+                                    return remaining.toFixed(1);
+                                })()}
+                            </Text>
+                            <Text style={styles.statLabel}>KM LEFT</Text>
                         </View>
                         <View style={styles.vDivider} />
                         <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{duration}</Text>
-                            <Text style={styles.statLabel}>EST. TIME</Text>
+                            <Text style={styles.statValue}>
+                                {(() => {
+                                    const progress = ongoingTrip?.progress || 0;
+                                    const remainingMin = Math.max(0, Math.floor(rawDuration * (1 - progress / 100)));
+                                    return remainingMin >= 60
+                                        ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m`
+                                        : `${remainingMin}m`;
+                                })()}
+                            </Text>
+                            <Text style={styles.statLabel}>EST. LEFT</Text>
                         </View>
                         <View style={styles.vDivider} />
                         <View style={styles.statItem}>

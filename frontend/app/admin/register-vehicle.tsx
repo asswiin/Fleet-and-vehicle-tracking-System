@@ -22,8 +22,15 @@ import {
   CheckCircle2,
   ShieldCheck,
   Cloud,
-  FileText
+  FileText,
+  Camera,
+  Plus,
+  X,
+  Image as ImageIcon,
+  Truck
 } from "lucide-react-native";
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from "react-native";
 
 const VEHICLE_TYPES = ["Truck", "Lorry", "Pickups", "Container"];
 
@@ -35,6 +42,8 @@ interface VehicleForm {
   insuranceDate: string;
   pollutionDate: string;
   taxDate: string;
+  vehiclePhotos: string[];
+  profilePhoto: string;
 }
 
 interface DatePickerState {
@@ -54,7 +63,9 @@ const RegisterVehicleScreen = () => {
     weight: "",
     insuranceDate: "",
     pollutionDate: "",
-    taxDate: ""
+    taxDate: "",
+    vehiclePhotos: [],
+    profilePhoto: ""
   });
 
   const [showTypeModal, setShowTypeModal] = useState(false);
@@ -146,6 +157,59 @@ const RegisterVehicleScreen = () => {
     setDatePicker({ show: true, field, value: new Date() });
   };
 
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 5,
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const newPhotos = result.assets
+        .map(asset => asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : null)
+        .filter(photo => photo !== null) as string[];
+
+      setForm(prev => ({
+        ...prev,
+        vehiclePhotos: [...(prev.vehiclePhotos || []), ...newPhotos]
+      }));
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const updatedPhotos = [...form.vehiclePhotos];
+    updatedPhotos.splice(index, 1);
+    setForm({ ...form, vehiclePhotos: updatedPhotos });
+  };
+
+  const pickProfilePhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setForm({ ...form, profilePhoto: `data:image/jpeg;base64,${result.assets[0].base64}` });
+    }
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!form.regNumber || !form.type || !form.model) {
@@ -189,6 +253,23 @@ const RegisterVehicleScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+
+        {/* Profile Photo Section */}
+        <View style={styles.profilePhotoSection}>
+          <TouchableOpacity onPress={pickProfilePhoto} style={styles.profilePhotoContainer}>
+            {form.profilePhoto ? (
+              <Image source={{ uri: form.profilePhoto }} style={styles.profilePhoto} />
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Truck size={40} color="#94A3B8" />
+              </View>
+            )}
+            <View style={styles.cameraIconBadge}>
+              <Camera size={16} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.profilePhotoLabel}>Vehicle Profile Photo</Text>
+        </View>
 
         {/* Registration Number */}
         <View style={styles.inputGroup}>
@@ -290,6 +371,33 @@ const RegisterVehicleScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Vehicle Photos */}
+        <View style={styles.sectionHeader}>
+          <Camera size={20} color="#2563EB" />
+          <Text style={styles.sectionTitle}>Vehicle Photos (Optional)</Text>
+        </View>
+        <Text style={styles.descText}>Add photos of the vehicle from different angles.</Text>
+
+        <View style={styles.photoContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {form.vehiclePhotos.map((photo, index) => (
+              <View key={index} style={styles.photoWrapper}>
+                <Image source={{ uri: photo }} style={styles.photoItem} />
+                <TouchableOpacity
+                  style={styles.removePhotoBtn}
+                  onPress={() => removeImage(index)}
+                >
+                  <X size={14} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={pickImage}>
+              <Plus size={24} color="#2563EB" />
+              <Text style={styles.addPhotoText}>Add</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
         <View style={{ height: 20 }} />
 
         {/* Register Button */}
@@ -384,7 +492,33 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15, color: '#0F172A' },
   modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between' },
-  modalItemText: { fontSize: 16, color: '#334155' }
+  modalItemText: { fontSize: 16, color: '#334155' },
+  photoContainer: { marginBottom: 20 },
+  photoWrapper: { marginRight: 12, position: 'relative' },
+  photoItem: { width: 100, height: 100, borderRadius: 12, backgroundColor: '#E2E8F0' },
+  removePhotoBtn: {
+    position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444',
+    borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center'
+  },
+  addPhotoBtn: {
+    width: 100, height: 100, borderRadius: 12, borderStyle: 'dashed',
+    borderWidth: 2, borderColor: '#2563EB', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#EFF6FF'
+  },
+  addPhotoText: { fontSize: 12, fontWeight: '600', color: '#2563EB', marginTop: 4 },
+  profilePhotoSection: { alignItems: 'center', marginBottom: 24 },
+  profilePhotoContainer: { position: 'relative' },
+  profilePhoto: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#E2E8F0' },
+  profilePlaceholder: {
+    width: 120, height: 120, borderRadius: 60, backgroundColor: '#E2E8F0',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1'
+  },
+  cameraIconBadge: {
+    position: 'absolute', bottom: 5, right: 5, backgroundColor: '#2563EB',
+    width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: '#fff'
+  },
+  profilePhotoLabel: { fontSize: 14, fontWeight: '600', color: '#64748B', marginTop: 10 }
 });
 
 export default RegisterVehicleScreen;

@@ -73,12 +73,12 @@ exports.createNotification = async (req, res) => {
     if (recipientType === "driver") {
       populatedNotification = await Notification.findById(notification._id)
         .populate("driverId", "name mobile")
-        .populate("vehicleId", "regNumber model type")
+        .populate("vehicleId", "regNumber model type profilePhoto")
         .populate("parcelIds", "trackingId recipient weight");
     } else {
       populatedNotification = await Notification.findById(notification._id)
         .populate("managerId", "name email")
-        .populate("vehicleId", "regNumber model type")
+        .populate("vehicleId", "regNumber model type profilePhoto")
         .populate("parcelIds", "trackingId recipient weight")
         .populate("declinedDriverId", "name mobile");
     }
@@ -100,7 +100,7 @@ exports.getManagerNotifications = async (req, res) => {
       recipientType: "manager",
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
-      .populate("vehicleId", "regNumber model type")
+      .populate("vehicleId", "regNumber model type profilePhoto")
       .populate("parcelIds", "trackingId recipient weight")
       .populate("declinedDriverId", "name mobile")
       .sort({ createdAt: -1 });
@@ -141,7 +141,7 @@ exports.getDriverNotifications = async (req, res) => {
       driverId,
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
-      .populate("vehicleId", "regNumber model type")
+      .populate("vehicleId", "regNumber model type profilePhoto")
       .populate("parcelIds", "trackingId recipient weight")
       .sort({ createdAt: -1 });
 
@@ -178,7 +178,7 @@ exports.getNotification = async (req, res) => {
 
     const notification = await Notification.findById(id)
       .populate("driverId", "name mobile email")
-      .populate("vehicleId", "regNumber model type weight")
+      .populate("vehicleId", "regNumber model type weight profilePhoto")
       .populate("parcelIds", "trackingId recipient weight type");
 
     if (!notification) {
@@ -326,7 +326,7 @@ exports.updateNotificationStatus = async (req, res) => {
 
     // Return updated notification
     const updatedNotification = await Notification.findById(id)
-      .populate("vehicleId", "regNumber model type status")
+      .populate("vehicleId", "regNumber model type status profilePhoto")
       .populate("parcelIds", "trackingId recipient weight status")
       .populate("driverId", "name isAvailable driverStatus");
 
@@ -432,7 +432,7 @@ exports.reassignDriver = async (req, res) => {
     // Populate and return the new driver notification
     const populatedNotification = await Notification.findById(newDriverNotification._id)
       .populate("driverId", "name mobile")
-      .populate("vehicleId", "regNumber model type")
+      .populate("vehicleId", "regNumber model type profilePhoto")
       .populate("parcelIds", "trackingId recipient weight");
 
     res.json({

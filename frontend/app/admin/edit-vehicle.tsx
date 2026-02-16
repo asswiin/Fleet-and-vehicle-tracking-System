@@ -24,8 +24,15 @@ import {
   ShieldCheck,
   Cloud,
   FileText,
-  CheckCircle2
+  CheckCircle2,
+  Camera,
+  Plus,
+  X,
+  Image as ImageIcon,
+  Truck
 } from "lucide-react-native";
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from "react-native";
 
 const VEHICLE_TYPES = ["Truck", "Lorry", "Pickups", "Container"];
 
@@ -51,6 +58,8 @@ const EditVehicleScreen = () => {
     insuranceDate: initialData.insuranceExpiry || initialData.insuranceDate || "",
     pollutionDate: initialData.pollutionExpiry || initialData.pollutionDate || "",
     taxDate: initialData.taxExpiry || initialData.taxDate || "",
+    vehiclePhotos: initialData.vehiclePhotos || [],
+    profilePhoto: initialData.profilePhoto || ""
   });
 
   // UI State
@@ -141,6 +150,59 @@ const EditVehicleScreen = () => {
     setDatePicker({ show: true, field, value: dateValue });
   };
 
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 5,
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const newPhotos = result.assets
+        .map(asset => asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : null)
+        .filter(photo => photo !== null) as string[];
+
+      setForm(prev => ({
+        ...prev,
+        vehiclePhotos: [...(prev.vehiclePhotos || []), ...newPhotos]
+      }));
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const updatedPhotos = [...form.vehiclePhotos];
+    updatedPhotos.splice(index, 1);
+    setForm({ ...form, vehiclePhotos: updatedPhotos });
+  };
+
+  const pickProfilePhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setForm({ ...form, profilePhoto: `data:image/jpeg;base64,${result.assets[0].base64}` });
+    }
+  };
+
   // Format date for display
   const displayDate = (isoString: string) => {
     if (!isoString) return "Select Date";
@@ -212,6 +274,23 @@ const EditVehicleScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Profile Photo Section */}
+        <View style={styles.profilePhotoSection}>
+          <TouchableOpacity onPress={pickProfilePhoto} style={styles.profilePhotoContainer}>
+            {form.profilePhoto ? (
+              <Image source={{ uri: form.profilePhoto }} style={styles.profilePhoto} />
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Truck size={40} color="#94A3B8" />
+              </View>
+            )}
+            <View style={styles.cameraIconBadge}>
+              <Camera size={16} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.profilePhotoLabel}>Vehicle Profile Photo</Text>
+        </View>
 
         {/* Reg Number */}
         <View style={styles.inputGroup}>
@@ -292,6 +371,30 @@ const EditVehicleScreen = () => {
             </View>
             <Calendar size={18} color="#64748B" />
           </TouchableOpacity>
+        </View>
+
+        {/* Vehicle Photos */}
+        <Text style={styles.sectionTitle}>Vehicle Photos (Optional)</Text>
+        <Text style={styles.descText}>Add/Update photos of the vehicle.</Text>
+
+        <View style={styles.photoContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {form.vehiclePhotos.map((photo: string, index: number) => (
+              <View key={index} style={styles.photoWrapper}>
+                <Image source={{ uri: photo }} style={styles.photoItem} />
+                <TouchableOpacity
+                  style={styles.removePhotoBtn}
+                  onPress={() => removeImage(index)}
+                >
+                  <X size={14} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={pickImage}>
+              <Plus size={24} color="#2563EB" />
+              <Text style={styles.addPhotoText}>Add</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
         <View style={{ height: 20 }} />
@@ -394,6 +497,33 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15, color: "#0F172A" },
   modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#F1F5F9", flexDirection: "row", justifyContent: "space-between" },
   modalItemText: { fontSize: 16, color: "#334155" },
+  descText: { fontSize: 13, color: "#64748B", marginBottom: 15, lineHeight: 18 },
+  photoContainer: { marginBottom: 20 },
+  photoWrapper: { marginRight: 12, position: 'relative' },
+  photoItem: { width: 100, height: 100, borderRadius: 12, backgroundColor: '#E2E8F0' },
+  removePhotoBtn: {
+    position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444',
+    borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center'
+  },
+  addPhotoBtn: {
+    width: 100, height: 100, borderRadius: 12, borderStyle: 'dashed',
+    borderWidth: 2, borderColor: '#2563EB', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#EFF6FF'
+  },
+  addPhotoText: { fontSize: 12, fontWeight: '600', color: '#2563EB', marginTop: 4 },
+  profilePhotoSection: { alignItems: 'center', marginBottom: 24 },
+  profilePhotoContainer: { position: 'relative' },
+  profilePhoto: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#E2E8F0' },
+  profilePlaceholder: {
+    width: 120, height: 120, borderRadius: 60, backgroundColor: '#E2E8F0',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1'
+  },
+  cameraIconBadge: {
+    position: 'absolute', bottom: 5, right: 5, backgroundColor: '#2563EB',
+    width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: '#fff'
+  },
+  profilePhotoLabel: { fontSize: 14, fontWeight: '600', color: '#64748B', marginTop: 10 }
 });
 
 export default EditVehicleScreen;

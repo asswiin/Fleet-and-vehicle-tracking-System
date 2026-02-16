@@ -65,7 +65,7 @@ exports.createTrip = async (req, res) => {
 
     const populatedTrip = await Trip.findById(trip._id)
       .populate("driverId", "name phone email profilePhoto")
-      .populate("vehicleId", "regNumber model type capacity")
+      .populate("vehicleId", "regNumber model type capacity profilePhoto")
       .populate("parcelIds", "trackingId weight recipient status")
       .populate("assignedBy", "name email");
 
@@ -81,7 +81,7 @@ exports.getAllTrips = async (req, res) => {
   try {
     const trips = await Trip.find()
       .populate("driverId", "name phone email profilePhoto")
-      .populate("vehicleId", "regNumber model type capacity")
+      .populate("vehicleId", "regNumber model type capacity profilePhoto")
       .populate("parcelIds", "trackingId weight recipient status")
       .sort({ createdAt: -1 });
 
@@ -100,13 +100,13 @@ exports.getTripById = async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(id)) {
       trip = await Trip.findById(id)
         .populate("driverId", "name phone email profilePhoto mobile")
-        .populate("vehicleId", "regNumber model type capacity")
+        .populate("vehicleId", "regNumber model type capacity profilePhoto")
         .populate("parcelIds", "trackingId weight recipient status sender")
         .populate("assignedBy", "name email");
     } else {
       trip = await Trip.findOne({ tripId: id })
         .populate("driverId", "name phone email profilePhoto mobile")
-        .populate("vehicleId", "regNumber model type capacity")
+        .populate("vehicleId", "regNumber model type capacity profilePhoto")
         .populate("parcelIds", "trackingId weight recipient status sender")
         .populate("assignedBy", "name email");
     }
@@ -124,7 +124,7 @@ exports.getTripByTripId = async (req, res) => {
   try {
     const trip = await Trip.findOne({ tripId: req.params.tripId })
       .populate("driverId", "name phone email profilePhoto mobile")
-      .populate("vehicleId", "regNumber model type capacity")
+      .populate("vehicleId", "regNumber model type capacity profilePhoto")
       .populate("parcelIds", "trackingId weight recipient status sender")
       .populate("assignedBy", "name email");
 
@@ -145,7 +145,7 @@ exports.getTripsByDriver = async (req, res) => {
 
     const trips = await Trip.find(query)
       .populate("driverId", "name phone email profilePhoto")
-      .populate("vehicleId", "regNumber model type capacity")
+      .populate("vehicleId", "regNumber model type capacity profilePhoto")
       .populate("parcelIds", "trackingId weight recipient status")
       .sort({ createdAt: -1 });
 
@@ -164,7 +164,7 @@ exports.getActiveTrip = async (req, res) => {
       status: { $in: ["accepted", "in-progress"] },
     })
       .populate("driverId", "name phone email profilePhoto")
-      .populate("vehicleId", "regNumber model type capacity")
+      .populate("vehicleId", "regNumber model type capacity profilePhoto")
       .populate("parcelIds", "trackingId weight recipient status deliveryLocation");
 
     if (!activeTrip) return res.status(404).json({ message: "No active trip found" });
@@ -417,7 +417,7 @@ exports.reassignTrip = async (req, res) => {
 
     const updatedTrip = await Trip.findById(trip._id)
       .populate("driverId", "name phone")
-      .populate("vehicleId", "regNumber");
+      .populate("vehicleId", "regNumber profilePhoto");
 
     res.status(200).json({ trip: updatedTrip, notification });
   } catch (error) {
@@ -532,10 +532,13 @@ exports.startJourney = async (req, res) => {
     });
 
     // Create or Update OngoingTrip entry
+    const mainParcel = await Parcel.findById(trip.parcelIds[0]);
     await OngoingTrip.findOneAndUpdate(
       { trip: trip._id },
       {
         trip: trip._id,
+        tripId: trip.tripId,
+        trackingId: mainParcel ? mainParcel.trackingId : "N/A",
         vehicle: trip.vehicleId,
         driver: trip.driverId,
         status: "in-transit",
@@ -646,7 +649,7 @@ exports.getOngoingTrips = async (req, res) => {
       status: { $in: ["accepted", "in-progress"] }
     })
       .populate("driverId", "name phone profilePhoto")
-      .populate("vehicleId", "regNumber model type")
+      .populate("vehicleId", "regNumber model type profilePhoto")
       .populate("parcelIds")
       .sort({ assignedAt: -1 });
 
@@ -658,6 +661,8 @@ exports.getOngoingTrips = async (req, res) => {
       const liveData = ongoingData.find(o => o.trip.toString() === trip._id.toString());
       return {
         trip: trip,
+        tripId: liveData?.tripId || trip.tripId,
+        trackingId: liveData?.trackingId || (trip.parcelIds?.[0]?.trackingId || "N/A"),
         status: liveData?.status || trip.status,
         lastKnownLocation: liveData?.lastKnownLocation,
         progress: liveData?.progress || 0
@@ -686,16 +691,19 @@ exports.updateTripLocation = async (req, res) => {
       tripObjectId = trip._id;
     }
 
+    const updateFields = {
+      lastKnownLocation: { latitude, longitude, address },
+      updatedAt: new Date()
+    };
+    if (req.body.progress !== undefined) {
+      updateFields.progress = req.body.progress;
+    }
+
     const updated = await OngoingTrip.findOneAndUpdate(
       { trip: tripObjectId },
-      {
-        $set: {
-          lastKnownLocation: { latitude, longitude, address },
-          updatedAt: new Date()
-        }
-      },
+      { $set: updateFields },
       { new: true }
-    );
+    ).populate("trip", "sos");
 
     if (!updated) {
       return res.status(404).json({ message: "Ongoing trip record not yet created. Try starting the journey first." });
@@ -731,7 +739,7 @@ exports.getOngoingTrip = async (req, res) => {
         path: "trip",
         populate: [
           { path: "driverId", select: "name mobile profilePhoto email mobile" },
-          { path: "vehicleId", select: "regNumber model type" },
+          { path: "vehicleId", select: "regNumber model type profilePhoto" },
           { path: "parcelIds" }
         ]
       });
@@ -769,9 +777,18 @@ exports.toggleSOS = async (req, res) => {
     await trip.save();
 
     // Also update OngoingTrip if it exists
+    const ongoingUpdate = { updatedAt: new Date() };
+    if (sos && req.body.latitude && req.body.longitude) {
+      ongoingUpdate.lastKnownLocation = {
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        address: req.body.address || "SOS Reported Location"
+      };
+    }
+
     await OngoingTrip.findOneAndUpdate(
       { trip: trip._id },
-      { $set: { updatedAt: new Date() } } // Just to trigger update or we could add SOS to OngoingTrip model too if needed
+      { $set: ongoingUpdate }
     );
 
     res.status(200).json({ message: `SOS status updated to ${sos}`, trip });

@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router"; // Add useFocusEffect
 import { useState, useCallback } from "react";
@@ -177,10 +178,23 @@ const VehicleDetailsScreen = () => {
             </View>
           )}
 
+          {/* Vehicle Photos Gallery */}
+          {vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoGallery}>
+              {vehicle.vehiclePhotos.map((photo: string, index: number) => (
+                <Image key={index} source={{ uri: photo }} style={styles.galleryImage} />
+              ))}
+            </ScrollView>
+          )}
+
           {/* ... (Existing Main Card & Info) ... */}
           <View style={styles.mainCard}>
             <View style={styles.iconContainer}>
-              <Truck size={40} color="#0EA5E9" />
+              {vehicle.profilePhoto ? (
+                <Image source={{ uri: vehicle.profilePhoto }} style={styles.profilePhoto} />
+              ) : (
+                <Truck size={40} color="#0EA5E9" />
+              )}
             </View>
             <Text style={styles.modelText}>{vehicle.regNumber || "No Reg #"}</Text>
             <Text style={styles.regText}>{vehicle.model || "Unknown Model"}</Text>
@@ -345,6 +359,9 @@ const styles = StyleSheet.create({
     color: '#92400E',
     fontWeight: '600',
   },
+  photoGallery: { marginBottom: 20 },
+  galleryImage: { width: 300, height: 200, borderRadius: 16, marginRight: 12, backgroundColor: '#E2E8F0' },
+  profilePhoto: { width: 60, height: 60, borderRadius: 30 },
 });
 
 export default VehicleDetailsScreen;

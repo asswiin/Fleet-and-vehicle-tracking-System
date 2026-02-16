@@ -1,5 +1,10 @@
 {
   "android": {
     "package": "com.anonymous.fleetvehicletrackingsystem"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "d6b55677-4140-4c07-8fc9-59c72ce08a75"
+    }
   }
 }

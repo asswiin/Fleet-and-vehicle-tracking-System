@@ -37,7 +37,7 @@ interface Stats {
 const AdminDashboard: React.FC = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   // Get role selection params for logout
   const selectedRole = params.role || "admin";
   const selectedDistrict = params.district || "";
@@ -46,7 +46,7 @@ const AdminDashboard: React.FC = () => {
   const [managers, setManagers] = useState<User[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]); // 1. Driver State
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  
+
   const [stats, setStats] = useState<Stats>({
     managers: 0,
     drivers: 0,
@@ -118,7 +118,7 @@ const AdminDashboard: React.FC = () => {
         role: selectedRole,
         district: selectedDistrict,
       }
-    } as any); 
+    } as any);
   };
 
   const handleAddManager = () => {
@@ -142,7 +142,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={fetchData} />
@@ -158,7 +158,7 @@ const AdminDashboard: React.FC = () => {
           </View>
           <View style={styles.profileContainer}>
             <View style={styles.avatar}>
-               <Text style={{fontSize: 20, fontWeight:'bold', color: '#64748B'}}>A</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#64748B' }}>A</Text>
             </View>
             <View style={styles.onlineDot} />
           </View>
@@ -173,7 +173,7 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Total Managers</Text>
             <Text style={styles.cardValue}>{stats.managers}</Text>
           </View>
-          
+
           {/* ✅ Drivers Card (Dynamic) */}
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#FFEDD5" }]}>
@@ -182,7 +182,7 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Total Drivers</Text>
             <Text style={styles.cardValue}>{stats.drivers}</Text>
           </View>
-          
+
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#F3E8FF" }]}>
               <Car size={24} color="#A855F7" />
@@ -190,7 +190,7 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Total Vehicles</Text>
             <Text style={styles.cardValue}>{stats.vehicles}</Text>
           </View>
-          
+
           <View style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: "#DCFCE7" }]}>
               <IndianRupee size={24} color="#22C55E" />
@@ -215,8 +215,8 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.emptyText}>No managers found.</Text>
           ) : (
             managers.slice(0, 3).map((manager) => (
-              <TouchableOpacity 
-                key={manager._id} 
+              <TouchableOpacity
+                key={manager._id}
                 style={styles.listItem}
                 onPress={() => handleManagerClick(manager)}
               >
@@ -244,7 +244,7 @@ const AdminDashboard: React.FC = () => {
           )}
         </View>
 
-        <View style={{height: 20}} />
+        <View style={{ height: 20 }} />
 
         {/* --- 5. DRIVERS LIST (New Section) --- */}
         <View style={styles.sectionHeader}>
@@ -261,8 +261,8 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.emptyText}>No drivers found.</Text>
           ) : (
             drivers.slice(0, 3).map((driver) => (
-              <TouchableOpacity 
-                key={driver._id} 
+              <TouchableOpacity
+                key={driver._id}
                 style={styles.listItem}
                 onPress={() => handleDriverClick(driver)}
               >
@@ -281,24 +281,24 @@ const AdminDashboard: React.FC = () => {
                   )}
                   <View>
                     <Text style={styles.listItemName}>{driver.name}</Text>
-                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                        <Phone size={12} color="#94A3B8" style={{marginRight: 4}} />
-                        <Text style={styles.listItemSub}>{driver.mobile}</Text>
-                        <View style={{
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                          borderRadius: 6,
-                          backgroundColor: driver.isAvailable ? "#DCFCE7" : "#F3E8FF",
-                          marginLeft: 8
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Phone size={12} color="#94A3B8" style={{ marginRight: 4 }} />
+                      <Text style={styles.listItemSub}>{driver.mobile}</Text>
+                      <View style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        backgroundColor: driver.isAvailable ? "#DCFCE7" : "#F3E8FF",
+                        marginLeft: 8
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: "600",
+                          color: driver.isAvailable ? "#22C55E" : "#A855F7"
                         }}>
-                          <Text style={{
-                            fontSize: 10,
-                            fontWeight: "600",
-                            color: driver.isAvailable ? "#22C55E" : "#A855F7"
-                          }}>
-                            {driver.isAvailable ? "Available" : "Offline"}
-                          </Text>
-                        </View>
+                          {driver.isAvailable ? "Available" : "Offline"}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -330,31 +330,31 @@ const AdminDashboard: React.FC = () => {
           <Home size={24} color="#0EA5E9" fill="#0EA5E9" fillOpacity={0.2} />
           <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
+
+        <TouchableOpacity
+          style={styles.navItem}
           onPress={() => {
             setShowSettingsMenu(false);
             router.push("/admin/managers-list" as any);
-          }} 
+          }}
         >
           <Users size={24} color="#94A3B8" />
           <Text style={styles.navText}>Managers</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
+
+        <TouchableOpacity
+          style={styles.navItem}
           onPress={() => {
             setShowSettingsMenu(false);
             router.push({ pathname: "/admin/drivers-list" as any, params: { userRole: "admin" } } as any);
-          }} 
+          }}
         >
           <Truck size={24} color="#94A3B8" />
           <Text style={styles.navText}>Drivers</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
+
+        <TouchableOpacity
+          style={styles.navItem}
           onPress={() => {
             setShowSettingsMenu(false);
             router.push({ pathname: "/admin/vehicle-list" as any, params: { userRole: "admin" } } as any);
@@ -363,9 +363,9 @@ const AdminDashboard: React.FC = () => {
           <Car size={24} color="#94A3B8" />
           <Text style={styles.navText}>Vehicles</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
+
+        <TouchableOpacity
+          style={styles.navItem}
           onPress={() => setShowSettingsMenu(!showSettingsMenu)}
         >
           <Settings size={24} color={showSettingsMenu ? "#0EA5E9" : "#94A3B8"} />
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 12, color: "#64748B", marginBottom: 2 },
   headerTitle: { fontSize: 20, fontWeight: "700", color: "#0F172A" },
   profileContainer: { position: 'relative' as const },
-  avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff", backgroundColor: "#E2E8F0", justifyContent:'center', alignItems:'center' },
+  avatar: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 2, borderColor: "#fff", backgroundColor: "#E2E8F0", justifyContent: 'center', alignItems: 'center' },
   onlineDot: { position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: "#F8FAFC" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16 },
   card: { width: "48%", backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1, alignItems: "flex-start" as const },

@@ -29,6 +29,7 @@ import {
   LayoutGrid,
   MessageSquare,
   LogOut,
+  MapPin,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
 import type { User as UserType } from "../../utils/api";
@@ -80,6 +81,7 @@ const ManagerDashboard = () => {
   const [declinedCount, setDeclinedCount] = useState(0);
   const [hasVehicleAlerts, setHasVehicleAlerts] = useState(false);
   const [activeTrips, setActiveTrips] = useState<any[]>([]);
+  const [sosAlertActive, setSosAlertActive] = useState(false);
 
   // Expiry Warning Helpers
   const parseDate = (dateInput?: string): Date | null => {
@@ -123,9 +125,15 @@ const ManagerDashboard = () => {
     try {
       const res = await api.getOngoingTrips();
       if (res.ok && Array.isArray(res.data)) {
-        // Map to Trip objects so UI remains consistent
-        const active = res.data.map((item: any) => item.trip).filter(Boolean);
+        // Map to Trip objects adding liveProgress so UI remains consistent
+        const active = res.data.map((item: any) => ({
+          ...item.trip,
+          liveProgress: item.progress || 0
+        })).filter(Boolean);
         setActiveTrips(active);
+        // Check if any active trip has SOS active
+        const hasSOS = active.some((t: any) => t.sos === true);
+        setSosAlertActive(hasSOS);
       }
     } catch (e) {
       console.error("Error fetching active trips", e);
@@ -272,6 +280,11 @@ const ManagerDashboard = () => {
             >
               <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
                 <Truck size={24} color="#0284C7" />
+                {sosAlertActive && (
+                  <View style={[styles.declinedBadge, { backgroundColor: '#EF4444' }]}>
+                    <Text style={[styles.declinedBadgeText, { fontSize: 9 }]}>⚠️</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.actionLabel}>Trip</Text>
             </TouchableOpacity>
@@ -339,9 +352,14 @@ const ManagerDashboard = () => {
             </View>
           ) : (
             activeTrips.slice(0, 2).map((trip) => {
-              const totalParcels = trip.parcelIds?.length || 0;
-              const deliveredParcels = trip.parcelIds?.filter((p: any) => p.status === "delivered" || p.status === "Completed").length || 0;
-              const progress = totalParcels > 0 ? (deliveredParcels / totalParcels) * 100 : 0;
+              const calculateLiveProgress = (t: any) => {
+                if (t.status === "completed" || t.status === "Delivered") return 100;
+                if (t.liveProgress !== undefined && t.liveProgress > 0) return t.liveProgress;
+                const total = t.parcelIds?.length || 0;
+                const delivered = t.parcelIds?.filter((p: any) => p.status === "delivered" || p.status === "Completed").length || 0;
+                return total > 0 ? (delivered / total) * 100 : 0;
+              };
+              const progress = calculateLiveProgress(trip);
 
               return (
                 <TouchableOpacity
@@ -363,6 +381,14 @@ const ManagerDashboard = () => {
                         <Text style={styles.driverNameSub}>{trip.driverId?.name || "Driver"}</Text>
                       </View>
                     </View>
+                    <View style={styles.dashDestinationBox}>
+                      <MapPin size={10} color="#2563EB" />
+                      <Text style={styles.dashDestinationText} numberOfLines={1}>
+                        {trip.deliveryDestinations && trip.deliveryDestinations.length > 0
+                          ? trip.deliveryDestinations[trip.deliveryDestinations.length - 1].locationName
+                          : "No Dest"}
+                      </Text>
+                    </View>
                     <View style={[styles.inTransitBadge, { backgroundColor: trip.status === 'accepted' ? '#FEF3C7' : '#EFF6FF' }]}>
                       <Text style={[styles.inTransitText, { color: trip.status === 'accepted' ? '#92400E' : '#2563EB' }]}>
                         {trip.status === 'accepted' ? 'ACCEPTED' : 'IN TRANSIT'}
@@ -378,7 +404,13 @@ const ManagerDashboard = () => {
                   )}
 
                   <View style={styles.progressRow}>
-                    <Text style={styles.progressTimeText}>--:-- PM</Text>
+                    <View>
+                      <Text style={styles.tripIdDash}>TRIP ID: {trip.tripId}</Text>
+                      <Text style={styles.trackingIdDash}>
+                        TRACK ID: {trip.parcelIds?.[0]?.trackingId || "N/A"}
+                        {trip.parcelIds && trip.parcelIds.length > 1 ? ` (+${trip.parcelIds.length - 1} more)` : ""}
+                      </Text>
+                    </View>
                     <Text style={styles.progressPercentText}>{Math.round(progress)}%</Text>
                   </View>
 
@@ -585,6 +617,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
   },
+  dashDestinationBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+    maxWidth: "30%",
+  },
+  dashDestinationText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#0369A1",
+  },
   inTransitBadge: {
     backgroundColor: "#EFF6FF",
     paddingHorizontal: 8,
@@ -606,9 +653,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#6B7280",
   },
-  progressPercentText: {
-    fontSize: 11,
+  tripIdDash: {
+    fontSize: 12,
     fontWeight: "700",
+    color: "#374151",
+    textTransform: "uppercase",
+  },
+  trackingIdDash: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  progressPercentText: {
+    fontSize: 14,
+    fontWeight: "800",
     color: "#111827",
   },
   dashboardProgressBarBg: {

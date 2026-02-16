@@ -5,7 +5,7 @@ const Vehicle = require("../models/Vehicle");
 // 1. REGISTER VEHICLE
 router.post("/register", async (req, res) => {
   try {
-    const { regNumber, model, type, weight, insuranceDate, pollutionDate, taxDate } = req.body;
+    const { regNumber, model, type, weight, insuranceDate, pollutionDate, taxDate, vehiclePhotos, profilePhoto } = req.body;
 
     // Check if exists
     const existingVehicle = await Vehicle.findOne({ regNumber });
@@ -21,7 +21,9 @@ router.post("/register", async (req, res) => {
       insuranceExpiry: insuranceDate,
       pollutionExpiry: pollutionDate,
       taxExpiry: taxDate,
-      status: "Active"
+      status: "Active",
+      vehiclePhotos: vehiclePhotos || [],
+      profilePhoto: profilePhoto || ""
     });
 
     await newVehicle.save();
@@ -58,14 +60,16 @@ router.get("/:id", async (req, res) => {
 // 4. UPDATE VEHICLE STATUS (Mark as Sold, Maintenance, etc.)
 router.put("/:id", async (req, res) => {
   try {
-    const { 
-      regNumber, 
-      model, 
-      type, 
-      weight, 
-      insuranceDate, 
-      pollutionDate, 
-      taxDate 
+    const {
+      regNumber,
+      model,
+      type,
+      weight,
+      insuranceDate,
+      pollutionDate,
+      taxDate,
+      vehiclePhotos,
+      profilePhoto
     } = req.body;
 
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
@@ -78,6 +82,8 @@ router.put("/:id", async (req, res) => {
         insuranceExpiry: insuranceDate,
         pollutionExpiry: pollutionDate,
         taxExpiry: taxDate,
+        vehiclePhotos,
+        profilePhoto
       },
       { new: true } // Return updated doc
     );

@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from "react-native";
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
@@ -142,7 +143,11 @@ const VehicleListScreen = () => {
       >
         <View style={styles.cardContent}>
           <View style={styles.iconBox}>
-            <Truck size={24} color="#4F46E5" fill="#4F46E5" />
+            {item.profilePhoto ? (
+              <Image source={{ uri: item.profilePhoto }} style={styles.vehicleImage} />
+            ) : (
+              <Truck size={24} color="#4F46E5" fill="#4F46E5" />
+            )}
           </View>
 
           <View style={styles.infoContainer}>
@@ -310,10 +315,11 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 10,
     backgroundColor: "#F1F5F9",
-    justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    overflow: 'hidden',
   },
+  vehicleImage: { width: 48, height: 48, borderRadius: 10 },
   infoContainer: { flex: 1 },
   modelText: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
   regText: { fontSize: 13, color: "#64748B", marginTop: 2 },
