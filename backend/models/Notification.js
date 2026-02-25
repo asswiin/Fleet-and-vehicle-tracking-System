@@ -6,7 +6,7 @@ const notificationSchema = new mongoose.Schema(
     driverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Driver",
-      required: function() {
+      required: function () {
         return this.recipientType === 'driver';
       },
     },
@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema(
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: function() {
+      required: function () {
         return this.recipientType === 'manager';
       },
     },
@@ -40,7 +40,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["trip_assignment", "trip_update", "trip_cancellation", "driver_declined", "reassign_driver"],
+      enum: ["trip_assignment", "trip_update", "trip_cancellation", "driver_declined", "reassign_driver", "parcel_delivered"],
       default: "trip_assignment",
     },
     status: {
@@ -106,5 +106,11 @@ const notificationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Index for efficient queries
+notificationSchema.index({ driverId: 1, recipientType: 1, read: 1 });
+notificationSchema.index({ managerId: 1, recipientType: 1, read: 1 });
+notificationSchema.index({ tripId: 1 });
+notificationSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Notification", notificationSchema);

@@ -129,7 +129,10 @@ router.get("/check-license/:license", async (req, res) => {
 // GET: Fetch all drivers
 router.get("/", async (req, res) => {
   try {
-    const drivers = await Driver.find().sort({ createdAt: -1 }).select("-password");
+    // Optimized: Exclude heavy base64 images from list view for better performance
+    const drivers = await Driver.find()
+      .sort({ createdAt: -1 })
+      .select("-password -licensePhoto");
     res.json({ data: drivers });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });

@@ -11,6 +11,7 @@ export default function SharedLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="role-selection" />
       <Stack.Screen name="signup" />
+      <Stack.Screen name="trip-history" />
     </Stack>
   );
 }

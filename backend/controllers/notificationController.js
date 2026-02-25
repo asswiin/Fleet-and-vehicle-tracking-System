@@ -73,12 +73,12 @@ exports.createNotification = async (req, res) => {
     if (recipientType === "driver") {
       populatedNotification = await Notification.findById(notification._id)
         .populate("driverId", "name mobile")
-        .populate("vehicleId", "regNumber model type profilePhoto")
+        .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
         .populate("parcelIds", "trackingId recipient weight");
     } else {
       populatedNotification = await Notification.findById(notification._id)
         .populate("managerId", "name email")
-        .populate("vehicleId", "regNumber model type profilePhoto")
+        .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
         .populate("parcelIds", "trackingId recipient weight")
         .populate("declinedDriverId", "name mobile");
     }
@@ -100,7 +100,7 @@ exports.getManagerNotifications = async (req, res) => {
       recipientType: "manager",
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
-      .populate("vehicleId", "regNumber model type profilePhoto")
+      .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
       .populate("parcelIds", "trackingId recipient weight")
       .populate("declinedDriverId", "name mobile")
       .sort({ createdAt: -1 });
@@ -141,7 +141,7 @@ exports.getDriverNotifications = async (req, res) => {
       driverId,
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
-      .populate("vehicleId", "regNumber model type profilePhoto")
+      .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
       .populate("parcelIds", "trackingId recipient weight")
       .sort({ createdAt: -1 });
 

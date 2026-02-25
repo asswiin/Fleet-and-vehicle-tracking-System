@@ -1,31 +1,32 @@
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  SafeAreaView, 
-  Alert, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Alert,
   ActivityIndicator,
-  Image 
+  Image
 } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
-import { api, type User } from "../../utils/api"; 
-import { 
-  ChevronLeft, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
+import { api, type User } from "../../utils/api";
+import {
+  ChevronLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
   UserX,
-  Edit2 // Import Edit Icon
+  Edit2, // Import Edit Icon
+  History
 } from "lucide-react-native";
 
 const ManagerDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ user: string }>();
-  
+
   const [user, setUser] = useState<Partial<User>>({});
   const [loading, setLoading] = useState(false);
 
@@ -87,7 +88,7 @@ const ManagerDetailsScreen = () => {
             setLoading(true);
             try {
               const response = await api.updateUserStatus(user._id!, "Resigned");
-              
+
               if (response.ok) {
                 Alert.alert("Success", "Manager marked as Resigned", [
                   { text: "OK", onPress: () => router.back() }
@@ -110,14 +111,14 @@ const ManagerDetailsScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={28} color="#0F172A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manager Details</Text>
-          
+
           {/* EDIT BUTTON */}
           {!isResigned ? (
             <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
@@ -129,7 +130,7 @@ const ManagerDetailsScreen = () => {
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          
+
           {/* Main Profile Card */}
           <View style={styles.profileCard}>
             {user.profilePhoto ? (
@@ -146,7 +147,6 @@ const ManagerDetailsScreen = () => {
             )}
             <Text style={styles.name}>{user.name}</Text>
             <Text style={styles.role}>Logistics Manager</Text>
-            
             <View style={[styles.statusBadge, isResigned ? styles.badgeResigned : styles.badgeActive]}>
               <Text style={[styles.statusText, isResigned ? styles.textResigned : styles.textActive]}>
                 {user.status || "Active"}
@@ -154,10 +154,24 @@ const ManagerDetailsScreen = () => {
             </View>
           </View>
 
+          {/* History Button Section */}
+          <TouchableOpacity
+            style={styles.historyCard}
+            onPress={() => router.push({ pathname: "/shared/trip-history", params: { role: 'admin' } } as any)}
+          >
+            <View style={styles.historyIconContainer}>
+              <History size={24} color="#166534" />
+            </View>
+            <View style={styles.historyContent}>
+              <Text style={styles.historyLabel}>Trip History</Text>
+              <Text style={styles.historySubtext}>View all completed trips for this branch</Text>
+            </View>
+          </TouchableOpacity>
+
           {/* Info Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
-            
+
             <View style={styles.infoRow}>
               <View style={styles.iconBox}><Mail size={20} color="#0EA5E9" /></View>
               <View>
@@ -186,68 +200,68 @@ const ManagerDetailsScreen = () => {
           {/* Address Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address Details</Text>
-            
+
             <View style={styles.infoRow}>
               <View style={styles.iconBox}><MapPin size={20} color="#0EA5E9" /></View>
-              <View style={{flex: 1}}>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Formatted Address</Text>
                 <Text style={styles.value}>{user.place || "N/A"}</Text>
               </View>
             </View>
 
             <View style={styles.addressGrid}>
-                <View style={styles.addressItem}>
-                    <Text style={styles.label}>House/Flat</Text>
-                    <Text style={styles.value}>{getAddressField("house")}</Text>
-                </View>
-                <View style={styles.addressItem}>
-                    <Text style={styles.label}>Street</Text>
-                    <Text style={styles.value}>{getAddressField("street")}</Text>
-                </View>
-                <View style={styles.addressItem}>
-                    <Text style={styles.label}>City</Text>
-                    <Text style={styles.value}>{getAddressField("city")}</Text>
-                </View>
-                <View style={styles.addressItem}>
-                    <Text style={styles.label}>District</Text>
-                    <Text style={styles.value}>{getAddressField("district")}</Text>
-                </View>
-                <View style={styles.addressItem}>
-                    <Text style={styles.label}>State</Text>
-                    <Text style={styles.value}>{getAddressField("state")}</Text>
-                </View>
+              <View style={styles.addressItem}>
+                <Text style={styles.label}>House/Flat</Text>
+                <Text style={styles.value}>{getAddressField("house")}</Text>
+              </View>
+              <View style={styles.addressItem}>
+                <Text style={styles.label}>Street</Text>
+                <Text style={styles.value}>{getAddressField("street")}</Text>
+              </View>
+              <View style={styles.addressItem}>
+                <Text style={styles.label}>City</Text>
+                <Text style={styles.value}>{getAddressField("city")}</Text>
+              </View>
+              <View style={styles.addressItem}>
+                <Text style={styles.label}>District</Text>
+                <Text style={styles.value}>{getAddressField("district")}</Text>
+              </View>
+              <View style={styles.addressItem}>
+                <Text style={styles.label}>State</Text>
+                <Text style={styles.value}>{getAddressField("state")}</Text>
+              </View>
             </View>
           </View>
 
           {/* Resign / Delete Button */}
           {!isResigned && (
-            <TouchableOpacity 
-                style={styles.deleteButton} 
-                onPress={handleResign}
-                disabled={loading}
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleResign}
+              disabled={loading}
             >
-                {loading ? (
+              {loading ? (
                 <ActivityIndicator color="#fff" />
-                ) : (
+              ) : (
                 <>
-                    <UserX size={20} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.deleteButtonText}>Mark as Resigned</Text>
+                  <UserX size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.deleteButtonText}>Mark as Resigned</Text>
                 </>
-                )}
+              )}
             </TouchableOpacity>
           )}
-          
+
           {isResigned && (
-              <View style={styles.resignedNotice}>
-                  <Text style={styles.resignedNoticeText}>This manager has resigned and is inactive.</Text>
-              </View>
+            <View style={styles.resignedNotice}>
+              <Text style={styles.resignedNoticeText}>This manager has resigned and is inactive.</Text>
+            </View>
           )}
 
           <View style={{ height: 20 }} />
 
         </ScrollView>
-      </View>
-    </SafeAreaView>
+      </View >
+    </SafeAreaView >
   );
 };
 
@@ -267,7 +281,7 @@ const styles = StyleSheet.create({
   backButton: { padding: 4 },
   editButton: { padding: 4 },
   content: { padding: 20 },
-  
+
   profileCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -283,14 +297,14 @@ const styles = StyleSheet.create({
   avatarResigned: { backgroundColor: "#FEE2E2" },
   avatarText: { fontSize: 32, fontWeight: "700", color: "#0EA5E9" },
   avatarTextResigned: { color: "#EF4444" },
-  
+
   name: { fontSize: 22, fontWeight: "700", color: "#1E293B", marginBottom: 4 },
   role: { fontSize: 14, color: "#64748B", marginBottom: 12 },
-  
+
   statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   badgeActive: { backgroundColor: "#DCFCE7" },
   badgeResigned: { backgroundColor: "#FEE2E2" },
-  
+
   statusText: { fontSize: 12, fontWeight: "600" },
   textActive: { color: "#166534" },
   textResigned: { color: "#991B1B" },
@@ -345,15 +359,52 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   resignedNotice: {
-      padding: 15,
-      backgroundColor: "#F1F5F9",
-      borderRadius: 12,
-      alignItems: 'center',
-      marginTop: 10
+    padding: 15,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10
   },
   resignedNoticeText: {
-      color: "#64748B",
-      fontWeight: '600'
+    color: "#64748B",
+    fontWeight: '600'
+  },
+  historyCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: "#16A34A"
+  },
+  historyIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#DCFCE7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16
+  },
+  historyContent: {
+    flex: 1
+  },
+  historyLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E293B"
+  },
+  historySubtext: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2
   }
 });
 

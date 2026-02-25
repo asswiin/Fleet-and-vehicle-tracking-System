@@ -6,8 +6,9 @@ const Vehicle = require("../models/Vehicle");
 const Notification = require("../models/Notification");
 const Parcel = require("../models/Parcel");
 const OngoingTrip = require("../models/OngoingTrip");
+const DeliveredParcel = require("../models/DeliveredParcel");
 const smsService = require("../utils/smsService");
-const { sendTrackingEmail } = require("../utils/emailService");
+const { sendTrackingEmail, sendDeliverySuccessEmail } = require("../utils/emailService");
 
 // Create a new trip
 exports.createTrip = async (req, res) => {
@@ -22,6 +23,7 @@ exports.createTrip = async (req, res) => {
       assignedBy,
       totalWeight,
       notes,
+      trackId,
     } = req.body;
 
     const existingTrip = await Trip.findOne({ tripId });
@@ -39,6 +41,7 @@ exports.createTrip = async (req, res) => {
       assignedBy,
       totalWeight,
       notes,
+      trackId: trackId || (parcelIds && parcelIds.length > 0 ? "Pending" : "N/A"),
       status: "pending",
     });
 
@@ -163,8 +166,8 @@ exports.getActiveTrip = async (req, res) => {
       driverId,
       status: { $in: ["accepted", "in-progress"] },
     })
-      .populate("driverId", "name phone email profilePhoto")
-      .populate("vehicleId", "regNumber model type capacity profilePhoto")
+      .populate("driverId", "name phone email profilePhoto") // Keep for driver app
+      .populate("vehicleId", "regNumber model type capacity profilePhoto") // Keep for driver app
       .populate("parcelIds", "trackingId weight recipient status deliveryLocation");
 
     if (!activeTrip) return res.status(404).json({ message: "No active trip found" });
@@ -360,6 +363,22 @@ exports.getDeclinedParcels = async (req, res) => {
     res.status(200).json(declinedParcels);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch declined parcels", error: error.message });
+  }
+};
+
+// Get declined parcels count (Optimized for badge display)
+exports.getDeclinedCount = async (req, res) => {
+  try {
+    const countData = await Trip.aggregate([
+      { $match: { status: "declined" } },
+      { $project: { parcelCount: { $size: { $ifNull: ["$parcelIds", []] } } } },
+      { $group: { _id: null, total: { $sum: "$parcelCount" } } }
+    ]);
+
+    const count = countData.length > 0 ? countData[0].total : 0;
+    res.status(200).json({ count });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch declined count", error: error.message });
   }
 };
 
@@ -583,51 +602,171 @@ exports.updateDeliveryStatus = async (req, res) => {
     const { tripId, parcelId } = req.params;
     const { deliveryStatus, notes } = req.body;
 
-    const trip = await Trip.findById(tripId);
+    // Robust Trip lookup (handles both Mongo ID and String ID)
+    let trip;
+    if (mongoose.Types.ObjectId.isValid(tripId)) {
+      trip = await Trip.findById(tripId);
+    } else {
+      trip = await Trip.findOne({ tripId: tripId });
+    }
+
     if (!trip) return res.status(404).json({ message: "Trip not found" });
 
     const destinationIndex = trip.deliveryDestinations.findIndex(
-      (d) => d.parcelId.toString() === parcelId
+      (d) => d.parcelId && d.parcelId.toString() === parcelId
     );
 
     if (destinationIndex === -1) {
-      return res.status(404).json({ message: "Destination not found" });
+      console.warn(`⚠️ Destination not found for parcel ${parcelId} in trip ${trip.tripId}`);
+      return res.status(404).json({ message: "Destination not found in this trip" });
     }
 
-    trip.deliveryDestinations[destinationIndex].deliveryStatus = deliveryStatus;
+    const currentStatus = deliveryStatus.toLowerCase();
+    console.log(`[DEBUG] Updating parcel ${parcelId} to ${currentStatus}`);
+
+    trip.deliveryDestinations[destinationIndex].deliveryStatus = currentStatus;
     if (notes) trip.deliveryDestinations[destinationIndex].notes = notes;
 
-    if (deliveryStatus === "delivered") {
+    if (currentStatus === "delivered") {
       trip.deliveryDestinations[destinationIndex].deliveredAt = new Date();
-      await Parcel.findByIdAndUpdate(parcelId, { status: "Delivered" });
+
+      // Side effects (Archiving, Notifications, Progress)
+      try {
+        const [fullTrip, fullParcel] = await Promise.all([
+          Trip.findById(trip._id).populate("driverId vehicleId"),
+          Parcel.findById(parcelId)
+        ]);
+
+        if (fullParcel) {
+          // Update Trip-level trackId if needed
+          if (trip.trackId === "Pending" || !trip.trackId) {
+            trip.trackId = fullParcel.trackingId;
+          }
+
+          // 1. Archiving
+          try {
+            const archiveData = {
+              tripId: (fullTrip && fullTrip.tripId) || trip.tripId,
+              tripObjectId: trip._id,
+              trackId: fullParcel.trackingId || "N/A",
+              parcelId: fullParcel._id,
+              parcelDetails: {
+                type: fullParcel.type,
+                weight: fullParcel.weight,
+                amount: fullParcel.paymentAmount
+              },
+              sender: fullParcel.sender,
+              recipient: fullParcel.recipient,
+              vehicle: {
+                vehicleId: (fullTrip?.vehicleId && fullTrip.vehicleId._id) ? fullTrip.vehicleId._id : (mongoose.Types.ObjectId.isValid(trip.vehicleId) ? trip.vehicleId : null),
+                regNumber: fullTrip?.vehicleId?.regNumber || "N/A",
+                model: fullTrip?.vehicleId?.model || "N/A",
+                type: fullTrip?.vehicleId?.type || "N/A"
+              },
+              driver: {
+                driverId: (fullTrip?.driverId && fullTrip.driverId._id) ? fullTrip.driverId._id : (mongoose.Types.ObjectId.isValid(trip.driverId) ? trip.driverId : null),
+                name: fullTrip?.driverId?.name || "Unknown"
+              },
+              takenTime: fullTrip?.startedAt || fullTrip?.assignedAt || trip.startedAt || trip.assignedAt || new Date(),
+              reachedTime: new Date(),
+              deliveryLocation: fullParcel.deliveryLocation,
+              notes: notes || trip.deliveryDestinations[destinationIndex].notes
+            };
+            const archivedDelivery = new DeliveredParcel(archiveData);
+            await archivedDelivery.save();
+            console.log(`✅ Archived delivery for parcel ${fullParcel.trackingId}`);
+          } catch (arcErr) {
+            console.error("❌ Archiving failed:", arcErr.message);
+          }
+
+          // 2. Notify Manager
+          if (fullTrip && fullTrip.assignedBy) {
+            try {
+              const managerNotification = new Notification({
+                managerId: fullTrip.assignedBy,
+                recipientType: "manager",
+                vehicleId: fullTrip.vehicleId?._id || trip.vehicleId,
+                parcelIds: [fullParcel._id],
+                tripId: fullTrip.tripId,
+                type: "parcel_delivered",
+                status: "accepted",
+                message: `Parcel ${fullParcel.trackingId} has been delivered by ${fullTrip.driverId?.name || "the driver"}.`,
+                assignedBy: fullTrip.assignedBy
+              });
+              await managerNotification.save();
+            } catch (notifErr) {
+              console.error("❌ Manager notification failed:", notifErr.message);
+            }
+          }
+
+          // 3. Notify Recipient Email
+          if (fullParcel.recipient && fullParcel.recipient.email) {
+            try {
+              await sendDeliverySuccessEmail(
+                fullParcel.recipient.email,
+                fullParcel.recipient.name,
+                fullParcel.trackingId
+              );
+            } catch (emailErr) {
+              console.error("❌ Delivery success email failed:", emailErr.message);
+            }
+          }
+        }
+      } catch (innerErr) {
+        console.error("❌ Critical inner error in updateDeliveryStatus:", innerErr.message);
+      }
+
+      // --- UPDATE ONGOING TRIP PROGRESS (MOVED TO LOCATION UPDATES FOR SMOOTHNESS) ---
+      await Parcel.findByIdAndUpdate(parcelId, { status: "Delivered" }).catch(e => console.error(e));
     }
 
-    // Check completion
-    const allDelivered = trip.deliveryDestinations.every(
+    // 4. Update Trip status and resources
+    const allDone = trip.deliveryDestinations.every(
       (d) => d.deliveryStatus === "delivered" || d.deliveryStatus === "failed"
     );
 
-    if (allDelivered) {
+    if (allDone) {
       trip.status = "completed";
       trip.completedAt = new Date();
 
-      const driver = await Driver.findById(trip.driverId);
-      await Driver.findByIdAndUpdate(trip.driverId, {
-        driverStatus: driver.isAvailable ? "available" : "offline",
-        currentTripId: null
-      });
-      await Vehicle.findByIdAndUpdate(trip.vehicleId, {
-        status: "Active",
-        currentTripId: null
-      });
-      // Remove from OngoingTrips
-      await OngoingTrip.findOneAndDelete({ trip: trip._id });
+      // Free up Driver and Vehicle
+      try {
+        const driver = await Driver.findById(trip.driverId);
+        await Driver.findByIdAndUpdate(trip.driverId, {
+          driverStatus: (driver && driver.isAvailable) ? "available" : "offline",
+          currentTripId: null
+        });
+
+        await Vehicle.findByIdAndUpdate(trip.vehicleId, {
+          status: "Active",
+          currentTripId: null
+        });
+
+        // Clean up OngoingTrip
+        await OngoingTrip.findOneAndDelete({ trip: trip._id });
+        console.log(`✅ Trip ${trip.tripId} marked as completed and resources freed.`);
+      } catch (resourceErr) {
+        console.error("❌ Failed to free up resources after trip completion:", resourceErr.message);
+      }
     }
 
     await trip.save();
-    res.status(200).json(trip);
+
+    // Populate for response
+    const finalTrip = await Trip.findById(trip._id)
+      .populate("driverId", "name phone email profilePhoto")
+      .populate("vehicleId", "regNumber model type capacity profilePhoto")
+      .populate("parcelIds", "trackingId weight recipient status deliveryLocation");
+
+    res.status(200).json(finalTrip);
+
   } catch (error) {
-    res.status(500).json({ message: "Failed to update delivery", error: error.message });
+    console.error("❌ Update Delivery Critical Error:", error);
+    res.status(500).json({
+      message: "Failed to update delivery",
+      error: error.message,
+      details: error.stack
+    });
   }
 };
 
@@ -698,7 +837,15 @@ exports.updateTripLocation = async (req, res) => {
     if (req.body.progress !== undefined) {
       updateFields.progress = req.body.progress;
     }
+    if (req.body.totalDistance !== undefined) {
+      updateFields.totalDistance = req.body.totalDistance;
+    }
+    if (req.body.totalDuration !== undefined) {
+      updateFields.totalDuration = req.body.totalDuration;
+    }
 
+    // NOTE: We do NOT automatically mark parcels as delivered here even if progress is 100.
+    // Delivery confirmation MUST be a manual action by the driver via the updateDeliveryStatus endpoint.
     const updated = await OngoingTrip.findOneAndUpdate(
       { trip: tripObjectId },
       { $set: updateFields },
@@ -795,5 +942,41 @@ exports.toggleSOS = async (req, res) => {
   } catch (error) {
     console.error("Toggle SOS error:", error);
     res.status(500).json({ message: "Failed to toggle SOS", error: error.message });
+  }
+};
+
+// Get delivery history for a specific driver
+exports.getDriverHistory = async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    // Ensure driverId is handled correctly as an ObjectId
+    const query = {};
+    if (mongoose.Types.ObjectId.isValid(driverId)) {
+      query["driver.driverId"] = new mongoose.Types.ObjectId(driverId);
+    } else {
+      query["driver.driverId"] = driverId;
+    }
+
+    const history = await DeliveredParcel.find(query)
+      .sort({ reachedTime: -1 });
+
+    res.status(200).json(history);
+  } catch (error) {
+    console.error("Fetch Driver History Error:", error);
+    res.status(500).json({ message: "Failed to fetch driver history", error: error.message });
+  }
+};
+
+// Get all delivery history (for manager/admin)
+exports.getAllHistory = async (req, res) => {
+  try {
+    const history = await DeliveredParcel.find()
+      .sort({ reachedTime: -1 });
+
+    res.status(200).json(history);
+  } catch (error) {
+    console.error("Fetch All History Error:", error);
+    res.status(500).json({ message: "Failed to fetch all history", error: error.message });
   }
 };

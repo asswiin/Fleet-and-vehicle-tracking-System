@@ -34,4 +34,10 @@ const vehicleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index for efficient queries
+vehicleSchema.index({ regNumber: 1 });
+vehicleSchema.index({ status: 1 });
+vehicleSchema.index({ currentTripId: 1 });
+vehicleSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Vehicle", vehicleSchema);

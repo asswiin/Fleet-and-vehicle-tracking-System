@@ -169,7 +169,19 @@ const DriverDashboard = () => {
           </TouchableOpacity>
 
           {/* Card 2: History */}
-          <TouchableOpacity style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => {
+              if (driverId) {
+                router.push({
+                  pathname: "/shared/trip-history",
+                  params: { driverId: driverId, role: 'driver' }
+                } as any);
+              } else {
+                Alert.alert("Error", "Driver ID not found. Please relogin.");
+              }
+            }}
+          >
             <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
               <Clock size={24} color="#2563EB" />
             </View>

@@ -107,14 +107,9 @@ const ManagerDashboard = () => {
 
   const checkVehicleExpiries = async () => {
     try {
-      const res = await api.getVehicles();
-      if (res.ok && Array.isArray(res.data)) {
-        const expiring = res.data.some((v: any) =>
-          isExpiringSoon(v.insuranceExpiry || v.insuranceDate) ||
-          isExpiringSoon(v.pollutionExpiry || v.pollutionDate) ||
-          isExpiringSoon(v.taxExpiry || v.taxDate)
-        );
-        setHasVehicleAlerts(expiring);
+      const res = await api.getVehicleAlertsSummary();
+      if (res.ok && res.data) {
+        setHasVehicleAlerts(res.data.hasAlerts);
       }
     } catch (e) {
       console.error("Error checking vehicle expiries", e);
@@ -158,16 +153,25 @@ const ManagerDashboard = () => {
       fetchManagerData();
       // Fetch declined parcels count
       const fetchDeclined = async () => {
-        const res = await api.getDeclinedParcels();
-        if (res.ok && Array.isArray(res.data)) {
-          setDeclinedCount(res.data.length);
+        const res = await api.getDeclinedCount();
+        if (res.ok && res.data) {
+          setDeclinedCount(res.data.count);
         } else {
           setDeclinedCount(0);
         }
       };
-      fetchDeclined();
-      checkVehicleExpiries();
-      fetchActiveTrips();
+
+      const refreshData = () => {
+        fetchDeclined();
+        checkVehicleExpiries();
+        fetchActiveTrips();
+      };
+
+      refreshData();
+
+      // Polling for live updates on dashboard
+      const interval = setInterval(fetchActiveTrips, 4000);
+      return () => clearInterval(interval);
     }, [fetchManagerData])
   );
 
@@ -354,10 +358,9 @@ const ManagerDashboard = () => {
             activeTrips.slice(0, 2).map((trip) => {
               const calculateLiveProgress = (t: any) => {
                 if (t.status === "completed" || t.status === "Delivered") return 100;
-                if (t.liveProgress !== undefined && t.liveProgress > 0) return t.liveProgress;
-                const total = t.parcelIds?.length || 0;
-                const delivered = t.parcelIds?.filter((p: any) => p.status === "delivered" || p.status === "Completed").length || 0;
-                return total > 0 ? (delivered / total) * 100 : 0;
+                if (t.status === "accepted") return 0;
+                if (t.liveProgress !== undefined) return t.liveProgress;
+                return 0;
               };
               const progress = calculateLiveProgress(trip);
 
@@ -373,8 +376,31 @@ const ManagerDashboard = () => {
                 >
                   <View style={styles.cardTop}>
                     <View style={styles.cardHeaderLeft}>
-                      <View style={styles.truckIconBg}>
-                        <Truck size={20} color="#64748B" />
+                      <View style={styles.resourceAvatars}>
+                        <View style={styles.vehicleAvatarWrapper}>
+                          {trip.vehicleId?.profilePhoto ? (
+                            <Image
+                              source={{ uri: api.getImageUrl(trip.vehicleId.profilePhoto) || undefined }}
+                              style={styles.resourceAvatarImage}
+                            />
+                          ) : (
+                            <View style={[styles.resourceAvatarPlaceholder, { backgroundColor: "#F1F5F9" }]}>
+                              <Car size={16} color="#4F46E5" />
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.driverAvatarWrapper}>
+                          {trip.driverId?.profilePhoto ? (
+                            <Image
+                              source={{ uri: api.getImageUrl(trip.driverId.profilePhoto) || undefined }}
+                              style={styles.resourceAvatarImage}
+                            />
+                          ) : (
+                            <View style={[styles.resourceAvatarPlaceholder, { backgroundColor: "#DBEAFE" }]}>
+                              <User size={14} color="#2563EB" />
+                            </View>
+                          )}
+                        </View>
                       </View>
                       <View>
                         <Text style={styles.vehicleName}>{trip.vehicleId?.regNumber || "Vehicle"}</Text>
@@ -512,8 +538,8 @@ const styles = StyleSheet.create({
   statBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   statLabelWhite: { color: "#fff", fontSize: 16, fontWeight: "500" },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginBottom: 12 },
-  actionGrid: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-  actionItem: { alignItems: "center", width: "22%" },
+  actionGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: 8, marginBottom: 20 },
+  actionItem: { alignItems: "center", width: (width - 32 - 24) / 4, marginBottom: 12 },
   actionIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 6 },
   actionLabel: { fontSize: 10, fontWeight: "600", color: "#4B5563" },
   declinedBadge: {
@@ -740,6 +766,55 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.5,
+  },
+  resourceAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 65,
+    height: 44,
+  },
+  vehicleAvatarWrapper: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  driverAvatarWrapper: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#fff',
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    zIndex: 3,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  resourceAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  resourceAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

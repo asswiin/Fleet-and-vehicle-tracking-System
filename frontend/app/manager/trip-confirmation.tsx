@@ -195,7 +195,7 @@ const TripConfirmationScreen = () => {
       allCoords.push({ latitude: startLocation.latitude, longitude: startLocation.longitude });
     }
 
-    deliveryLocations.forEach((loc) => {
+    deliveryLocations.forEach((loc: any) => {
       if (loc.latitude && loc.longitude) {
         allCoords.push({ latitude: loc.latitude, longitude: loc.longitude });
       }
@@ -232,7 +232,7 @@ const TripConfirmationScreen = () => {
 
   // Get location for a specific parcel
   const getParcelLocation = (parcelId: string) => {
-    return deliveryLocations.find(loc => loc.parcelId === parcelId);
+    return deliveryLocations.find((loc: any) => loc.parcelId === parcelId);
   };
 
   return (
@@ -304,7 +304,7 @@ const TripConfirmationScreen = () => {
                   )}
 
                   {/* Delivery Location Markers */}
-                  {deliveryLocations.map((location, index) => {
+                  {deliveryLocations.map((location: any, index: number) => {
                     const parcel = notification.parcelIds.find(p => p._id === location.parcelId);
                     return (
                       <Marker

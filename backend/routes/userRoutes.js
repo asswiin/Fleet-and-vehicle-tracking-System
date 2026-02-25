@@ -4,7 +4,7 @@ const crypto = require("crypto"); // Built-in Node module for generating passwor
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const User = require("../models/User"); 
+const User = require("../models/User");
 const Driver = require("../models/Driver");// Your User Model
 const { sendCredentialsEmail } = require("../utils/emailService"); // Email utility
 
@@ -83,8 +83,8 @@ router.post("/login", async (req, res) => {
     }
 
     // Find user
-      const user = await User.findOne({ email: email });
-    
+    const user = await User.findOne({ email: email });
+
     if (user) {
       // User found, check password
       const isMatch = await user.comparePassword(password);
@@ -93,7 +93,7 @@ router.post("/login", async (req, res) => {
           message: "Login successful",
           user: {
             id: user._id,
-            name: user.name,  
+            name: user.name,
             email: user.email,
             role: user.role,
             district: user.district || "",
@@ -183,14 +183,14 @@ router.post("/create-manager", async (req, res) => {
 
     // 7. Create the Manager in Database
     const user = new User({
-     name: name,        // FIXED: Use 'name' to match User Schema (was 'fullName')
+      name: name,        // FIXED: Use 'name' to match User Schema (was 'fullName')
       email: email,
-      password: randomPassword, 
+      password: randomPassword,
       phone: phone || "",
       dob: dob || "",   // ADDED: Store the Date of Birth
-      place: placeString,       
+      place: placeString,
       address: addressData, // ADDED: Store the full Address object
-      role: "manager",  
+      role: "manager",
     });
 
     await user.save();
@@ -223,7 +223,10 @@ router.post("/create-manager", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     // Return all users, sorted by newest first, excluding passwords
-    const users = await User.find().sort({ createdAt: -1 }).select("-password");
+    // Optimized: Exclude heavy base64 profile photos from list view
+    const users = await User.find()
+      .sort({ createdAt: -1 })
+      .select("-password");
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
@@ -255,8 +258,8 @@ router.patch("/:id/status", async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(
-      req.params.id, 
-      { status: status }, 
+      req.params.id,
+      { status: status },
       { new: true } // Return the updated document
     ).select("-password");
 
@@ -351,8 +354,8 @@ router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
     const user = await User.findByIdAndUpdate(
-      req.params.id, 
-      { status: status }, 
+      req.params.id,
+      { status: status },
       { new: true }
     );
     res.json({ message: "Status updated", data: user });

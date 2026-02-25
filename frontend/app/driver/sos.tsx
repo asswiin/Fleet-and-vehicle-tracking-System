@@ -53,6 +53,16 @@ const SOSPage = () => {
             if (res.ok && res.data) {
                 setActiveTrip(res.data);
                 setSosActive(!!res.data.sos);
+
+                // Immediate fetch simulation location for initial load
+                const ongoingRes = await api.getOngoingTrip(res.data._id);
+                if (ongoingRes.ok && ongoingRes.data && ongoingRes.data.lastKnownLocation) {
+                    setSimulatedLocation({
+                        latitude: ongoingRes.data.lastKnownLocation.latitude,
+                        longitude: ongoingRes.data.lastKnownLocation.longitude
+                    });
+                    searchNearbyServices(ongoingRes.data.lastKnownLocation.latitude, ongoingRes.data.lastKnownLocation.longitude);
+                }
             }
         } catch (e) {
             console.error("Error fetching active trip:", e);
@@ -192,11 +202,14 @@ const SOSPage = () => {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') return;
 
+            // Initial phone location as fallback
             let loc = await Location.getCurrentPositionAsync({});
             setLocation(loc);
 
-            // Auto search when location is first found
-            searchNearbyServices(loc.coords.latitude, loc.coords.longitude);
+            // ONLY search here if we DON'T have a simulation location yet
+            if (!simulatedLocation) {
+                searchNearbyServices(loc.coords.latitude, loc.coords.longitude);
+            }
 
             subscription = await Location.watchPositionAsync(
                 {
@@ -247,30 +260,42 @@ const SOSPage = () => {
         };
     }, [fetchActiveTrip]);
 
-    // Poll for simulation location if trip is active
+    // Poll for simulation location if trip is active and search nearby services based on it
     useEffect(() => {
         let pollTimer: any;
-        if (activeTrip && (activeTrip.status === 'in-progress' || activeTrip.status === 'accepted')) {
+        let lastSearchPos = { lat: 0, lng: 0 };
+
+        if (activeTrip) {
             const pollSimLocation = async () => {
                 try {
                     const res = await api.getOngoingTrip(activeTrip._id);
                     if (res.ok && res.data && res.data.lastKnownLocation) {
                         const newLat = res.data.lastKnownLocation.latitude;
                         const newLng = res.data.lastKnownLocation.longitude;
+
                         setSimulatedLocation({
                             latitude: newLat,
                             longitude: newLng
                         });
-                        // Also update nearby services based on simulated location
-                        searchNearbyServices(newLat, newLng);
+
+                        // Only re-search if moved significantly (> 500m) to save API calls
+                        const distMoved = calculateDistance(lastSearchPos.lat, lastSearchPos.lng, newLat, newLng);
+
+                        // Force search if this is the first time we get a valid simulation location
+                        if (distMoved > 0.5 || (lastSearchPos.lat === 0 && lastSearchPos.lng === 0)) {
+                            searchNearbyServices(newLat, newLng);
+                            lastSearchPos = { lat: newLat, lng: newLng };
+                        }
                     }
                 } catch (e) {
                     // Fail silently for polling
                 }
             };
+
             pollSimLocation();
-            pollTimer = setInterval(pollSimLocation, 3000);
+            pollTimer = setInterval(pollSimLocation, 4000);
         }
+
         return () => {
             if (pollTimer) clearInterval(pollTimer);
         };
@@ -364,7 +389,7 @@ const SOSPage = () => {
                                 strokeWidth={2}
                             />
 
-                            {/* Driver Current Location Dot */}
+                            {/* Driver/Vehicle Current Location Dot */}
                             <Marker
                                 coordinate={{
                                     latitude: displayPos.latitude,
@@ -376,11 +401,14 @@ const SOSPage = () => {
                                 <View style={styles.driverDotContainer}>
                                     <View style={styles.driverDotHalo} />
                                     <View style={styles.driverDot} />
-                                    {simulatedLocation && (
-                                        <View style={{ backgroundColor: '#2563EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 }}>
-                                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>DRIVER</Text>
-                                        </View>
-                                    )}
+                                    <View style={[
+                                        styles.locationTag,
+                                        { backgroundColor: simulatedLocation ? '#2563EB' : '#10B981' }
+                                    ]}>
+                                        <Text style={styles.locationTagText}>
+                                            {simulatedLocation ? 'VEHICLE' : 'PHONE GPS'}
+                                        </Text>
+                                    </View>
                                 </View>
                             </Marker>
                         </MapView>
@@ -438,7 +466,9 @@ const SOSPage = () => {
                     <View style={styles.sectionHeader}>
                         <View>
                             <Text style={styles.sectionTitle}>Nearby Support</Text>
-                            <Text style={styles.sectionSubtitle}>Select a provider to get immediate help.</Text>
+                            <Text style={styles.sectionSubtitle}>
+                                Discovery based on {simulatedLocation ? "vehicle's" : "your"} current location.
+                            </Text>
                         </View>
                         {isSearching && <ActivityIndicator color="#2563EB" />}
                     </View>
@@ -790,6 +820,23 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#64748B",
         fontWeight: "600",
+    },
+    locationTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginTop: 6,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    locationTagText: {
+        color: "#fff",
+        fontSize: 10,
+        fontWeight: "800",
+        letterSpacing: 0.5,
     },
 });
 

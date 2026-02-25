@@ -15,7 +15,7 @@ const TripListScreen = () => {
       const response = await api.getAllTrips();
       if (response.ok && response.data) {
         // Sort by newest first
-        setTrips(response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setTrips(response.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
       }
     } catch (error) {
       console.error(error);
@@ -41,7 +41,7 @@ const TripListScreen = () => {
   };
 
   const renderItem = ({ item }: { item: Trip }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.card}
       onPress={() => router.push({ pathname: "/manager/trip-details", params: { tripId: item._id } } as any)}
     >

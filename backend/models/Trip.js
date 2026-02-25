@@ -7,6 +7,9 @@ const tripSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    trackId: {
+      type: String,
+    },
     driverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Driver",

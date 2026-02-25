@@ -91,4 +91,46 @@ const sendTrackingEmail = async (email, recipientName, trackingId) => {
   }
 };
 
-module.exports = { sendCredentialsEmail, sendTrackingEmail };
+const sendDeliverySuccessEmail = async (email, recipientName, trackingId) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "aswinhareesh1991@gmail.com",
+        pass: "jydr zizx dvyv ntye",
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+
+    const mailOptions = {
+      from: '"Logistics Tracking" <no-reply@logistics.com>',
+      to: email,
+      subject: `Parcel Delivered: ${trackingId}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #10b981; padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">Successfully Delivered</h1>
+          </div>
+          <div style="padding: 30px; background-color: white;">
+            <p style="font-size: 16px; color: #1e293b;">Hello <strong>${recipientName}</strong>,</p>
+            <p style="font-size: 16px; color: #475569; line-height: 1.6;">
+              Your parcel with ID <strong>${trackingId}</strong> has been successfully delivered. Thank you for using our service!
+            </p>
+          </div>
+          <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #94a3b8; margin: 0;">&copy; 2026 Fleet & Vehicle Tracking System. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Delivery success email sent to ${email}`);
+  } catch (error) {
+    console.error("Delivery success email failed:", error);
+  }
+};
+
+module.exports = { sendCredentialsEmail, sendTrackingEmail, sendDeliverySuccessEmail };

@@ -37,7 +37,10 @@ router.post("/register", async (req, res) => {
 // 2. GET ALL VEHICLES
 router.get("/", async (req, res) => {
   try {
-    const vehicles = await Vehicle.find().sort({ createdAt: -1 });
+    // Optimized: Exclude heavy base64 images from list view
+    const vehicles = await Vehicle.find()
+      .sort({ createdAt: -1 })
+      .select("-vehiclePhotos");
     res.json(vehicles);
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
@@ -118,6 +121,41 @@ router.patch("/:id/status", async (req, res) => {
     }
 
     res.json({ message: "Vehicle status updated successfully", data: updatedVehicle });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// 6. GET VEHICLE ALERTS SUMMARY (Optimized for Dashboard)
+router.get("/alerts/summary", async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tenDaysFromNow = new Date(today);
+    tenDaysFromNow.setDate(today.getDate() + 10);
+
+    // We check all vehicles, but only return a boolean if any are expiring soon
+    // This avoids sending the entire vehicle list to the frontend
+    const vehicles = await Vehicle.find({}, "insuranceExpiry pollutionExpiry taxExpiry");
+
+    const parseDateHelper = (dateInput) => {
+      if (!dateInput) return null;
+      if (dateInput.includes('/')) {
+        const parts = dateInput.split('/');
+        if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+      const date = new Date(dateInput);
+      return isNaN(date.getTime()) ? null : date;
+    };
+
+    const hasAlerts = vehicles.some(v => {
+      const ins = parseDateHelper(v.insuranceExpiry);
+      const pol = parseDateHelper(v.pollutionExpiry);
+      const tax = parseDateHelper(v.taxExpiry);
+      return (ins && ins <= tenDaysFromNow) || (pol && pol <= tenDaysFromNow) || (tax && tax <= tenDaysFromNow);
+    });
+
+    res.json({ hasAlerts });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

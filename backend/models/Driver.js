@@ -8,12 +8,12 @@ const driverSchema = new mongoose.Schema(
     licensePhoto: { type: String, default: "" },
     name: { type: String, required: true },
     mobile: { type: String, required: true, unique: true },
-    email: { 
-      type: String, 
-      required: true, 
-      unique: true, 
-      lowercase: true, 
-      trim: true 
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
     },
     password: { type: String, required: true },
     license: { type: String, required: true, unique: true },
@@ -35,20 +35,20 @@ const driverSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    
+
     // Driver status for trip tracking (offline, available, pending, Accepted, On-trip, Off-duty)
     driverStatus: {
       type: String,
       enum: ["offline", "available", "pending", "Accepted", "On-trip", "Off-duty"],
       default: "offline"
     },
-    
+
     // Track current trip
     currentTripId: {
       type: String,
       default: null
     },
-    
+
     // District for location-based access control
     district: {
       type: String,
@@ -74,5 +74,14 @@ driverSchema.pre("save", async function () {
 driverSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Index for efficient queries
+driverSchema.index({ email: 1 });
+driverSchema.index({ mobile: 1 });
+driverSchema.index({ isAvailable: 1 });
+driverSchema.index({ driverStatus: 1 });
+driverSchema.index({ district: 1 });
+driverSchema.index({ branch: 1 });
+driverSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Driver", driverSchema);

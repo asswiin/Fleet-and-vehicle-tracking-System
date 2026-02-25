@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 
+const dbConnect = require("./config/db");
 
 require("dotenv").config();
 
@@ -20,6 +21,26 @@ app.get("/", (req, res) => {
   res.send("API running");
 });
 
+// Add a health check/db check route
+app.get("/api/health", async (req, res) => {
+  try {
+    await dbConnect();
+    res.json({ status: "ok", db: "connected" });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// Middleware to ensure DB is connected for every API request
+app.use(async (req, res, next) => {
+  try {
+    await dbConnect();
+    next();
+  } catch (err) {
+    res.status(500).json({ message: "Database connection failed", error: err.message });
+  }
+});
+
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/vehicles", require("./routes/vehicleRoutes"));
 app.use("/api/drivers", require("./routes/driverRoutes"));
@@ -27,15 +48,17 @@ app.use("/api/parcels", require("./routes/parcelRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/trips", require("./routes/tripRoutes"));
 
-
 const PORT = process.env.PORT || 5000;
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully✅");
+// Local development server start
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  dbConnect().then(() => {
     app.listen(PORT, '0.0.0.0', () =>
-      console.log(`Server running on port ${PORT}`)
+      console.log(`🚀 Server running locally on port ${PORT}`)
     );
-  })
-  .catch(err => console.error(err));
+  }).catch(err => {
+    console.error("Failed to start server due to DB connection error", err);
+  });
+}
+
+module.exports = app;

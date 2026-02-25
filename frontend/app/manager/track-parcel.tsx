@@ -21,7 +21,7 @@ import {
     Weight,
     Navigation as NavIcon,
 } from "lucide-react-native";
-import { api, type Parcel, type Trip } from "../utils/api";
+import { api, type Parcel, type Trip, type OngoingTrip } from "../../utils/api";
 import { MapView, Marker, Polyline, isMapAvailable } from "@/components/MapViewWrapper";
 
 const { width } = Dimensions.get("window");
@@ -32,7 +32,7 @@ const TrackParcelScreen = () => {
     const mapRef = useRef<any>(null);
 
     const [parcel, setParcel] = useState<Parcel | null>(null);
-    const [ongoingTrip, setOngoingTrip] = useState<any>(null);
+    const [ongoingTrip, setOngoingTrip] = useState<OngoingTrip | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);

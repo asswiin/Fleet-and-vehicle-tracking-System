@@ -580,6 +580,58 @@
     <script>
         const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
 
+        // Web Worker to prevent background throttling
+        const timerWorkerBlob = new Blob([`
+            let timers = {};
+            self.onmessage = function(e) {
+                const { action, id, interval } = e.data;
+                if (action === 'setInterval') {
+                    timers[id] = setInterval(() => self.postMessage({ id }), interval);
+                } else if (action === 'setTimeout') {
+                    timers[id] = setTimeout(() => {
+                        self.postMessage({ id });
+                        delete timers[id];
+                    }, interval);
+                } else if (action === 'clearInterval' || action === 'clearTimeout') {
+                    if (timers[id]) {
+                        action === 'clearInterval' ? clearInterval(timers[id]) : clearTimeout(timers[id]);
+                        delete timers[id];
+                    }
+                }
+            };
+        `], { type: 'application/javascript' });
+
+        const timerWorker = new Worker(URL.createObjectURL(timerWorkerBlob));
+        const workerCallbacks = {};
+        let nextTimerId = 1;
+
+        const backgroundTimer = {
+            setInterval(cb, interval) {
+                const id = nextTimerId++;
+                workerCallbacks[id] = cb;
+                timerWorker.postMessage({ action: 'setInterval', id, interval });
+                return id;
+            },
+            setTimeout(cb, interval) {
+                const id = nextTimerId++;
+                workerCallbacks[id] = cb;
+                timerWorker.postMessage({ action: 'setTimeout', id, interval });
+                return id;
+            },
+            clearInterval(id) {
+                timerWorker.postMessage({ action: 'clearInterval', id });
+                delete workerCallbacks[id];
+            },
+            clearTimeout(id) {
+                timerWorker.postMessage({ action: 'clearTimeout', id });
+                delete workerCallbacks[id];
+            }
+        };
+
+        timerWorker.onmessage = function (e) {
+            if (workerCallbacks[e.data.id]) workerCallbacks[e.data.id]();
+        };
+
         createApp({
             setup() {
                 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -595,6 +647,8 @@
                 const currentStep = ref(1);
                 const currentLocation = ref(null);
                 const tripProgress = ref(0);
+                const rawDistance = ref(0);
+                const rawDuration = ref(0);
                 const initialZoomDone = ref(false);
 
                 const displayError = computed(() => error.value || 'Please enter your tracking ID to see the live location.');
@@ -770,6 +824,18 @@
                                         };
 
                                         tripProgress.value = ongoing?.progress || 0;
+                                        if (ongoing?.totalDistance) rawDistance.value = ongoing.totalDistance;
+                                        if (ongoing?.totalDuration) rawDuration.value = ongoing.totalDuration;
+
+                                        // Override routeDetails with synchronized values
+                                        if (rawDistance.value > 0) {
+                                            const progress = tripProgress.value / 100;
+                                            routeDetails.value = {
+                                                distance: (rawDistance.value * (1 - progress)).toFixed(1),
+                                                duration: Math.ceil(rawDuration.value * (1 - progress)),
+                                                name: routeDetails.value?.name || 'Main Route'
+                                            };
+                                        }
 
                                         // Show location name on truck if available
                                         if (ongoing?.lastKnownLocation?.address && ongoing.lastKnownLocation.address !== 'Simulated Route') {
@@ -839,10 +905,10 @@
 
                 onMounted(() => {
                     track();
-                    pollInterval = setInterval(track, 10000);
+                    pollInterval = backgroundTimer.setInterval(track, 3000); // Increased frequency for smoother live tracking
                 });
 
-                onUnmounted(() => { if (pollInterval) clearInterval(pollInterval); });
+                onUnmounted(() => { if (pollInterval) backgroundTimer.clearInterval(pollInterval); });
 
                 return {
                     trackingId, inputTrackingId, parcel, trip, routeDetails, loading, error, displayError, steps, currentStep,

@@ -39,6 +39,14 @@ const ongoingTripSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        totalDistance: {
+            type: Number,
+            default: 0,
+        },
+        totalDuration: {
+            type: Number,
+            default: 0,
+        },
     },
     { timestamps: true }
 );

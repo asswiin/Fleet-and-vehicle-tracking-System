@@ -336,7 +336,7 @@ const TripAssignmentDetailScreen = () => {
       allCoords.push({ latitude: startLocation.latitude, longitude: startLocation.longitude });
     }
 
-    deliveryLocations.forEach((loc) => {
+    deliveryLocations.forEach((loc: any) => {
       if (loc.latitude && loc.longitude) {
         allCoords.push({ latitude: loc.latitude, longitude: loc.longitude });
       }
@@ -371,7 +371,7 @@ const TripAssignmentDetailScreen = () => {
   };
 
   const getParcelLocation = (parcelId: string) => {
-    return deliveryLocations.find(loc => {
+    return deliveryLocations.find((loc: any) => {
       const locParcelId = typeof loc.parcelId === 'object'
         ? (loc.parcelId as any)._id || (loc.parcelId as any).toString()
         : loc.parcelId;
@@ -516,7 +516,7 @@ const TripAssignmentDetailScreen = () => {
                   )}
 
                   {/* Delivery Location Markers */}
-                  {deliveryLocations.map((location, index) => {
+                  {deliveryLocations.map((location: any, index: number) => {
                     const parcel = notification.parcelIds?.find(p => p._id === location.parcelId);
                     const isFocused = focusedParcelId === location.parcelId;
                     return (

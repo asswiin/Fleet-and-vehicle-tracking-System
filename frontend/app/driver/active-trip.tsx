@@ -55,10 +55,14 @@ const ActiveTripPage = () => {
 
   // Route State
   const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
-  const [routeDistance, setRouteDistance] = useState<string>("0.0");
-  const [routeDuration, setRouteDuration] = useState<string>("0m");
+  const [distance, setDistance] = useState<string>("0.0");
+  const [duration, setDuration] = useState<string>("0m");
   const [isRouting, setIsRouting] = useState(false);
   const [driverLocation, setDriverLocation] = useState<Location.LocationObject | null>(null);
+  const [liveLocation, setLiveLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [ongoingTrip, setOngoingTrip] = useState<any>(null);
+  const [rawDistance, setRawDistance] = useState<number>(0);
+  const [rawDuration, setRawDuration] = useState<number>(0);
 
   // useEffect to watch location if trip is in-progress
   useEffect(() => {
@@ -131,6 +135,35 @@ const ActiveTripPage = () => {
     }, [driverId])
   );
 
+  // Separate effect for polling live location once trip is loaded
+  useEffect(() => {
+    if (!activeTrip?._id) return;
+
+    const idToUse = activeTrip._id || activeTrip.tripId;
+
+    const syncSimulation = async () => {
+      try {
+        const ongoingRes = await api.getOngoingTrip(idToUse);
+        if (ongoingRes.ok && ongoingRes.data) {
+          setOngoingTrip(ongoingRes.data);
+          // NOTE: We do NOT use ongoingRes.data.totalDistance here to keep 'Remaining' stats
+          if (ongoingRes.data.lastKnownLocation) {
+            setLiveLocation({
+              latitude: ongoingRes.data.lastKnownLocation.latitude,
+              longitude: ongoingRes.data.lastKnownLocation.longitude
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Sim sync failed", e);
+      }
+    };
+
+    syncSimulation();
+    const interval = setInterval(syncSimulation, 3000);
+    return () => clearInterval(interval);
+  }, [activeTrip?._id, activeTrip?.tripId]);
+
   // --- OSRM Routing Logic ---
 
   const decodePolyline = (encoded: string): { latitude: number, longitude: number }[] => {
@@ -172,26 +205,21 @@ const ActiveTripPage = () => {
     return `${minutes}m`;
   };
 
-  const calculateRoute = useCallback(async () => {
-    if (!activeTrip || !activeTrip.startLocation) return;
+  // Calculate OSRM route for the FULL trip (mirroring track-trip.tsx for consistency)
+  const calculateFullRoute = useCallback(async () => {
+    if (!activeTrip || !activeTrip.startLocation || !activeTrip.deliveryDestinations) return;
 
-    // Prepare Waypoints (Start -> Stop 1 -> Stop 2 ...)
-    // Ensure delivery locations are sorted by order
-    const sortedLocations = [...(activeTrip.deliveryDestinations || [])].sort((a, b) => a.order - b.order);
-
+    const sortedDests = [...activeTrip.deliveryDestinations].sort((a, b) => a.order - b.order);
     const waypoints = [
       { latitude: activeTrip.startLocation.latitude, longitude: activeTrip.startLocation.longitude },
-      ...sortedLocations.map(loc => ({ latitude: loc.latitude, longitude: loc.longitude }))
+      ...sortedDests.map(d => ({ latitude: d.latitude, longitude: d.longitude }))
     ];
 
     if (waypoints.length < 2) return;
 
     setIsRouting(true);
     try {
-      const coordinateString = waypoints
-        .map(p => `${p.longitude},${p.latitude}`)
-        .join(';');
-
+      const coordinateString = waypoints.map(p => `${p.longitude},${p.latitude}`).join(';');
       const url = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=polyline`;
 
       const response = await fetch(url);
@@ -199,14 +227,14 @@ const ActiveTripPage = () => {
 
       if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
         const route = data.routes[0];
-        const points = decodePolyline(route.geometry);
-        setRouteCoordinates(points);
+        setRouteCoordinates(decodePolyline(route.geometry));
 
-        const km = route.distance / 1000;
-        setRouteDistance(km.toFixed(1));
-        setRouteDuration(formatDuration(route.duration));
+        const distKm = route.distance / 1000;
+        const durMin = route.duration / 60;
+
+        setRawDistance(distKm);
+        setRawDuration(durMin);
       } else {
-        // Fallback: Use waypoints directly
         setRouteCoordinates(waypoints);
       }
     } catch (error) {
@@ -217,11 +245,10 @@ const ActiveTripPage = () => {
     }
   }, [activeTrip]);
 
+  // Recalculate route ONLY when the trip itself changes (Total duration/distance is fixed)
   useEffect(() => {
-    if (activeTrip && activeTrip.startLocation) {
-      calculateRoute();
-    }
-  }, [activeTrip?.tripId, calculateRoute]);
+    calculateFullRoute();
+  }, [activeTrip?._id, calculateFullRoute]);
 
   // --- End Routing Logic ---
 
@@ -232,14 +259,36 @@ const ActiveTripPage = () => {
     }
 
     try {
-      // Build waypoints from delivery locations
-      const sortedLocations = [...activeTrip.deliveryDestinations].sort((a, b) => a.order - b.order);
+      // 1. Determine starting point for routing:
+      // Priority: Live Simulation -> Last Delivered Stop -> Driver GPS -> Warehouse
+      const sortedDests = [...activeTrip.deliveryDestinations].sort((a, b) => a.order - b.order);
+      const lastDelivered = [...sortedDests].reverse().find(d => d.deliveryStatus === 'delivered');
+      const remainingLocations = sortedDests.filter(d => d.deliveryStatus !== 'delivered');
 
-      const origin = `${activeTrip.startLocation.latitude},${activeTrip.startLocation.longitude}`;
-      const destination = `${sortedLocations[sortedLocations.length - 1].latitude},${sortedLocations[sortedLocations.length - 1].longitude}`;
+      if (remainingLocations.length === 0) {
+        Alert.alert("Trip Completed", "All parcels have been delivered!");
+        return;
+      }
 
-      // Build waypoints string (exclude last location since it's the destination)
-      const waypointsArray = sortedLocations.slice(0, -1).map(loc => `${loc.latitude},${loc.longitude}`);
+      let currentLat = activeTrip.startLocation.latitude;
+      let currentLng = activeTrip.startLocation.longitude;
+
+      if (liveLocation) {
+        currentLat = liveLocation.latitude;
+        currentLng = liveLocation.longitude;
+      } else if (lastDelivered) {
+        currentLat = lastDelivered.latitude;
+        currentLng = lastDelivered.longitude;
+      } else if (driverLocation) {
+        currentLat = driverLocation.coords.latitude;
+        currentLng = driverLocation.coords.longitude;
+      }
+
+      const origin = `${currentLat},${currentLng}`;
+      const destination = `${remainingLocations[remainingLocations.length - 1].latitude},${remainingLocations[remainingLocations.length - 1].longitude}`;
+
+      // 3. Build waypoints string (exclude last location since it's the destination)
+      const waypointsArray = remainingLocations.slice(0, -1).map(loc => `${loc.latitude},${loc.longitude}`);
       const waypoints = waypointsArray.length > 0 ? `&waypoints=${waypointsArray.join('|')}` : '';
 
       // Construct Google Maps URL
@@ -282,7 +331,13 @@ const ActiveTripPage = () => {
                 Alert.alert(
                   "Journey Started! 🚀",
                   "Your trip has begun. Drive safely!",
-                  [{ text: "OK" }]
+                  [{
+                    text: "OK",
+                    onPress: () => router.push({
+                      pathname: "/driver/driver-dashboard",
+                      params: { userId: driverId }
+                    } as any)
+                  }]
                 );
                 // Refresh the trip data
                 fetchActiveTrip();
@@ -294,6 +349,52 @@ const ActiveTripPage = () => {
               Alert.alert("Error", "Something went wrong. Please try again.");
             } finally {
               setStartingJourney(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle parcel delivery
+  const handleDeliver = async (parcelId: string) => {
+    if (!activeTrip) return;
+
+    Alert.alert(
+      "Confirm Delivery",
+      "Are you sure you want to mark this parcel as delivered?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, Delivered",
+          style: "default",
+          onPress: async () => {
+            try {
+              const response = await api.updateDeliveryStatus(
+                activeTrip._id,
+                parcelId,
+                "delivered"
+              );
+
+              if (response.ok) {
+                Alert.alert("Success", "Parcel marked as delivered!");
+
+                // If the entire trip is now completed, navigate back to dashboard
+                // The backend returns the updated trip object
+                if (response.data && response.data.status === "completed") {
+                  router.push({
+                    pathname: "/shared/trip-history",
+                    params: { driverId: driverId, role: 'driver' }
+                  } as any);
+                } else {
+                  fetchActiveTrip(); // Refresh data for remaining parcels
+                }
+              } else {
+                Alert.alert("Error", response.error || "Failed to update status");
+              }
+            } catch (err) {
+              console.error("Error updating delivery status:", err);
+              Alert.alert("Error", "Something went wrong");
             }
           },
         },
@@ -495,27 +596,59 @@ const ActiveTripPage = () => {
         </View>
       </View>
 
-      {/* Estimated Distance & Time (always visible) */}
-      {routeDistance !== "0.0" && (
-        <View style={styles.routeInfoCard}>
-          <View style={styles.routeInfoRow}>
-            <View style={styles.routeInfoItem}>
-              <Text style={styles.routeInfoValue}>{routeDistance}</Text>
-              <Text style={styles.routeInfoLabel}>KM</Text>
-            </View>
-            <View style={styles.routeInfoDivider} />
-            <View style={styles.routeInfoItem}>
-              <Text style={styles.routeInfoValue}>{routeDuration}</Text>
-              <Text style={styles.routeInfoLabel}>Est. Time</Text>
-            </View>
-            <View style={styles.routeInfoDivider} />
-            <View style={styles.routeInfoItem}>
-              <Text style={styles.routeInfoValue}>{destinations.length}</Text>
-              <Text style={styles.routeInfoLabel}>Stops</Text>
-            </View>
+
+
+      {/* Trip Progress Stats */}
+      {ongoingTrip && (
+        <View style={styles.routeStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              {rawDistance.toFixed(1)}
+            </Text>
+            <Text style={styles.statLabel}>KM LEFT</Text>
+          </View>
+          <View style={styles.vDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              {formatDuration(rawDuration * 60)}
+            </Text>
+            <Text style={styles.statLabel}>TIME LEFT</Text>
+          </View>
+          <View style={styles.vDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{ongoingTrip.progress || 0}%</Text>
+            <Text style={styles.statLabel}>PROGRESS</Text>
           </View>
         </View>
       )}
+
+      {/* Destination Reached Banner */}
+      {(() => {
+        if (!isInProgress || !liveLocation) return null;
+        const reachedDest = (activeTrip.deliveryDestinations || []).find(d => {
+          if (d.deliveryStatus === 'delivered') return false;
+          const dist = Math.sqrt(
+            Math.pow(liveLocation.latitude - d.latitude, 2) +
+            Math.pow(liveLocation.longitude - d.longitude, 2)
+          );
+          return dist < 0.002;
+        });
+
+        if (reachedDest) {
+          return (
+            <View style={styles.destReachedBanner}>
+              <View style={styles.bannerIconContainer}>
+                <CheckCircle size={24} color="#fff" />
+              </View>
+              <View style={styles.bannerTextContainer}>
+                <Text style={styles.destReachedTitle}>Reached {reachedDest.locationName}!</Text>
+                <Text style={styles.destReachedText}>Please manually confirm delivery for the parcel(s) at this location.</Text>
+              </View>
+            </View>
+          );
+        }
+        return null;
+      })()}
 
       <ScrollView
         style={styles.scrollView}
@@ -601,6 +734,19 @@ const ActiveTripPage = () => {
                   </Marker>
                 )}
 
+                {/* Simulated/Live Vehicle Location Marker */}
+                {liveLocation && (
+                  <Marker
+                    key={`live-marker-${activeTrip._id}`}
+                    coordinate={liveLocation}
+                    title="Vehicle Location"
+                  >
+                    <View style={styles.liveMarker}>
+                      <Truck size={20} color="#fff" />
+                    </View>
+                  </Marker>
+                )}
+
                 {/* Actual Route Polyline from OSRM */}
                 {routeCoordinates.length > 1 && (
                   <Polyline
@@ -613,6 +759,38 @@ const ActiveTripPage = () => {
                 )}
               </MapView>
 
+              {/* Stats Overlay exactly like in track-trip.tsx */}
+              <View style={styles.routeStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {(() => {
+                      const progress = ongoingTrip?.progress || 0;
+                      const remaining = rawDistance * (1 - progress / 100);
+                      return remaining.toFixed(1);
+                    })()}
+                  </Text>
+                  <Text style={styles.statLabel}>KM LEFT</Text>
+                </View>
+                <View style={styles.vDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {(() => {
+                      const progress = ongoingTrip?.progress || 0;
+                      const remainingMin = Math.max(0, Math.floor(rawDuration * (1 - progress / 100)));
+                      return remainingMin >= 60
+                        ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m`
+                        : `${remainingMin}m`;
+                    })()}
+                  </Text>
+                  <Text style={styles.statLabel}>EST. LEFT</Text>
+                </View>
+                <View style={styles.vDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{destinations.filter(d => d.deliveryStatus !== 'delivered').length}</Text>
+                  <Text style={styles.statLabel}>STOPS</Text>
+                </View>
+              </View>
+
               {/* Routing Loader Moved outside MapView */}
               {isRouting && (
                 <View style={styles.routingLoader}>
@@ -622,27 +800,7 @@ const ActiveTripPage = () => {
               )}
             </View>
 
-            {/* Route Info Card */}
-            {routeDistance !== "0.0" && (
-              <View style={styles.routeInfoCard}>
-                <View style={styles.routeInfoRow}>
-                  <View style={styles.routeInfoItem}>
-                    <Text style={styles.routeInfoValue}>{routeDistance}</Text>
-                    <Text style={styles.routeInfoLabel}>KM</Text>
-                  </View>
-                  <View style={styles.routeInfoDivider} />
-                  <View style={styles.routeInfoItem}>
-                    <Text style={styles.routeInfoValue}>{routeDuration}</Text>
-                    <Text style={styles.routeInfoLabel}>Est. Time</Text>
-                  </View>
-                  <View style={styles.routeInfoDivider} />
-                  <View style={styles.routeInfoItem}>
-                    <Text style={styles.routeInfoValue}>{destinations.length}</Text>
-                    <Text style={styles.routeInfoLabel}>Stops</Text>
-                  </View>
-                </View>
-              </View>
-            )}
+
           </View>
         )}
 
@@ -716,24 +874,61 @@ const ActiveTripPage = () => {
           {parcels.map((parcel, index) => (
             <View key={parcel._id} style={styles.parcelCard}>
               <View style={styles.parcelHeader}>
-                <Text style={styles.parcelTrackingId}>
-                  {parcel.trackingId}
-                </Text>
-                <View
-                  style={[
-                    styles.parcelStatusBadge,
-                    {
-                      backgroundColor:
-                        parcel.status === "In Transit"
-                          ? "#10B981"
-                          : parcel.status === "Delivered"
-                            ? "#3B82F6"
-                            : "#F59E0B",
-                    },
-                  ]}
-                >
-                  <Text style={styles.parcelStatusText}>{parcel.status}</Text>
+                <View>
+                  <Text style={styles.parcelTrackingId}>
+                    {parcel.trackingId}
+                  </Text>
+                  <View
+                    style={[
+                      styles.parcelStatusBadge,
+                      {
+                        backgroundColor:
+                          parcel.status === "In Transit"
+                            ? "#10B981"
+                            : parcel.status === "Delivered"
+                              ? "#3B82F6"
+                              : "#F59E0B",
+                      },
+                    ]}
+                  >
+                    <Text style={styles.parcelStatusText}>{parcel.status}</Text>
+                  </View>
                 </View>
+
+                {isInProgress && parcel.status !== "Delivered" && (
+                  <TouchableOpacity
+                    style={[
+                      styles.deliverBtn,
+                      (() => {
+                        // Check if vehicle is near this specific parcel's destination
+                        const dest = destinations.find(d => d.parcelId === parcel._id);
+                        if (!dest || !liveLocation) return false;
+
+                        const dist = Math.sqrt(
+                          Math.pow(liveLocation.latitude - dest.latitude, 2) +
+                          Math.pow(liveLocation.longitude - dest.longitude, 2)
+                        );
+                        // ~100m threshold (approx 0.001 degrees)
+                        return dist < 0.002;
+                      })() && styles.deliverBtnActive
+                    ]}
+                    onPress={() => handleDeliver(parcel._id)}
+                  >
+                    <CheckCircle size={18} color="#fff" />
+                    <Text style={styles.deliverBtnText}>
+                      {(() => {
+                        const dest = destinations.find(d => d.parcelId === parcel._id);
+                        if (!dest || !liveLocation) return "Mark as Delivered";
+
+                        const dist = Math.sqrt(
+                          Math.pow(liveLocation.latitude - dest.latitude, 2) +
+                          Math.pow(liveLocation.longitude - dest.longitude, 2)
+                        );
+                        return dist < 0.002 ? "Confirm Delivery" : "Mark as Delivered";
+                      })()}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={styles.parcelDetails}>
                 <View style={styles.parcelRow}>
@@ -826,36 +1021,40 @@ const ActiveTripPage = () => {
       </ScrollView>
 
       {/* Start Journey Button (only show if trip is accepted, not started) */}
-      {activeTrip.status === "accepted" && (
-        <View style={styles.bottomButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.startButton,
-              startingJourney && styles.startButtonDisabled,
-            ]}
-            onPress={handleStartJourney}
-            disabled={startingJourney}
-          >
-            {startingJourney ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Play size={24} color="#fff" fill="#fff" />
-                <Text style={styles.startButtonText}>Start Journey</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
+      {
+        activeTrip.status === "accepted" && (
+          <View style={styles.bottomButtonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.startButton,
+                startingJourney && styles.startButtonDisabled,
+              ]}
+              onPress={handleStartJourney}
+              disabled={startingJourney}
+            >
+              {startingJourney ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Play size={24} color="#fff" fill="#fff" />
+                  <Text style={styles.startButtonText}>Start Journey</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )
+      }
 
       {/* In Progress Banner */}
-      {isInProgress && (
-        <View style={styles.inProgressBanner}>
-          <Truck size={20} color="#fff" />
-          <Text style={styles.inProgressText}>Trip in Progress</Text>
-        </View>
-      )}
-    </SafeAreaView>
+      {
+        isInProgress && (
+          <View style={styles.inProgressBanner}>
+            <Truck size={20} color="#fff" />
+            <Text style={styles.inProgressText}>Trip in Progress</Text>
+          </View>
+        )
+      }
+    </SafeAreaView >
   );
 };
 
@@ -1165,6 +1364,29 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
+  deliverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#64748B', // Muted gray until destination reached
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  deliverBtnActive: {
+    backgroundColor: '#10B981', // Vibrant green when reached
+    transform: [{ scale: 1.02 }],
+  },
+  deliverBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
   parcelDetails: {
     gap: 8,
   },
@@ -1277,6 +1499,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  routeStats: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    flexDirection: "row",
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  destReachedBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#10B981',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 12,
+    elevation: 4,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  bannerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  destReachedTitle: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  destReachedText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  statLabel: {
+    fontSize: 10,
+    color: "#64748B",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  vDivider: {
+    width: 1,
+    backgroundColor: "#E2E8F0",
+    marginHorizontal: 10,
+  },
+  liveMarker: {
+    backgroundColor: "#2563EB",
+    padding: 6,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    elevation: 3
   },
   driverMarker: {
     backgroundColor: "#2563EB",

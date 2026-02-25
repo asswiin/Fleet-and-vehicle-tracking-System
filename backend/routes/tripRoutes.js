@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const tripController = require("../controllers/tripController");
 
+// History Routes
+router.get("/history/driver/:driverId", tripController.getDriverHistory);
+router.get("/history/all", tripController.getAllHistory);
+
 // Create a new trip
 router.post("/", tripController.createTrip);
 
@@ -13,6 +17,9 @@ router.get("/ongoing-list", tripController.getOngoingTrips);
 
 // Get declined parcels for reassignment (MUST be before /:id)
 router.get("/declined/parcels", tripController.getDeclinedParcels);
+
+// Get count of declined parcels (Optimized for Dashboard badge)
+router.get("/declined/count", tripController.getDeclinedCount);
 
 // Reassign trip to new driver (MUST be before /:id)
 router.patch("/reassign/:tripId", tripController.reassignTrip);

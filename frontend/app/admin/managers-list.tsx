@@ -8,47 +8,58 @@ import {
   TextInput,
   SafeAreaView,
   Image,
+  ScrollView,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import React from "react";
-import { ChevronLeft, Search, ChevronRight, User, UserX } from "lucide-react-native";
+import { ChevronLeft, Search, ChevronRight, User, UserX, Truck } from "lucide-react-native";
 import { api } from "../../utils/api";
 import type { User as UserType } from "../../utils/api";
 
 const ManagersListScreen: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  
+
   // Data State
   const [activeManagers, setActiveManagers] = useState<UserType[]>([]);
   const [resignedManagers, setResignedManagers] = useState<UserType[]>([]);
-  
+
   // UI State
-  const [selectedTab, setSelectedTab] = useState<"Active" | "Resigned">("Active");
+  const [selectedTab, setSelectedTab] = useState<"Active" | "Resigned" | "Drivers" | "Vehicles">("Active");
   const [searchText, setSearchText] = useState("");
 
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
   // Fetch Data
-  const fetchManagers = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.getUsers();
+      const [usersRes, driversRes, vehiclesRes] = await Promise.all([
+        api.getUsers(),
+        api.getDrivers(),
+        api.getVehicles()
+      ]);
 
-      if (response.ok && response.data) {
-        // Filter for managers only
-        const allManagers = response.data.filter((user: UserType) => user.role === "manager");
-
-        // Split into Active and Resigned based on status
-        // specific logic: If status is "Resigned", they go to resigned list. 
-        // Otherwise (Active, null, undefined) they stay in Active list.
+      if (usersRes.ok && usersRes.data) {
+        const allManagers = usersRes.data.filter((user: UserType) => user.role === "manager");
         const active = allManagers.filter((m: UserType) => m.status !== "Resigned");
         const resigned = allManagers.filter((m: UserType) => m.status === "Resigned");
-
         setActiveManagers(active);
         setResignedManagers(resigned);
       }
+
+      if (driversRes.ok && driversRes.data) {
+        const list = Array.isArray(driversRes.data) ? driversRes.data : (driversRes.data as any).data;
+        setDrivers(list || []);
+      }
+
+      if (vehiclesRes.ok && vehiclesRes.data) {
+        setVehicles(vehiclesRes.data || []);
+      }
     } catch (error) {
-      console.error("Error fetching managers:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
@@ -56,20 +67,28 @@ const ManagersListScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchManagers();
+      fetchData();
     }, [])
   );
 
   // Filter based on Search Text AND Selected Tab
   const getDisplayData = () => {
-    const sourceList = selectedTab === "Active" ? activeManagers : resignedManagers;
+    let sourceList: any[] = [];
+    if (selectedTab === "Active") sourceList = activeManagers;
+    else if (selectedTab === "Resigned") sourceList = resignedManagers;
+    else if (selectedTab === "Drivers") sourceList = drivers;
+    else if (selectedTab === "Vehicles") sourceList = vehicles;
 
     if (!searchText) return sourceList;
 
+    const term = searchText.toLowerCase();
     return sourceList.filter(
       (m) =>
-        m.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        m.email.toLowerCase().includes(searchText.toLowerCase())
+        (m.name?.toLowerCase().includes(term)) ||
+        (m.email?.toLowerCase().includes(term)) ||
+        (m.regNumber?.toLowerCase().includes(term)) ||
+        (m.model?.toLowerCase().includes(term)) ||
+        (m.mobile?.toLowerCase().includes(term))
     );
   };
 
@@ -80,46 +99,81 @@ const ManagersListScreen: React.FC = () => {
     });
   };
 
-  const renderItem = ({ item }: { item: UserType }) => (
-    <TouchableOpacity
-      style={[styles.card, selectedTab === "Resigned" && styles.cardResigned]}
-      onPress={() => handleManagerClick(item)}
-    >
-      <View style={styles.cardLeft}>
-        {selectedTab === "Resigned" ? (
-          <View style={[styles.avatar, styles.avatarResigned]}>
-            <UserX size={24} color="#EF4444" />
-          </View>
-        ) : item.profilePhoto ? (
-          <Image
-            source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }}
-            style={styles.avatarImage}
-          />
-        ) : (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {item.name ? item.name.charAt(0).toUpperCase() : "U"}
-            </Text>
-          </View>
-        )}
-        <View>
-          <Text style={[styles.name, selectedTab === "Resigned" && styles.textResigned]}>
-            {item.name}
-          </Text>
-          <Text style={styles.email}>{item.email}</Text>
-          <Text style={styles.location} numberOfLines={1}>
-            {item.place || "No location"}
-          </Text>
-          {selectedTab === "Resigned" && (
-            <View style={styles.resignedBadge}>
-              <Text style={styles.resignedBadgeText}>Resigned</Text>
+  const renderItem = ({ item }: { item: any }) => {
+    const isResigned = selectedTab === "Resigned" || item.status === "Resigned";
+    const isVehicle = !!item.regNumber;
+    const isDriver = !!item.license && !item.regNumber;
+
+    const profilePhoto = item.profilePhoto;
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, isResigned && styles.cardResigned]}
+        onPress={() => {
+          if (isVehicle) {
+            router.push({
+              pathname: "/admin/vehicle-details",
+              params: { vehicle: JSON.stringify(item), userRole: "admin" }
+            } as any);
+          } else if (isDriver) {
+            router.push({
+              pathname: "/admin/drivers-details",
+              params: { driver: encodeURIComponent(JSON.stringify(item)), viewerRole: "admin" }
+            } as any);
+          } else {
+            handleManagerClick(item);
+          }
+        }}
+      >
+        <View style={styles.cardLeft}>
+          {profilePhoto ? (
+            <Image
+              source={{ uri: api.getImageUrl(profilePhoto) || undefined }}
+              style={styles.avatarImage}
+            />
+          ) : (
+            <View style={[styles.avatar, isResigned && styles.avatarResigned]}>
+              {isResigned ? (
+                <UserX size={24} color="#EF4444" />
+              ) : isVehicle ? (
+                <Truck size={24} color="#4F46E5" />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {item.name ? item.name.charAt(0).toUpperCase() : (item.regNumber ? "V" : "U")}
+                </Text>
+              )}
             </View>
           )}
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, isResigned && styles.textResigned]} numberOfLines={1}>
+              {item.name || item.regNumber}
+            </Text>
+            <Text style={styles.email} numberOfLines={1}>
+              {item.email || item.model || item.mobile}
+            </Text>
+            {item.place && (
+              <Text style={styles.location} numberOfLines={1}>
+                {item.place}
+              </Text>
+            )}
+            {isResigned && (
+              <View style={styles.resignedBadge}>
+                <Text style={styles.resignedBadgeText}>Resigned</Text>
+              </View>
+            )}
+            {(isDriver || isVehicle) && (
+              <View style={[styles.typeBadge, { backgroundColor: isDriver ? "#E0F2FE" : "#F3E8FF" }]}>
+                <Text style={[styles.typeBadgeText, { color: isDriver ? "#0EA5E9" : "#A855F7" }]}>
+                  {isDriver ? "Driver" : "Vehicle"}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-      <ChevronRight size={20} color="#CBD5E1" />
-    </TouchableOpacity>
-  );
+        <ChevronRight size={20} color="#CBD5E1" />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -135,25 +189,25 @@ const ManagersListScreen: React.FC = () => {
 
         {/* Tab Navigation Bar */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tabButton, selectedTab === "Active" && styles.activeTab]}
-            onPress={() => setSelectedTab("Active")}
-          >
-            <Text style={[styles.tabText, selectedTab === "Active" && styles.activeTabText]}>
-              All Managers
-            </Text>
-            {selectedTab === "Active" && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.tabButton, selectedTab === "Resigned" && styles.activeTab]}
-            onPress={() => setSelectedTab("Resigned")}
-          >
-            <Text style={[styles.tabText, selectedTab === "Resigned" && styles.activeTabText]}>
-              Resigned
-            </Text>
-            {selectedTab === "Resigned" && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10 }}>
+            {[
+              { id: "Active", label: "Managers" },
+              { id: "Resigned", label: "Resigned" },
+              { id: "Drivers", label: "Drivers" },
+              { id: "Vehicles", label: "Vehicles" }
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.tabButton, selectedTab === tab.id && styles.activeTab]}
+                onPress={() => setSelectedTab(tab.id as any)}
+              >
+                <Text style={[styles.tabText, selectedTab === tab.id && styles.activeTabText]}>
+                  {tab.label}
+                </Text>
+                {selectedTab === tab.id && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Search Bar */}
@@ -195,8 +249,8 @@ const ManagersListScreen: React.FC = () => {
         )}
       </View>
       {/* FAB - Add Manager Button */}
-      <TouchableOpacity 
-        style={styles.fab} 
+      <TouchableOpacity
+        style={styles.fab}
         onPress={() => router.push("/admin/add-manager")}
       >
         <Text style={styles.fabPlus}>+</Text>
@@ -218,7 +272,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backBtn: { padding: 4 },
-  
+
   /* Tab Navigation Styles */
   tabContainer: {
     flexDirection: "row",
@@ -268,7 +322,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, height: "100%", color: "#0F172A", fontSize: 15 },
   listContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  
+
   card: {
     backgroundColor: "#fff",
     padding: 16,
@@ -316,7 +370,7 @@ const styles = StyleSheet.create({
   },
   email: { fontSize: 13, color: "#64748B", marginTop: 2 },
   location: { fontSize: 12, color: "#94A3B8", marginTop: 2, marginRight: 10 },
-  
+
   resignedBadge: {
     marginTop: 4,
     backgroundColor: "#FEE2E2",
@@ -324,10 +378,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    marginBottom: 4,
   },
   resignedBadgeText: {
     fontSize: 10,
     color: "#EF4444",
+    fontWeight: "700",
+  },
+  typeBadge: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typeBadgeText: {
+    fontSize: 10,
     fontWeight: "700",
   },
 

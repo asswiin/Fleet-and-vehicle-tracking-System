@@ -144,7 +144,7 @@ const VehicleListScreen = () => {
         <View style={styles.cardContent}>
           <View style={styles.iconBox}>
             {item.profilePhoto ? (
-              <Image source={{ uri: item.profilePhoto }} style={styles.vehicleImage} />
+              <Image source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }} style={styles.vehicleImage} />
             ) : (
               <Truck size={24} color="#4F46E5" fill="#4F46E5" />
             )}

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ArrowLeft, Truck, MessageSquare, Navigation, User as UserIcon, AlertTriangle, MapPin } from "lucide-react-native";
-import { api, type Trip } from "../../utils/api";
+import api, { type Trip } from "../../utils/api";
 
 const OnGoingTripScreen = () => {
     const router = useRouter();
@@ -41,11 +41,11 @@ const OnGoingTripScreen = () => {
         return () => pulse.stop();
     }, []);
 
-    const fetchActiveTrips = useCallback(async () => {
+    const fetchActiveTrips = useCallback(async (isSilent = false) => {
+        if (!isSilent) setLoading(true);
         try {
             const response = await api.getOngoingTrips();
             if (response.ok && response.data) {
-                // Map from OngoingTrip wrapper to actual Trip data, adding liveProgress
                 const active = response.data.map((item: any) => ({
                     ...item.trip,
                     liveProgress: item.progress || 0
@@ -62,29 +62,32 @@ const OnGoingTripScreen = () => {
 
     useFocusEffect(
         useCallback(() => {
-            setLoading(true);
-            fetchActiveTrips();
-        }, [fetchActiveTrips])
+            fetchActiveTrips(trips.length > 0);
+
+            // Periodically refresh the list to show live progress updates
+            const interval = setInterval(() => fetchActiveTrips(true), 4000);
+            return () => clearInterval(interval);
+        }, [fetchActiveTrips, trips.length])
     );
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchActiveTrips();
+        fetchActiveTrips(true);
     }, [fetchActiveTrips]);
 
     const calculateProgress = (trip: any) => {
         // 1. If delivered, show 100%
         if (trip.status === "completed" || trip.status === "Delivered") return 100;
 
-        // 2. Use live progress from vehicle movement if available
-        if (trip.liveProgress !== undefined && trip.liveProgress > 0) {
+        // 2. If trip is accepted but not on-trip, strictly 0%
+        if (trip.status === "accepted") return 0;
+
+        // 3. Use live progress from vehicle movement (distance based)
+        if (trip.liveProgress !== undefined) {
             return trip.liveProgress;
         }
 
-        // 3. Fallback to parcel delivery status
-        if (!trip.parcelIds || trip.parcelIds.length === 0) return 0;
-        const delivered = trip.parcelIds.filter((p: any) => p.status === "delivered" || p.status === "Completed").length;
-        return (delivered / trip.parcelIds.length) * 100;
+        return 0;
     };
 
     const renderTripItem = ({ item }: { item: Trip }) => {

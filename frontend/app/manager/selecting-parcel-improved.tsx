@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Search, MapPin, Package, CheckCircle2, Circle, Box, X, MapPinIcon, User, Weight, Layers, AlertTriangle, RotateCcw, Truck, UserX } from "lucide-react-native";
-import { api, type Parcel, type Driver } from "../../utils/api";
+import api, { type Parcel, type Driver } from "../../utils/api";
 
 interface Recipient {
   name?: string;
@@ -35,10 +35,10 @@ interface ParcelWithRecipient extends Parcel {
 const SelectingParcelScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   // Get manager info from params
   const managerId = params.managerId as string;
-  
+
   const [parcels, setParcels] = useState<ParcelWithRecipient[]>([]);
   const [declinedParcels, setDeclinedParcels] = useState<ParcelWithRecipient[]>([]);
   const [filteredParcels, setFilteredParcels] = useState<ParcelWithRecipient[]>([]);
@@ -100,13 +100,13 @@ const SelectingParcelScreen = () => {
         // 1. Account Status must be Active
         // 2. Must be Punched In (isAvailable === true) 
         // 3. driverStatus not "On-trip", "Accepted", or "pending"
-        const allDrivers = Array.isArray(driversResponse.data) 
-          ? driversResponse.data 
+        const allDrivers = Array.isArray(driversResponse.data)
+          ? driversResponse.data
           : (driversResponse.data as any).data || [];
-        const availableDriversList = allDrivers.filter((driver: Driver) => 
-          driver.status === "Active" && 
+        const availableDriversList = allDrivers.filter((driver: Driver) =>
+          driver.status === "Active" &&
           driver.isAvailable === true &&
-          driver.driverStatus !== "On-trip" && 
+          driver.driverStatus !== "On-trip" &&
           driver.driverStatus !== "Accepted" &&
           driver.driverStatus !== "pending"
         );
@@ -160,10 +160,10 @@ const SelectingParcelScreen = () => {
     const selectedIds = Array.from(selectedParcels);
     router.push({
       pathname: "/driver/select-vehicle",
-      params: { 
-        parcelIds: JSON.stringify(selectedIds), 
+      params: {
+        parcelIds: JSON.stringify(selectedIds),
         totalWeight: totalWeight.toString(),
-        managerId: managerId 
+        managerId: managerId
       },
     } as any);
   };
@@ -243,7 +243,7 @@ const SelectingParcelScreen = () => {
                 </View>
               )}
             </View>
-            
+
             {/* Destination */}
             <View style={styles.parcelDetailsRow}>
               <View style={[styles.detailItem, styles.destinationItem]}>
@@ -276,7 +276,7 @@ const SelectingParcelScreen = () => {
                     Declined by: {item.declinedDriverName}
                   </Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.reassignButton}
                   onPress={() => {
                     setSelectedDeclinedParcel(item);
@@ -297,7 +297,7 @@ const SelectingParcelScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -360,8 +360,8 @@ const SelectingParcelScreen = () => {
                 {activeTab === 'new' ? 'No new parcels available' : 'No declined parcels'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {activeTab === 'new' 
-                  ? 'All parcels are either assigned or delivered' 
+                {activeTab === 'new'
+                  ? 'All parcels are either assigned or delivered'
                   : 'No parcels have been declined by drivers'}
               </Text>
             </View>
@@ -390,7 +390,7 @@ const SelectingParcelScreen = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reassign Driver</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   setShowReassignModal(false);
                   setSelectedDeclinedParcel(null);

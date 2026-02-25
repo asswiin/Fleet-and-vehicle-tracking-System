@@ -326,11 +326,15 @@
                                 style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
                                 <div class="form-group">
                                     <label>Speed</label>
-                                    <select v-model="t.sim.speed" :disabled="t.sim.isRunning">
+                                    <select v-model="t.sim.speed" @change="handleSpeedChange(t)">
                                         <option :value="1000">1x (Realistic)</option>
                                         <option :value="500">2x (Fast)</option>
                                         <option :value="100">10x (Hyper)</option>
+                                        <option :value="50">20x (Sonic)</option>
                                         <option :value="20">50x (Warp)</option>
+                                        <option :value="10">100x (Flash)</option>
+                                        <option :value="2">500x (Insta)</option>
+                                        <option :value="1">1000x (GodSpeed)</option>
                                     </select>
                                 </div>
 
@@ -356,6 +360,18 @@
                                                 :style="{ width: t.sim.progress + '%', background: 'var(--primary)', height: '100%', transition: 'width 0.3s linear' }">
                                             </div>
                                         </div>
+                                        <div
+                                            style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 10px; color: #64748b;">
+                                            <span>🛣️ {{ (t.sim.totalDistance * (1 - t.sim.progress / 100)).toFixed(1)
+                                                }} km left</span>
+                                            <span>⏱️ {{ Math.ceil(t.sim.totalDuration * (1 - t.sim.progress / 100)) }}
+                                                min left</span>
+                                        </div>
+                                        <div v-if="t.sim.isPaused"
+                                            style="margin-top: 10px; padding: 8px; background: #fff7ed; border-radius: 6px; border: 1px solid #fdba74; color: #9a3412; font-size: 11px; font-weight: 700;">
+                                            🛑 {{ t.sim.statusMsg }}
+                                        </div>
+
                                         <div v-if="t.sim.routePoints[t.sim.currentIndex]"
                                             style="margin-top: 10px; padding: 8px; background: #f8fafc; border-radius: 6px; border: 1px dashed #e2e8f0; color: #475569; font-family: monospace;">
                                             <div
@@ -394,6 +410,58 @@
     <script>
         const { createApp, ref, onMounted } = Vue;
 
+        // Web Worker to prevent background throttling
+        const timerWorkerBlob = new Blob([`
+            let timers = {};
+            self.onmessage = function(e) {
+                const { action, id, interval } = e.data;
+                if (action === 'setInterval') {
+                    timers[id] = setInterval(() => self.postMessage({ id }), interval);
+                } else if (action === 'setTimeout') {
+                    timers[id] = setTimeout(() => {
+                        self.postMessage({ id });
+                        delete timers[id];
+                    }, interval);
+                } else if (action === 'clearInterval' || action === 'clearTimeout') {
+                    if (timers[id]) {
+                        action === 'clearInterval' ? clearInterval(timers[id]) : clearTimeout(timers[id]);
+                        delete timers[id];
+                    }
+                }
+            };
+        `], { type: 'application/javascript' });
+
+        const timerWorker = new Worker(URL.createObjectURL(timerWorkerBlob));
+        const workerCallbacks = {};
+        let nextTimerId = 1;
+
+        const backgroundTimer = {
+            setInterval(cb, interval) {
+                const id = nextTimerId++;
+                workerCallbacks[id] = cb;
+                timerWorker.postMessage({ action: 'setInterval', id, interval });
+                return id;
+            },
+            setTimeout(cb, interval) {
+                const id = nextTimerId++;
+                workerCallbacks[id] = cb;
+                timerWorker.postMessage({ action: 'setTimeout', id, interval });
+                return id;
+            },
+            clearInterval(id) {
+                timerWorker.postMessage({ action: 'clearInterval', id });
+                delete workerCallbacks[id];
+            },
+            clearTimeout(id) {
+                timerWorker.postMessage({ action: 'clearTimeout', id });
+                delete workerCallbacks[id];
+            }
+        };
+
+        timerWorker.onmessage = function (e) {
+            if (workerCallbacks[e.data.id]) workerCallbacks[e.data.id]();
+        };
+
         createApp({
             setup() {
                 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -430,13 +498,17 @@
                                     progress: newItem.progress || 0,
                                     currentIndex: 0,
                                     routePoints: [],
+                                    totalDistance: 0,
+                                    totalDuration: 0,
                                     timer: null,
                                     canStart: false,
                                     marker: null,
                                     pathLine: null,
+                                    historyLine: null,
                                     lastKnownLocation: newItem.lastKnownLocation,
-                                    startMarker: null,
-                                    endMarker: null
+                                    isPaused: false,
+                                    statusMsg: '',
+                                    syncInterval: null
                                 }
                             };
                         });
@@ -460,42 +532,88 @@
                 const updateMapVisibility = () => {
                     trips.value.forEach(t => {
                         const isSelected = t.trip._id === activeDetailsId.value;
-                        const layers = [t.sim.pathLine, t.sim.startMarker, t.sim.endMarker, t.sim.marker];
+
+                        // Collect all layers including multiple destination markers
+                        const layers = [
+                            t.sim.pathLine,
+                            t.sim.startMarker,
+                            ...(t.sim.destMarkers || []),
+                            t.sim.marker,
+                            t.sim.historyLine
+                        ];
 
                         if (isSelected) {
-                            layers.forEach(l => { if (l && !map.hasLayer(l)) l.addTo(map); });
+                            layers.forEach(l => {
+                                if (l && !map.hasLayer(l)) {
+                                    if (Array.isArray(l)) l.forEach(sl => sl.addTo(map));
+                                    else l.addTo(map);
+                                }
+                            });
                             if (t.sim.pathLine) {
                                 t.sim.pathLine.setStyle({ opacity: t.sim.isRunning ? 0.8 : 0.3 });
-                                map.fitBounds(t.sim.pathLine.getBounds(), { padding: [50, 50], maxZoom: 15 });
+                                // Fit bounds to show start and all destinations
+                                const bounds = L.latLngBounds([
+                                    [t.trip.startLocation.latitude, t.trip.startLocation.longitude],
+                                    ...t.trip.deliveryDestinations.map(d => [d.latitude, d.longitude])
+                                ]);
+                                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
                             }
                             if (t.sim.marker) {
-                                // Always show marker if it exists
                                 t.sim.marker.setOpacity(1);
                             }
                         } else {
-                            layers.forEach(l => { if (l && map.hasLayer(l)) map.removeLayer(l); });
+                            layers.forEach(l => {
+                                if (l && map.hasLayer(l)) {
+                                    if (Array.isArray(l)) l.forEach(sl => map.removeLayer(sl));
+                                    else map.removeLayer(l);
+                                }
+                            });
                         }
                     });
                 };
 
                 const prepareTripRoute = async (t) => {
                     const start = t.trip.startLocation;
-                    const dest = t.trip.deliveryDestinations[0];
+                    const destinations = t.trip.deliveryDestinations;
 
-                    if (!start?.latitude || !dest?.latitude) return;
+                    if (!start?.latitude || !destinations?.length) return;
 
                     try {
-                        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${dest.longitude},${dest.latitude}?overview=full&geometries=geojson`);
+                        // Use ALL destinations to form the full route
+                        const waypointCoords = [
+                            [start.longitude, start.latitude],
+                            ...destinations.sort((a, b) => a.order - b.order).map(d => [d.longitude, d.latitude])
+                        ];
+
+                        const coordinateStr = waypointCoords.map(c => c.join(',')).join(';');
+                        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordinateStr}?overview=full&geometries=geojson`);
                         const data = await res.json();
+
                         if (data.routes?.length) {
                             t.sim.routePoints = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                            t.sim.totalDistance = data.routes[0].distance / 1000;
+                            t.sim.totalDuration = data.routes[0].duration / 60;
                             t.sim.canStart = true;
 
-                            // Calculate starting index based on progress or proximity to lastKnownLocation
+                            // Store destination indices for pausing
+                            t.sim.stopPoints = destinations.map(d => {
+                                // Find closest point in routePoints for each destination
+                                let minIdx = 0;
+                                let minDist = Infinity;
+                                t.sim.routePoints.forEach((p, idx) => {
+                                    const dist = Math.sqrt(Math.pow(p[0] - d.latitude, 2) + Math.pow(p[1] - d.longitude, 2));
+                                    if (dist < minDist) {
+                                        minDist = dist;
+                                        minIdx = idx;
+                                    }
+                                });
+                                return { index: minIdx, parcelId: d.parcelId, locationName: d.locationName };
+                            });
+
+                            // Calculate starting index
                             if (t.sim.progress > 0) {
                                 t.sim.currentIndex = Math.floor((t.sim.progress / 100) * (t.sim.routePoints.length - 1));
                             } else if (t.sim.lastKnownLocation?.latitude) {
-                                // Find nearest point
                                 let minIdx = 0;
                                 let minDist = Infinity;
                                 t.sim.routePoints.forEach((p, idx) => {
@@ -509,12 +627,11 @@
                                 t.sim.progress = (minIdx / (t.sim.routePoints.length - 1)) * 100;
                             }
 
-                            // Initialize layers like in userapp
+                            // Initialize layers
                             const sourceHtml = `<div class="marker-pin" style="background: #64748b;"><div class="truck-icon-inner">🏠</div></div>`;
-                            const destHtml = `<div class="marker-pin" style="background: #ef4444;"><div class="truck-icon-inner">📍</div></div>`;
                             const truckHtml = `<div class="marker-pin" style="background: #2563eb;"><div class="truck-icon-inner">🚚</div></div>`;
 
-                            t.sim.pathLine = L.polyline(t.sim.routePoints, { color: '#2563eb', weight: 4, opacity: 0.3 });
+                            t.sim.pathLine = L.polyline(t.sim.routePoints, { color: '#2563eb', weight: 6, opacity: 0.5, dashArray: '1, 10' });
 
                             t.sim.startMarker = L.marker([start.latitude, start.longitude], {
                                 icon: L.divIcon({ className: '', html: sourceHtml, iconSize: [40, 40], iconAnchor: [20, 40] })
@@ -522,10 +639,14 @@
                                 permanent: true, direction: 'top', className: 'leaflet-label-marker', offset: [0, -40]
                             });
 
-                            t.sim.endMarker = L.marker([dest.latitude, dest.longitude], {
-                                icon: L.divIcon({ className: '', html: destHtml, iconSize: [40, 40], iconAnchor: [20, 40] })
-                            }).bindTooltip(`<div style='color: #ef4444; font-size: 9px;'>TO</div>${dest.locationName || 'DESTINATION'}`, {
-                                permanent: true, direction: 'top', className: 'leaflet-label-marker', offset: [0, -40]
+                            // Create markers for ALL destinations
+                            t.sim.destMarkers = destinations.map((d, idx) => {
+                                const destHtml = `<div class="marker-pin" style="background: #ef4444;"><div class="truck-icon-inner">${idx + 1}</div></div>`;
+                                return L.marker([d.latitude, d.longitude], {
+                                    icon: L.divIcon({ className: '', html: destHtml, iconSize: [40, 40], iconAnchor: [20, 40] })
+                                }).bindTooltip(`<div style='color: #ef4444; font-size: 9px;'>STOP ${idx + 1}</div>${d.locationName || 'DESTINATION'}`, {
+                                    permanent: true, direction: 'top', className: 'leaflet-label-marker', offset: [0, -40]
+                                });
                             });
 
                             const startPos = t.sim.routePoints[t.sim.currentIndex] || t.sim.routePoints[0];
@@ -534,9 +655,8 @@
                             }).bindTooltip("LIVE SIMULATION", {
                                 permanent: true, direction: 'top', className: 'leaflet-label-marker', offset: [0, -40]
                             });
-                            t.sim.marker.setOpacity(1); // Show by default
+                            t.sim.marker.setOpacity(1);
 
-                            // If this was already the active one, show it
                             if (t.trip._id === activeDetailsId.value) updateMapVisibility();
                         }
                     } catch (e) { console.error('OSRM route error', e); }
@@ -545,7 +665,6 @@
                 const startTripSim = async (t) => {
                     if (!t.sim.canStart) return;
 
-                    // Signal backend journey start if needed
                     if (t.trip.status === 'accepted') {
                         try {
                             await fetch(`${API_URL}/api/trips/${t.trip._id}/start-journey`, { method: 'POST' });
@@ -559,75 +678,156 @@
                     }
 
                     runSimLoop(t);
+
+                    // Start auto-syncing trip data while simulation runs
+                    if (!t.sim.syncInterval) {
+                        t.sim.syncInterval = backgroundTimer.setInterval(() => refreshTripData(t), 3000);
+                    }
+                };
+
+                const refreshTripData = async (t) => {
+                    try {
+                        const res = await fetch(`${API_URL}/api/trips/${t.trip._id}`);
+                        const data = await res.json();
+                        if (data && data._id) {
+                            t.trip = data;
+                            // Check if all delivered
+                            const allDelivered = t.trip.deliveryDestinations.every(d => d.deliveryStatus === 'delivered');
+                            if (allDelivered && t.sim.progress >= 99) {
+                                // Finalize if everything is done
+                                t.sim.progress = 100;
+                            }
+                        }
+                    } catch (e) { console.error('Refresh data error', e); }
                 };
 
                 const runSimLoop = async (t) => {
                     if (!t.sim.isRunning) return;
+
+                    if (t.sim.timer) backgroundTimer.clearTimeout(t.sim.timer);
+                    t.sim.timer = null;
 
                     if (t.sim.currentIndex >= t.sim.routePoints.length) {
                         finishTrip(t);
                         return;
                     }
 
+                    // CHECK FOR PAUSE: Use a buffer based on stepSize to ensure we don't jump over milestones
+                    let stepSize = 1;
+                    if (t.sim.speed <= 2) stepSize = 15;
+                    else if (t.sim.speed <= 10) stepSize = 5;
+                    else if (t.sim.speed <= 20) stepSize = 2;
+
+                    const stopAtCurrent = t.sim.stopPoints.find(sp =>
+                        (t.sim.currentIndex <= sp.index && t.sim.currentIndex + stepSize > sp.index) ||
+                        Math.abs(sp.index - t.sim.currentIndex) < Math.max(2, stepSize)
+                    );
+
+                    if (stopAtCurrent) {
+                        const destInTrip = t.trip.deliveryDestinations.find(d => d.parcelId === stopAtCurrent.parcelId);
+                        if (destInTrip && destInTrip.deliveryStatus !== 'delivered') {
+                            // MOVE TRUCK EXACTLY TO THE STOP for visual accuracy
+                            if (t.sim.currentIndex !== stopAtCurrent.index) {
+                                t.sim.currentIndex = stopAtCurrent.index;
+                                const stopPoint = t.sim.routePoints[t.sim.currentIndex];
+                                if (t.sim.marker) t.sim.marker.setLatLng(stopPoint);
+                            }
+
+                            t.sim.isPaused = true;
+                            t.sim.statusMsg = `STOP REACHED: ${stopAtCurrent.locationName} - WAITING FOR MANUAL DELIVERY`;
+
+                            t.sim.timer = backgroundTimer.setTimeout(() => runSimLoop(t), 2000);
+                            return;
+                        } else {
+                            t.sim.isPaused = false;
+                            t.sim.statusMsg = null;
+                        }
+                    }
+
                     const point = t.sim.routePoints[t.sim.currentIndex];
                     if (t.sim.marker) t.sim.marker.setLatLng(point);
                     t.sim.progress = (t.sim.currentIndex / (t.sim.routePoints.length - 1)) * 100;
 
-                    // Update backend every few steps
-                    if (t.sim.currentIndex % 4 === 0 || t.sim.currentIndex === t.sim.routePoints.length - 1) {
-                        const id = t.trip._id.length === 24 ? t.trip._id : t.trip.tripId;
-                        try {
-                            const res = await fetch(`${API_URL}/api/trips/${id}/location`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    latitude: point[0],
-                                    longitude: point[1],
-                                    address: 'Simulated Route',
-                                    progress: t.sim.progress
-                                })
-                            });
+                    // Visualize progress on map (solid history, dashed future)
+                    if (t.sim.pathLine) {
+                        const historyPoints = t.sim.routePoints.slice(0, t.sim.currentIndex + 1);
+                        if (!t.sim.historyLine) {
+                            t.sim.historyLine = L.polyline(historyPoints, { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(map);
+                        } else {
+                            t.sim.historyLine.setLatLngs(historyPoints);
+                        }
+                    }
 
-                            const data = await res.json();
+                    // Update backend - non-blocking to ensure smooth simulation
+                    // Threshold increases with stepSize to avoid congestion
+                    const updateInterval = stepSize > 1 ? stepSize * 2 : 2;
+                    if (t.sim.currentIndex % updateInterval === 0 || t.sim.currentIndex >= t.sim.routePoints.length - stepSize) {
+                        const id = t.trip._id.length === 24 ? t.trip._id : t.trip.tripId;
+
+                        // Fire and forget (don't await) but handle SOS in response
+                        fetch(`${API_URL}/api/trips/${id}/location`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                latitude: point[0],
+                                longitude: point[1],
+                                address: 'Simulated Route',
+                                progress: t.sim.progress,
+                                totalDistance: t.sim.totalDistance,
+                                totalDuration: t.sim.totalDuration
+                            })
+                        }).then(res => res.json()).then(data => {
                             // If SOS is triggered from the app, stop simulation automatically
                             if (data.trip && data.trip.sos) {
                                 stopTripSim(t);
                                 t.trip.sos = true;
                                 alert(`🚨 Emergency Detected! Trip #${t.trip.tripId} simulation stopped.`);
-                                return;
                             }
-                        } catch (e) { }
+                        }).catch(e => { });
                     }
 
-                    t.sim.currentIndex++;
-                    t.sim.timer = setTimeout(() => runSimLoop(t), t.sim.speed);
+                    // Advance index
+                    t.sim.currentIndex += stepSize;
+
+                    // Cap index to ensure we don't overshoot
+                    if (t.sim.currentIndex > t.sim.routePoints.length - 1 && (t.sim.currentIndex - stepSize) < t.sim.routePoints.length - 1) {
+                        t.sim.currentIndex = t.sim.routePoints.length - 1;
+                    }
+
+                    if (t.sim.isRunning) {
+                        t.sim.timer = backgroundTimer.setTimeout(() => runSimLoop(t), t.sim.speed);
+                    }
+                };
+
+                const handleSpeedChange = (t) => {
+                    if (t.sim.isRunning) {
+                        // Restart the loop with the new speed immediately
+                        runSimLoop(t);
+                    }
                 };
 
                 const stopTripSim = (t) => {
                     t.sim.isRunning = false;
-                    if (t.sim.timer) clearTimeout(t.sim.timer);
+                    if (t.sim.timer) backgroundTimer.clearTimeout(t.sim.timer);
+                    if (t.sim.syncInterval) backgroundTimer.clearInterval(t.sim.syncInterval);
+                    t.sim.syncInterval = null;
+
                     if (t.trip._id === activeDetailsId.value) {
-                        // Don't hide the marker, just dim the path slightly
-                        t.sim.pathLine.setStyle({ opacity: 0.5 });
+                        if (t.sim.pathLine) t.sim.pathLine.setStyle({ opacity: 0.5 });
                     }
                 };
 
                 const finishTrip = async (t) => {
                     stopTripSim(t);
+                    if (t.sim.syncInterval) backgroundTimer.clearInterval(t.sim.syncInterval);
+                    t.sim.syncInterval = null;
                     t.sim.progress = 100;
 
-                    const parcelId = t.trip.parcelIds[0]?._id || t.trip.parcelIds[0];
-                    if (parcelId) {
-                        try {
-                            await fetch(`${API_URL}/api/trips/${t.trip._id}/delivery/${parcelId}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ deliveryStatus: 'delivered', notes: 'Simulated completion' })
-                            });
-                        } catch (e) { }
-                    }
+                    // Automatic delivery status update is disabled.
+                    // Delivery must be confirmed manually by the driver in the mobile app.
 
-                    // Final location update
+
+                    // Final location update to ensure 100% progress is shown
                     const id = t.trip._id.length === 24 ? t.trip._id : t.trip.tripId;
                     try {
                         fetch(`${API_URL}/api/trips/${id}/location`, {
@@ -642,7 +842,7 @@
                         });
                     } catch (e) { }
 
-                    alert(`Trip #${t.trip.tripId} Simulation Finished!`);
+                    alert(`Trip #${t.trip.tripId} Simulation Finished! Ready for manual delivery.`);
                 };
 
                 onMounted(() => {
@@ -651,7 +851,7 @@
                 });
 
                 return {
-                    trips, activeDetailsId, fetchTrips, toggleDetails, startTripSim, stopTripSim
+                    trips, activeDetailsId, fetchTrips, toggleDetails, startTripSim, stopTripSim, handleSpeedChange
                 };
             }
         }).mount('#app');

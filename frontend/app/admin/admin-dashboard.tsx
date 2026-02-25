@@ -12,7 +12,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
 import React from "react";
 import { api } from "../../utils/api";
-import type { User, Driver } from "../../utils/api"; // Import Driver type
+import type { User, Driver, Vehicle } from "../../utils/api"; // Import Driver & Vehicle types
 import {
   Users,
   Truck,
@@ -24,7 +24,8 @@ import {
   ChevronRight,
   LogOut,
   Phone,
-  IndianRupee, // Added Phone icon
+  IndianRupee,
+  History, // Added History icon
 } from "lucide-react-native";
 
 interface Stats {
@@ -44,7 +45,9 @@ const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<User[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]); // 1. Driver State
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [adminData, setAdminData] = useState<User | null>(null);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   const [stats, setStats] = useState<Stats>({
@@ -70,20 +73,22 @@ const AdminDashboard: React.FC = () => {
       let driverList: Driver[] = [];
       let vehicleCount = 0;
 
-      // Process Users (Managers)
+      // Process Users (Managers & Admin)
       if (usersRes.ok && usersRes.data) {
         managerList = usersRes.data.filter((user: any) => user.role === "manager");
+        const admin = usersRes.data.find((user: any) => user.role === "admin");
+        if (admin) setAdminData(admin);
         setManagers(managerList);
       }
 
       // Process Vehicles
       if (vehiclesRes.ok && vehiclesRes.data) {
+        setVehicles(vehiclesRes.data);
         vehicleCount = vehiclesRes.data.length;
       }
 
       // 3. Process Drivers
       if (driversRes.ok && driversRes.data) {
-        // Handle if backend returns { data: [] } or just []
         const rawData = driversRes.data as any;
         driverList = Array.isArray(rawData) ? rawData : rawData.data || [];
         setDrivers(driverList);
@@ -92,7 +97,7 @@ const AdminDashboard: React.FC = () => {
       // Update Stats
       setStats({
         managers: managerList.length,
-        drivers: driverList.length, // ✅ Dynamic Count
+        drivers: driverList.length,
         vehicles: vehicleCount,
         revenue: 0,
       });
@@ -158,7 +163,14 @@ const AdminDashboard: React.FC = () => {
           </View>
           <View style={styles.profileContainer}>
             <View style={styles.avatar}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#64748B' }}>A</Text>
+              {adminData?.profilePhoto ? (
+                <Image
+                  source={{ uri: api.getImageUrl(adminData.profilePhoto) || undefined }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#64748B' }}>A</Text>
+              )}
             </View>
             <View style={styles.onlineDot} />
           </View>
@@ -198,6 +210,17 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardLabel}>Monthly Rev</Text>
             <Text style={styles.cardValue}>₹0</Text>
           </View>
+
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push({ pathname: "/shared/trip-history", params: { role: 'admin' } } as any)}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: "#FEE2E2" }]}>
+              <History size={24} color="#EF4444" />
+            </View>
+            <Text style={styles.cardLabel}>Trip History</Text>
+            <Text style={styles.cardValue}>View All</Text>
+          </TouchableOpacity>
         </View>
 
         {/* --- MANAGERS LIST --- */}
@@ -308,6 +331,57 @@ const AdminDashboard: React.FC = () => {
           )}
         </View>
 
+        <View style={{ height: 20 }} />
+
+        {/* --- 6. VEHICLE LIST --- */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Fleet Vehicles</Text>
+          <TouchableOpacity onPress={() => router.push({ pathname: "/admin/vehicle-list" as any, params: { userRole: "admin" } })}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.listContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#0EA5E9" />
+          ) : vehicles.length === 0 ? (
+            <Text style={styles.emptyText}>No vehicles found.</Text>
+          ) : (
+            vehicles.slice(0, 3).map((vehicle) => (
+              <TouchableOpacity
+                key={vehicle._id}
+                style={styles.listItem}
+                onPress={() => router.push({
+                  pathname: "/admin/vehicle-details" as any,
+                  params: { vehicle: JSON.stringify(vehicle), userRole: "admin" }
+                })}
+              >
+                <View style={styles.listItemLeft}>
+                  {vehicle.profilePhoto ? (
+                    <Image
+                      source={{ uri: api.getImageUrl(vehicle.profilePhoto) || undefined }}
+                      style={styles.listAvatarImage}
+                    />
+                  ) : (
+                    <View style={[styles.listAvatarPlaceholder, { backgroundColor: "#F1F5F9" }]}>
+                      <Truck size={20} color="#4F46E5" />
+                    </View>
+                  )}
+                  <View>
+                    <Text style={styles.listItemName}>{vehicle.regNumber}</Text>
+                    <Text style={styles.listItemSub}>{vehicle.model} • {vehicle.type}</Text>
+                  </View>
+                </View>
+                <View style={[styles.miniStatus, { backgroundColor: vehicle.status === "Active" ? "#DCFCE7" : "#F3E8FF" }]}>
+                  <Text style={{ fontSize: 10, fontWeight: "600", color: vehicle.status === "Active" ? "#22C55E" : "#A855F7" }}>
+                    {vehicle.status === "Active" ? "Available" : vehicle.status}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -397,8 +471,9 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: "center", color: "#94A3B8", marginTop: 10, marginBottom: 20 },
   listItem: { backgroundColor: "#fff", padding: 12, borderRadius: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   listItemLeft: { flexDirection: "row", alignItems: "center" },
-  listAvatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 12 },
-  listAvatarImage: { width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+  listAvatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 12, overflow: 'hidden' },
+  listAvatarImage: { width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: "#E5E7EB", overflow: 'hidden' },
+  avatarImage: { width: 45, height: 45, borderRadius: 22.5, resizeMode: 'cover' },
   avatarText: { color: "#64748B", fontWeight: "bold" },
   listItemName: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
   listItemSub: { fontSize: 11, color: "#94A3B8" },
@@ -433,7 +508,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#EF4444',
     fontWeight: '600',
-  }
+  },
+  miniStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
 });
 
 export default AdminDashboard;

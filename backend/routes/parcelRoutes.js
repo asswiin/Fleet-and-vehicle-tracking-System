@@ -7,7 +7,7 @@ const Notification = require("../models/Notification");
 router.get("/", async (req, res) => {
   try {
     const parcels = await Parcel.find()
-      .populate("assignedDriver", "name mobile email profilePhoto")
+      .populate("assignedDriver", "name mobile email") // Exclude profilePhoto
       .populate("assignedVehicle", "regNumber model type")
       .sort({ createdAt: -1 });
     res.json({ data: parcels });
@@ -20,7 +20,7 @@ router.get("/", async (req, res) => {
 router.get("/track/:trackingId", async (req, res) => {
   try {
     const parcel = await Parcel.findOne({ trackingId: req.params.trackingId })
-      .populate("assignedDriver", "name mobile email profilePhoto driverStatus")
+      .populate("assignedDriver", "name mobile email driverStatus") // Exclude profilePhoto
       .populate("assignedVehicle", "regNumber model type status");
     if (!parcel) {
       return res.status(404).json({ message: "Parcel with this tracking ID not found" });

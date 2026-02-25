@@ -24,7 +24,7 @@ import {
     Layers,
     Tag,
 } from "lucide-react-native";
-import { api, type Trip } from "../../utils/api";
+import { api, type Trip, type OngoingTrip } from "../../utils/api";
 import { MapView, Marker, Polyline, isMapAvailable } from "@/components/MapViewWrapper";
 
 const { width, height } = Dimensions.get("window");
@@ -35,7 +35,7 @@ const TrackTripScreen = () => {
     const mapRef = useRef<any>(null);
 
     const [trip, setTrip] = useState<Trip | null>(null);
-    const [ongoingTrip, setOngoingTrip] = useState<any>(null);
+    const [ongoingTrip, setOngoingTrip] = useState<OngoingTrip | null>(null);
     const [loading, setLoading] = useState(true);
     const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
     const [distance, setDistance] = useState<string>("0.0");
@@ -58,6 +58,8 @@ const TrackTripScreen = () => {
             const ongoingRes = await api.getOngoingTrip(tripId);
             if (ongoingRes.ok && ongoingRes.data) {
                 setOngoingTrip(ongoingRes.data);
+                if (ongoingRes.data.totalDistance) setRawDistance(ongoingRes.data.totalDistance);
+                if (ongoingRes.data.totalDuration) setRawDuration(ongoingRes.data.totalDuration);
             }
         } catch (error) {
             console.error(error);
@@ -69,7 +71,7 @@ const TrackTripScreen = () => {
     useFocusEffect(
         useCallback(() => {
             fetchTripDetails();
-            const interval = setInterval(fetchTripDetails, 10000); // Poll every 10 seconds
+            const interval = setInterval(fetchTripDetails, 3000); // Poll every 3 seconds for smoother feel
             return () => clearInterval(interval);
         }, [tripId, trip])
     );
@@ -315,8 +317,8 @@ const TrackTripScreen = () => {
                                 <View style={styles.parcelHeader}>
                                     <Package size={18} color="#2563EB" />
                                     <Text style={styles.parcelTrackingId}>{parcel.trackingId}</Text>
-                                    <View style={[styles.miniStatus, { backgroundColor: parcel.status === 'delivered' ? '#DCFCE7' : '#FEF3C7' }]}>
-                                        <Text style={[styles.miniStatusText, { color: parcel.status === 'delivered' ? '#16A34A' : '#D97706' }]}>
+                                    <View style={[styles.miniStatus, { backgroundColor: parcel.status?.toLowerCase() === 'delivered' ? '#DCFCE7' : '#FEF3C7' }]}>
+                                        <Text style={[styles.miniStatusText, { color: parcel.status?.toLowerCase() === 'delivered' ? '#16A34A' : '#D97706' }]}>
                                             {parcel.status}
                                         </Text>
                                     </View>

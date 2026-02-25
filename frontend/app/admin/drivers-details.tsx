@@ -13,14 +13,14 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
-import { 
-  ChevronLeft, 
-  Phone, 
-  Mail, 
-  CreditCard, 
-  Home, 
-  Calendar, 
-  User as UserIcon, 
+import {
+  ChevronLeft,
+  Phone,
+  Mail,
+  CreditCard,
+  Home,
+  Calendar,
+  User as UserIcon,
   Edit2,
   History,
   ChevronDown
@@ -32,7 +32,7 @@ const DriverDetailsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ driver?: string; viewerRole?: string }>();
   const viewerRole = (params.viewerRole as string) || "manager";
-  
+
   const [driver, setDriver] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLicenseModal, setShowLicenseModal] = useState(false);
@@ -58,12 +58,12 @@ const DriverDetailsScreen = () => {
   // 2. Fetch Latest Data (Ensures updates are seen after editing)
   const fetchDriverDetails = async () => {
     if (!driver?._id && !params.driver) return;
-    
+
     // Get ID from existing state or params
     let driverId = driver?._id;
     if (!driverId && params.driver) {
-       const parsed = JSON.parse(decodeURIComponent(params.driver));
-       driverId = parsed._id;
+      const parsed = JSON.parse(decodeURIComponent(params.driver));
+      driverId = parsed._id;
     }
 
     if (!driverId) return;
@@ -179,7 +179,7 @@ const DriverDetailsScreen = () => {
           <ChevronLeft size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Details</Text>
-        
+
         {/* Edit button visible only for manager/driver viewers */}
         {(viewerRole === 'manager' || viewerRole === 'driver') && (
           <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
@@ -215,7 +215,7 @@ const DriverDetailsScreen = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{driver.name || "Unnamed Driver"}</Text>
                 <View style={[
-                  styles.statusBadge, 
+                  styles.statusBadge,
                   { backgroundColor: driver.status === 'Active' ? '#DCFCE7' : '#FEE2E2' }
                 ]}>
                   <Text style={[
@@ -232,19 +232,19 @@ const DriverDetailsScreen = () => {
 
             <DetailRow icon={<Phone size={18} color="#6B7280" />} label="Phone" value={driver.mobile || "Not provided"} />
             <DetailRow icon={<Mail size={18} color="#6B7280" />} label="Email" value={driver.email || "Not provided"} />
-            <DetailRow 
-              icon={<UserIcon size={18} color="#6B7280" />} 
-              label="Gender" 
-              value={driver.gender ? driver.gender.charAt(0).toUpperCase() + driver.gender.slice(1) : "Not provided"} 
+            <DetailRow
+              icon={<UserIcon size={18} color="#6B7280" />}
+              label="Gender"
+              value={driver.gender ? driver.gender.charAt(0).toUpperCase() + driver.gender.slice(1) : "Not provided"}
             />
             <DetailRow icon={<CreditCard size={18} color="#6B7280" />} label="License" value={driver.license || "Not provided"} />
             <DetailRow icon={<Calendar size={18} color="#6B7280" />} label="DOB" value={formattedDob()} />
             <DetailRow icon={<Home size={18} color="#6B7280" />} label="Address" value={fullAddress()} multiline />
-            
+
             {/* PUNCH HISTORY SECTION */}
             <View style={styles.divider} />
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.punchHistoryToggle}
               onPress={() => {
                 if (!showPunchHistory) {
@@ -257,9 +257,9 @@ const DriverDetailsScreen = () => {
                 <History size={20} color="#2563EB" />
                 <Text style={styles.punchHistoryTitle}>Punch History</Text>
               </View>
-              <ChevronDown 
-                size={20} 
-                color="#64748B" 
+              <ChevronDown
+                size={20}
+                color="#64748B"
                 style={[styles.chevronIcon, showPunchHistory && styles.chevronOpen]}
               />
             </TouchableOpacity>
@@ -268,8 +268,8 @@ const DriverDetailsScreen = () => {
               <View style={styles.punchHistoryContainer}>
                 {/* Month/Year Selector */}
                 <View style={styles.dateSelector}>
-                  <TouchableOpacity 
-                    style={styles.dateValue} 
+                  <TouchableOpacity
+                    style={styles.dateValue}
                     onPress={() => setShowDatePicker(true)}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -310,11 +310,11 @@ const DriverDetailsScreen = () => {
                           <Text style={[styles.punchTableText, { flex: 1, textAlign: "center" }]}>Punch In</Text>
                           <Text style={[styles.punchTableText, { flex: 1, textAlign: "right" }]}>Punch Out</Text>
                         </View>
-                        
+
                         <ScrollView style={styles.punchRecordsScroll} nestedScrollEnabled>
                           {getSelectedMonthRecords().map((record, index) => (
-                            <View 
-                              key={index} 
+                            <View
+                              key={index}
                               style={[styles.punchRecordRow, index % 2 === 0 && styles.punchRecordRowAlt]}
                             >
                               <Text style={[styles.punchRecordDate, { flex: 1 }]}>
@@ -337,18 +337,18 @@ const DriverDetailsScreen = () => {
                 )}
               </View>
             )}
-            
+
             {/* LICENSE PHOTO SECTION */}
             {driver.licensePhoto && (
               <View style={styles.licenseSection}>
                 <Text style={styles.sectionTitle}>Driving License Document</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => setShowLicenseModal(true)}
                   style={styles.licenseImageContainer}
                 >
-                  <Image 
-                    source={{ uri: api.getImageUrl(driver.licensePhoto)! }} 
+                  <Image
+                    source={{ uri: api.getImageUrl(driver.licensePhoto)! }}
                     style={styles.licenseThumbnail}
                     resizeMode="cover"
                   />
@@ -368,6 +368,27 @@ const DriverDetailsScreen = () => {
         )}
       </ScrollView>
 
+      {/* VIEW HISTORY FOOTER BUTTON */}
+      {
+        driver && (
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.footerBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                router.push({
+                  pathname: "/shared/trip-history",
+                  params: { driverId: driver._id, role: viewerRole }
+                } as any);
+              }}
+            >
+              <History size={20} color="#fff" />
+              <Text style={styles.footerBtnText}>View History</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      }
+
       {/* Full Screen License Modal */}
       <Modal visible={showLicenseModal} transparent={true} animationType="fade">
         <View style={styles.modalBg}>
@@ -375,15 +396,15 @@ const DriverDetailsScreen = () => {
             <Text style={styles.closeBtnText}>Close</Text>
           </TouchableOpacity>
           {driver?.licensePhoto && (
-            <Image 
-              source={{ uri: api.getImageUrl(driver.licensePhoto)! }} 
+            <Image
+              source={{ uri: api.getImageUrl(driver.licensePhoto)! }}
               style={styles.fullImage}
               resizeMode="contain"
             />
           )}
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 };
 
@@ -456,8 +477,33 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: { fontSize: 12, fontWeight: "600" },
+  footer: {
+    padding: 20,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  footerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2563EB",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  footerBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
   divider: { height: 1, backgroundColor: "#F3F4F6", marginVertical: 20 },
-  
+
   // Punch History Styles
   punchHistoryToggle: {
     flexDirection: "row",
@@ -476,10 +522,10 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
   chevronIcon: {
-    transform: [{rotate: "0deg"}],
+    transform: [{ rotate: "0deg" }],
   },
   chevronOpen: {
-    transform: [{rotate: "180deg"}],
+    transform: [{ rotate: "180deg" }],
   },
   punchHistoryContainer: {
     paddingVertical: 12,
@@ -575,7 +621,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontStyle: "italic",
   },
-  
+
   detailRow: { flexDirection: "row", marginBottom: 16 },
   detailIcon: {
     width: 36,
@@ -588,7 +634,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: { fontSize: 11, fontWeight: "700", color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
   detailValue: { fontSize: 15, color: "#1F2937" },
-  
+
   emptyBox: { alignItems: "center", marginTop: 60 },
   emptyText: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 6 },
   emptySubtext: { fontSize: 14, color: "#6B7280" },
