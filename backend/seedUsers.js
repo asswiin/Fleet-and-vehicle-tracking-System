@@ -5,7 +5,7 @@ require("dotenv").config();
 // Simple inline User schema definition
 const userSchema = new mongoose.Schema(
   {
-    fullName: { type: String, required: true },
+    name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["admin", "user"], default: "user" },
@@ -30,7 +30,7 @@ async function seedDatabase() {
 
     // Create admin user
     const adminUser = await User.create({
-      fullName: "Admin User",
+      name: "Admin User",
       email: "admin@fleettrack.com",
       password: adminPassword,
       role: "admin",
@@ -42,7 +42,7 @@ async function seedDatabase() {
 
     // Create regular user
     const regularUser = await User.create({
-      fullName: "Test User",
+      name: "Test User",
       email: "user@fleettrack.com",
       password: userPassword,
       role: "user",

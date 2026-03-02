@@ -9,10 +9,14 @@ import {
     ActivityIndicator,
     RefreshControl,
     Dimensions,
+    TextInput,
+    Platform,
+    Modal,
+    ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, Calendar, Package, MapPin, Truck, ChevronRight, Clock } from "lucide-react-native";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ChevronLeft, Calendar, Package, MapPin, Truck, ChevronRight, Clock, Search, X, Filter } from "lucide-react-native";
 import { api, DeliveredParcel } from "../../utils/api";
 
 const { width } = Dimensions.get("window");
@@ -24,6 +28,12 @@ const TripHistoryScreen = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [tempYear, setTempYear] = useState(new Date().getFullYear());
+    const [tempMonth, setTempMonth] = useState(new Date().getMonth());
+    const [tempDay, setTempDay] = useState<number | null>(null);
 
     const fetchHistory = async () => {
         try {
@@ -93,6 +103,80 @@ const TripHistoryScreen = () => {
         fetchHistory();
     }, [params.driverId]);
 
+    // --- Filtering Logic ---
+    const filteredHistory = useMemo(() => {
+        let result = history;
+        const q = searchQuery.trim().toLowerCase();
+
+        if (q) {
+            result = result.filter(item => {
+                // Match tripId
+                if (item.tripId?.toLowerCase().includes(q)) return true;
+                // Match vehicle regNumber
+                if (item.vehicle?.regNumber?.toLowerCase().includes(q)) return true;
+                // Match any parcel's trackId, destination, type, weight, or recipient
+                return item.parcels.some((p: any) => {
+                    if (p.trackId?.toLowerCase().includes(q)) return true;
+                    if (p.deliveryLocation?.locationName?.toLowerCase().includes(q)) return true;
+                    if (p.recipient?.name?.toLowerCase().includes(q)) return true;
+                    if (p.recipient?.address?.toLowerCase().includes(q)) return true;
+                    if (p.parcelDetails?.type?.toLowerCase().includes(q)) return true;
+                    if (String(p.parcelDetails?.weight || '').includes(q)) return true;
+                    return false;
+                });
+            });
+        }
+
+        if (selectedDate) {
+            const sd = selectedDate;
+            result = result.filter(item => {
+                const reached = new Date(item.reachedTime);
+                return (
+                    reached.getFullYear() === sd.getFullYear() &&
+                    reached.getMonth() === sd.getMonth() &&
+                    reached.getDate() === sd.getDate()
+                );
+            });
+        }
+
+        return result;
+    }, [history, searchQuery, selectedDate]);
+
+    const clearFilters = () => {
+        setSearchQuery('');
+        setSelectedDate(null);
+    };
+
+    const formatSelectedDate = (date: Date) => {
+        return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    // --- Date picker helpers ---
+    const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const openDatePicker = () => {
+        if (selectedDate) {
+            setTempYear(selectedDate.getFullYear());
+            setTempMonth(selectedDate.getMonth());
+            setTempDay(selectedDate.getDate());
+        } else {
+            const now = new Date();
+            setTempYear(now.getFullYear());
+            setTempMonth(now.getMonth());
+            setTempDay(null);
+        }
+        setShowDatePicker(true);
+    };
+
+    const confirmDate = () => {
+        if (tempDay) {
+            setSelectedDate(new Date(tempYear, tempMonth, tempDay));
+        }
+        setShowDatePicker(false);
+    };
+
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
         return d.toLocaleDateString("en-IN", {
@@ -102,6 +186,56 @@ const TripHistoryScreen = () => {
             hour: "2-digit",
             minute: "2-digit",
         });
+    };
+
+    // --- Calendar grid renderer ---
+    const renderCalendar = () => {
+        const totalDays = daysInMonth(tempYear, tempMonth);
+        const startDay = firstDayOfMonth(tempYear, tempMonth);
+        const weeks: (number | null)[][] = [];
+        let currentWeek: (number | null)[] = Array(startDay).fill(null);
+
+        for (let day = 1; day <= totalDays; day++) {
+            currentWeek.push(day);
+            if (currentWeek.length === 7) {
+                weeks.push(currentWeek);
+                currentWeek = [];
+            }
+        }
+        if (currentWeek.length > 0) {
+            while (currentWeek.length < 7) currentWeek.push(null);
+            weeks.push(currentWeek);
+        }
+
+        const today = new Date();
+        const isToday = (day: number) =>
+            day === today.getDate() && tempMonth === today.getMonth() && tempYear === today.getFullYear();
+
+        return weeks.map((week, wi) => (
+            <View key={wi} style={styles.calendarRow}>
+                {week.map((day, di) => {
+                    if (day === null) return <View key={di} style={styles.calendarCell} />;
+                    const selected = day === tempDay;
+                    return (
+                        <TouchableOpacity
+                            key={di}
+                            style={[
+                                styles.calendarCell,
+                                selected && styles.calendarCellSelected,
+                                isToday(day) && !selected && styles.calendarCellToday,
+                            ]}
+                            onPress={() => setTempDay(day)}
+                        >
+                            <Text style={[
+                                styles.calendarDayText,
+                                selected && styles.calendarDayTextSelected,
+                                isToday(day) && !selected && styles.calendarDayTextToday,
+                            ]}>{day}</Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+        ));
     };
 
     const renderHistoryItem = ({ item }: { item: any }) => {
@@ -236,13 +370,121 @@ const TripHistoryScreen = () => {
                 <View style={{ width: 40 }} />
             </View>
 
+            {/* Search & Date Filter Bar */}
+            <View style={styles.filterContainer}>
+                <View style={styles.searchRow}>
+                    <View style={styles.searchBox}>
+                        <Search size={16} color="#94A3B8" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Trip ID, Track ID, vehicle, destination…"
+                            placeholderTextColor="#94A3B8"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <X size={16} color="#94A3B8" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <TouchableOpacity
+                        style={[styles.dateButton, selectedDate && styles.dateButtonActive]}
+                        onPress={openDatePicker}
+                    >
+                        <Calendar size={16} color={selectedDate ? '#fff' : '#2563EB'} />
+                        <Text style={[styles.dateButtonText, selectedDate && styles.dateButtonTextActive]}>
+                            {selectedDate ? formatSelectedDate(selectedDate) : 'Date'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                {(searchQuery || selectedDate) && (
+                    <View style={styles.activeFiltersRow}>
+                        <Filter size={12} color="#64748B" />
+                        <Text style={styles.activeFiltersText}>
+                            {filteredHistory.length} result{filteredHistory.length !== 1 ? 's' : ''}
+                        </Text>
+                        <TouchableOpacity onPress={clearFilters} style={styles.clearBtn}>
+                            <Text style={styles.clearBtnText}>Clear All</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+
+            {/* Date Picker Modal */}
+            <Modal visible={showDatePicker} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Date</Text>
+
+                        {/* Month/Year navigation */}
+                        <View style={styles.monthNav}>
+                            <TouchableOpacity onPress={() => {
+                                if (tempMonth === 0) { setTempMonth(11); setTempYear(tempYear - 1); }
+                                else setTempMonth(tempMonth - 1);
+                                setTempDay(null);
+                            }} style={styles.monthNavBtn}>
+                                <ChevronLeft size={20} color="#1E293B" />
+                            </TouchableOpacity>
+                            <Text style={styles.monthNavText}>{monthNames[tempMonth]} {tempYear}</Text>
+                            <TouchableOpacity onPress={() => {
+                                if (tempMonth === 11) { setTempMonth(0); setTempYear(tempYear + 1); }
+                                else setTempMonth(tempMonth + 1);
+                                setTempDay(null);
+                            }} style={styles.monthNavBtn}>
+                                <ChevronRight size={20} color="#1E293B" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Day-of-week headers */}
+                        <View style={styles.calendarRow}>
+                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                                <View key={d} style={styles.calendarCell}>
+                                    <Text style={styles.calendarHeaderText}>{d}</Text>
+                                </View>
+                            ))}
+                        </View>
+
+                        {/* Calendar grid */}
+                        {renderCalendar()}
+
+                        {/* Actions */}
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={styles.modalCancelBtn}
+                                onPress={() => setShowDatePicker(false)}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            {selectedDate && (
+                                <TouchableOpacity
+                                    style={styles.modalClearBtn}
+                                    onPress={() => { setSelectedDate(null); setShowDatePicker(false); }}
+                                >
+                                    <Text style={styles.modalClearText}>Clear Date</Text>
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                style={[styles.modalConfirmBtn, !tempDay && { opacity: 0.4 }]}
+                                onPress={confirmDate}
+                                disabled={!tempDay}
+                            >
+                                <Text style={styles.modalConfirmText}>Confirm</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {loading ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color="#2563EB" />
                 </View>
             ) : (
                 <FlatList
-                    data={history}
+                    data={filteredHistory}
                     keyExtractor={(item) => item.id}
                     renderItem={renderHistoryItem}
                     contentContainerStyle={styles.listContent}
@@ -252,8 +494,19 @@ const TripHistoryScreen = () => {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Clock size={60} color="#CBD5E1" />
-                            <Text style={styles.emptyTitle}>No History Found</Text>
-                            <Text style={styles.emptySubtitle}>Completed trips will appear here.</Text>
+                            <Text style={styles.emptyTitle}>
+                                {(searchQuery || selectedDate) ? 'No Matching Results' : 'No History Found'}
+                            </Text>
+                            <Text style={styles.emptySubtitle}>
+                                {(searchQuery || selectedDate)
+                                    ? 'Try adjusting your search or date filter.'
+                                    : 'Completed trips will appear here.'}
+                            </Text>
+                            {(searchQuery || selectedDate) && (
+                                <TouchableOpacity onPress={clearFilters} style={styles.emptyResetBtn}>
+                                    <Text style={styles.emptyResetText}>Clear Filters</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     }
                 />
@@ -264,6 +517,208 @@ const TripHistoryScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8FAFC" },
+    // --- Filter styles ---
+    filterContainer: {
+        backgroundColor: '#fff',
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+    },
+    searchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    searchBox: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        height: 42,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 13,
+        color: '#1E293B',
+        paddingVertical: 0,
+    },
+    dateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#EFF6FF',
+        paddingHorizontal: 12,
+        height: 42,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+    },
+    dateButtonActive: {
+        backgroundColor: '#2563EB',
+        borderColor: '#2563EB',
+    },
+    dateButtonText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#2563EB',
+    },
+    dateButtonTextActive: {
+        color: '#fff',
+    },
+    activeFiltersRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        gap: 6,
+    },
+    activeFiltersText: {
+        fontSize: 12,
+        color: '#64748B',
+        flex: 1,
+    },
+    clearBtn: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 6,
+        backgroundColor: '#FEE2E2',
+    },
+    clearBtnText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#DC2626',
+    },
+    // --- Date Picker Modal ---
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        width: width - 48,
+        maxWidth: 380,
+    },
+    modalTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#1E293B',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    monthNav: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    monthNavBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+    },
+    monthNavText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1E293B',
+    },
+    calendarRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 4,
+    },
+    calendarCell: {
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 20,
+    },
+    calendarCellSelected: {
+        backgroundColor: '#2563EB',
+    },
+    calendarCellToday: {
+        borderWidth: 1.5,
+        borderColor: '#2563EB',
+    },
+    calendarHeaderText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#94A3B8',
+    },
+    calendarDayText: {
+        fontSize: 14,
+        color: '#1E293B',
+        fontWeight: '500',
+    },
+    calendarDayTextSelected: {
+        color: '#fff',
+        fontWeight: '700',
+    },
+    calendarDayTextToday: {
+        color: '#2563EB',
+        fontWeight: '700',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 10,
+        marginTop: 16,
+    },
+    modalCancelBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 10,
+    },
+    modalCancelText: {
+        fontSize: 14,
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    modalClearBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: '#FEF2F2',
+    },
+    modalClearText: {
+        fontSize: 14,
+        color: '#DC2626',
+        fontWeight: '600',
+    },
+    modalConfirmBtn: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: '#2563EB',
+    },
+    modalConfirmText: {
+        fontSize: 14,
+        color: '#fff',
+        fontWeight: '700',
+    },
+    emptyResetBtn: {
+        marginTop: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: '#EFF6FF',
+        borderRadius: 10,
+    },
+    emptyResetText: {
+        fontSize: 14,
+        color: '#2563EB',
+        fontWeight: '700',
+    },
     header: {
         flexDirection: "row",
         alignItems: "center",

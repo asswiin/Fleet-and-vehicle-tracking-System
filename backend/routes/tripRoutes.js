@@ -4,6 +4,7 @@ const tripController = require("../controllers/tripController");
 
 // History Routes
 router.get("/history/driver/:driverId", tripController.getDriverHistory);
+router.get("/history/vehicle/:vehicleId", tripController.getVehicleHistory);
 router.get("/history/all", tripController.getAllHistory);
 
 // Create a new trip

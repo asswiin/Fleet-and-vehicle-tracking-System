@@ -9,8 +9,8 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
-import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router"; // Add useFocusEffect
-import { useState, useCallback } from "react";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { useState, useCallback, useEffect } from "react";
 import { api } from "../../utils/api";
 import {
   ChevronLeft,
@@ -25,43 +25,47 @@ import {
 
 const VehicleDetailsScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ vehicle: string; userRole: string }>();
+  const params = useLocalSearchParams<{ vehicleId: string; userRole: string }>();
 
   const userRole = params.userRole || "admin";
+  const vehicleId = params.vehicleId;
 
   const [vehicle, setVehicle] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // 1. Initial Load from Params
-  useState(() => {
-    try {
-      if (params.vehicle) {
-        const parsedVehicle = JSON.parse(params.vehicle);
-        setVehicle(parsedVehicle);
+  // Initial load: fetch vehicle data
+  useEffect(() => {
+    if (!vehicleId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await api.getVehicle(vehicleId);
+        if (res.ok && res.data) {
+          setVehicle(res.data);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error("Error parsing vehicle data", e);
-    }
-  });
+    })();
+  }, [vehicleId]);
 
-  // 2. REFRESH DATA ON FOCUS (Crucial for seeing changes after edit)
-  const fetchLatestDetails = async () => {
-    if (!vehicle._id) return;
-    try {
-      // Assuming you have getVehicle API logic or use getVehicles and filter
-      const res = await api.getVehicle(vehicle._id);
-      if (res.ok && res.data) {
-        setVehicle(res.data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
+  // Silently refresh when returning from edit screen
   useFocusEffect(
     useCallback(() => {
-      fetchLatestDetails();
-    }, [vehicle._id]) // Dependency on ID ensures it runs if ID exists
+      if (!vehicleId) return;
+      (async () => {
+        try {
+          const res = await api.getVehicle(vehicleId);
+          if (res.ok && res.data) {
+            setVehicle(res.data);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      })();
+    }, [vehicleId])
   );
 
   // --- Date Helpers (Keep existing logic) ---
@@ -146,6 +150,13 @@ const VehicleDetailsScreen = () => {
     } as any);
   };
 
+  const handleMarkAsService = () => {
+    router.push({
+      pathname: "/manager/report-vehicle-service" as any,
+      params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -168,21 +179,27 @@ const VehicleDetailsScreen = () => {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-          {hasExpiringDocs() && (
-            <View style={styles.warningBanner}>
-              <AlertTriangle size={20} color="#92400E" />
-              <Text style={styles.warningBannerText}>
-                Warning: One or more documents are expiring soon or have expired.
-              </Text>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2563EB" />
+              <Text style={styles.loadingText}>Loading vehicle details...</Text>
             </View>
-          )}
+          ) : (
+            <>
+              {hasExpiringDocs() && (
+                <View style={styles.warningBanner}>
+                  <AlertTriangle size={20} color="#92400E" />
+                  <Text style={styles.warningBannerText}>
+                    Warning: One or more documents are expiring soon or have expired.
+                  </Text>
+                </View>
+              )}
 
           {/* Vehicle Photos Gallery */}
           {vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoGallery}>
               {vehicle.vehiclePhotos.map((photo: string, index: number) => (
-                <Image key={index} source={{ uri: photo }} style={styles.galleryImage} />
+                <Image key={index} source={{ uri: api.getImageUrl(photo) || undefined }} style={styles.galleryImage} />
               ))}
             </ScrollView>
           )}
@@ -191,7 +208,7 @@ const VehicleDetailsScreen = () => {
           <View style={styles.mainCard}>
             <View style={styles.iconContainer}>
               {vehicle.profilePhoto ? (
-                <Image source={{ uri: vehicle.profilePhoto }} style={styles.profilePhoto} />
+                <Image source={{ uri: api.getImageUrl(vehicle.profilePhoto) || undefined }} style={styles.profilePhoto} />
               ) : (
                 <Truck size={40} color="#0EA5E9" />
               )}
@@ -266,18 +283,40 @@ const VehicleDetailsScreen = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionContainer}>
-            <TouchableOpacity style={styles.outlineButton} onPress={() => Alert.alert("Info", "Coming soon")}>
+            <TouchableOpacity style={styles.outlineButton} onPress={() => {
+              router.push({
+                pathname: "/manager/vehicle-history" as any,
+                params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber, vehicleModel: vehicle.model }
+              });
+            }}>
               <History size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
               <Text style={styles.outlineButtonText}>View History</Text>
             </TouchableOpacity>
 
-            {userRole === "manager" && vehicle.status !== "Sold" && (
+            <TouchableOpacity style={styles.outlineButton} onPress={() => {
+              router.push({
+                pathname: "/manager/vehicle-service-history" as any,
+                params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber, vehicleModel: vehicle.model }
+              });
+            }}>
+              <Truck size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
+              <Text style={styles.outlineButtonText}>Service History</Text>
+            </TouchableOpacity>
+          </View>
+
+          {userRole === "manager" && vehicle.status !== "Sold" && (
+            <View style={styles.actionContainer}>
+              <TouchableOpacity style={styles.serviceButton} onPress={handleMarkAsService} disabled={loading}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.serviceButtonText}>Mark as In-Service</Text>}
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.dangerButton} onPress={handleMarkAsSold} disabled={loading}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.dangerButtonText}>Mark as Sold</Text>}
               </TouchableOpacity>
-            )}
-          </View>
-
+            </View>
+          )}
+            </>
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -342,6 +381,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderRadius: 8, backgroundColor: "#EF4444",
   },
   dangerButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  serviceButton: {
+    flex: 1, justifyContent: "center", alignItems: "center",
+    paddingVertical: 12, borderRadius: 8, backgroundColor: "#F59E0B",
+  },
+  serviceButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   warningBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -362,6 +406,8 @@ const styles = StyleSheet.create({
   photoGallery: { marginBottom: 20 },
   galleryImage: { width: 300, height: 200, borderRadius: 16, marginRight: 12, backgroundColor: '#E2E8F0' },
   profilePhoto: { width: 60, height: 60, borderRadius: 30 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 400 },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#64748B' },
 });
 
 export default VehicleDetailsScreen;

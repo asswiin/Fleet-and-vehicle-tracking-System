@@ -1,5 +1,25 @@
 const mongoose = require("mongoose");
 
+// Explicit sub-schemas needed because nested objects containing a 'type' key
+// confuse Mongoose (it treats 'type' as the schema-type declaration).
+const parcelDetailsSchema = new mongoose.Schema({
+    type: String,
+    weight: Number,
+    amount: Number,
+}, { _id: false });
+
+const vehicleSubSchema = new mongoose.Schema({
+    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+    regNumber: String,
+    model: String,
+    type: String,
+}, { _id: false });
+
+const driverSubSchema = new mongoose.Schema({
+    driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver" },
+    name: String,
+}, { _id: false });
+
 const deliveredParcelSchema = new mongoose.Schema(
     {
         tripId: {
@@ -19,11 +39,7 @@ const deliveredParcelSchema = new mongoose.Schema(
             ref: "Parcel",
             required: true,
         },
-        parcelDetails: {
-            type: { type: String },
-            weight: { type: Number },
-            amount: { type: Number },
-        },
+        parcelDetails: parcelDetailsSchema,
         sender: {
             name: String,
             phone: String,
@@ -36,16 +52,8 @@ const deliveredParcelSchema = new mongoose.Schema(
             email: String,
             address: String,
         },
-        vehicle: {
-            vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
-            regNumber: String,
-            model: String,
-            type: String,
-        },
-        driver: {
-            driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver" },
-            name: String,
-        },
+        vehicle: vehicleSubSchema,
+        driver: driverSubSchema,
         takenTime: {
             type: Date,
         },
@@ -66,4 +74,8 @@ const deliveredParcelSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-module.exports = mongoose.models.DeliveredParcel || mongoose.model("DeliveredParcel", deliveredParcelSchema);
+// Clear cached model if it exists (needed when schema changes)
+delete mongoose.models.DeliveredParcel;
+delete mongoose.connection.collections?.deliveredparcels;
+
+module.exports = mongoose.model("DeliveredParcel", deliveredParcelSchema);

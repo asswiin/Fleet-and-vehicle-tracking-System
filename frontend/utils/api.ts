@@ -315,9 +315,19 @@ export interface Trip {
 // 2. Network Configuration
 // ==========================================
 
-// Use local backend for development, deployed URL for production
-const API_BASE_URL = "https://fleet-vehicle-backend.vercel.app";
-// const API_BASE_URL = "http://172.20.10.5:5000"; // Local IP for testing
+// Auto-detect local backend IP if available, fallback to production
+const debuggerHost = Constants.expoConfig?.hostUri || "";
+const localhost = debuggerHost.split(":")[0];
+
+// You can manually override this if needed
+const DEV_URL = localhost ? `http://${localhost}:5000` : "http://localhost:5000";
+const PROD_URL = "https://fleet-vehicle-backend.vercel.app";
+
+// Set to TRUE for production, FALSE for local testing
+const IS_PRODUCTION = false;
+
+export const API_BASE_URL = IS_PRODUCTION ? PROD_URL : DEV_URL;
+
 console.log("🚀 API Base URL:", API_BASE_URL);
 
 // 2. Helper to handle responses safely
@@ -371,6 +381,8 @@ const apiCall = async <T = any>(
 const api = {
   getImageUrl: (path?: string) => {
     if (!path) return null;
+    // If it's already a base64 string, return as is
+    if (path.startsWith("data:")) return path;
     const cleanPath = path.replace(/\\/g, "/");
     return `${API_BASE_URL}/${cleanPath}`;
   },
@@ -419,6 +431,12 @@ const api = {
     apiCall(`/api/vehicles/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   getVehicleAlertsSummary: () => apiCall("/api/vehicles/alerts/summary"),
 
+  // VEHICLE SERVICES
+  createVehicleService: (data: any) => apiCall("/api/vehicle-services", { method: "POST", body: JSON.stringify(data) }),
+  updateVehicleService: (id: string, data: any) => apiCall(`/api/vehicle-services/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  getVehicleServiceHistory: (vehicleId: string) => apiCall(`/api/vehicle-services/vehicle/${vehicleId}`),
+  updateServiceStatus: (id: string, status: string) => apiCall(`/api/vehicle-services/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+
   // DRIVERS
   getDrivers: () => apiCall("/api/drivers"),
   getDriver: (id: string) => apiCall(`/api/drivers/${id}`),
@@ -461,13 +479,14 @@ const api = {
   getOngoingTrip: (id: string) => apiCall<OngoingTrip>(`/api/trips/ongoing/${id}`),
   getActiveTrip: (driverId: string) => apiCall(`/api/trips/driver/${driverId}/active`),
   getDriverHistory: (driverId: string) => apiCall(`/api/trips/history/driver/${driverId}`),
+  getVehicleHistory: (vehicleId: string) => apiCall(`/api/trips/history/vehicle/${vehicleId}`),
   getAllHistory: () => apiCall("/api/trips/history/all"),
   getDeclinedParcels: () => apiCall("/api/trips/declined/parcels"),
   getDeclinedCount: () => apiCall("/api/trips/declined/count"),
   createTrip: (data: any) => apiCall("/api/trips", { method: "POST", body: JSON.stringify(data) }),
   startJourney: (id: string) => apiCall(`/api/trips/${id}/start-journey`, { method: "POST" }),
   updateTripStatus: (id: string, status: string) => apiCall(`/api/trips/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  updateDeliveryStatus: (tripId: string, parcelId: string, status: string) => apiCall(`/api/trips/${tripId}/delivery/${parcelId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  updateDeliveryStatus: (tripId: string, parcelId: string, status: string) => apiCall(`/api/trips/${tripId}/delivery/${parcelId}`, { method: "PATCH", body: JSON.stringify({ deliveryStatus: status }) }),
   reassignTrip: (tripId: string, data: any) => apiCall(`/api/trips/reassign/${tripId}`, { method: "PATCH", body: JSON.stringify(data) }),
   updateTripResources: (id: string, data: any) => apiCall(`/api/trips/${id}/resources`, { method: "PATCH", body: JSON.stringify(data) }),
   updateTripLocation: (id: string, data: any) => apiCall(`/api/trips/${id}/location`, { method: "PATCH", body: JSON.stringify(data) }),

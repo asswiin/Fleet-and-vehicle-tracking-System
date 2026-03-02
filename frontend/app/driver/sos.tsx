@@ -137,7 +137,7 @@ const SOSPage = () => {
             const data = await response.json();
 
             if (data.features) {
-                const formatted = data.features.slice(0, 5).map((f: any) => {
+                const results = data.features.map((f: any) => {
                     const coords = f.geometry.coordinates;
                     const props = f.properties;
 
@@ -148,13 +148,22 @@ const SOSPage = () => {
                         id: props.osm_id || Math.random(),
                         name: props.name || "Repair Center",
                         address: [props.street, props.city].filter(Boolean).join(", ") || "Nearby Location",
+                        distanceVal: dist,
                         distance: dist.toFixed(1) + " km",
                         latitude: coords[1],
                         longitude: coords[0],
                         phone: "91" + Math.floor(Math.random() * 9000000000 + 1000000000), // Mock phone
                     };
                 });
-                setNearbyServices(formatted);
+
+                // Filter out results more than 200km away (excludes outliers like Washington from India)
+                // and sort by distance to ensure closest ones are shown first
+                const filtered = results
+                    .filter((s: any) => s.distanceVal < 200)
+                    .sort((a: any, b: any) => a.distanceVal - b.distanceVal)
+                    .slice(0, 5);
+
+                setNearbyServices(filtered);
             }
         } catch (e) {
             console.error("Discovery error:", e);

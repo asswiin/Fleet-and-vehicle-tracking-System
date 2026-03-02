@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const punchRecordSchema = new mongoose.Schema(
   {
-    driver: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Driver", 
-      required: true 
+    driver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Driver",
+      required: true
     },
     name: {
       type: String,
@@ -19,17 +19,17 @@ const punchRecordSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    date: { 
-      type: Date, 
-      required: true 
+    date: {
+      type: Date,
+      required: true
     }, // Stores the date (midnight) for easier querying
-    punchIn: { 
-      type: Date, 
-      required: true 
+    punchIn: {
+      type: Date,
+      required: true
     },
-    punchOut: { 
-      type: Date, 
-      default: null 
+    punchOut: {
+      type: Date,
+      default: null
     },
     status: {
       type: String,

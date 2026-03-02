@@ -1,13 +1,10 @@
 const express = require("express");
-// Start the auto-complete driver status cron job
-require("./autoCompleteDriverStatus");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
-
 const dbConnect = require("./config/db");
 
-require("dotenv").config();
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 app.use(cors());
@@ -21,18 +18,21 @@ app.get("/", (req, res) => {
   res.send("API running");
 });
 
-// Add a health check/db check route
-app.get("/api/health", async (req, res) => {
-  try {
-    await dbConnect();
-    res.json({ status: "ok", db: "connected" });
-  } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
-  }
+// Health check route
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    db: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+  });
 });
 
 // Middleware to ensure DB is connected for every API request
+// Only necessary for serverless environments; for others, it's a fallback.
 app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+
   try {
     await dbConnect();
     next();
@@ -41,24 +41,38 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Load routes
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/vehicles", require("./routes/vehicleRoutes"));
 app.use("/api/drivers", require("./routes/driverRoutes"));
 app.use("/api/parcels", require("./routes/parcelRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/trips", require("./routes/tripRoutes"));
+app.use("/api/vehicle-services", require("./routes/vehicleServiceRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
-// Local development server start
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  dbConnect().then(() => {
-    app.listen(PORT, '0.0.0.0', () =>
-      console.log(`🚀 Server running locally on port ${PORT}`)
-    );
-  }).catch(err => {
-    console.error("Failed to start server due to DB connection error", err);
-  });
+// Initialize services and start server
+async function startServer() {
+  try {
+    // 1. Ensure DB Connection
+    await dbConnect();
+
+    // 2. Start Cron Jobs
+    require("./autoCompleteDriverStatus");
+
+    // 3. Start Listening (only if not in serverless environment)
+    if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+      app.listen(PORT, '0.0.0.0', () =>
+        console.log(`🚀 Server running locally on port ${PORT}`)
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to start server:", err.message);
+  }
 }
 
+startServer();
+
 module.exports = app;
+

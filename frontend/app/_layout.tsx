@@ -37,13 +37,6 @@ export default function RootLayout() {
           headerShown: false,
         }}
       />
-      <Stack.Screen
-        name="track-parcel"
-        options={{
-          headerShown: false,
-          title: "Track Parcel",
-        }}
-      />
     </Stack>
   );
 }

@@ -47,7 +47,7 @@ router.post("/register", async (req, res) => {
 
     // Create the Admin User
     const user = new User({
-      fullName,
+      name: fullName, // Fixed: Use 'name' to match User Schema
       email,
       password, // The model's pre-save hook will hash this
       role: "admin", // Explicitly set as Admin

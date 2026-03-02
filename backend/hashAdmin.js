@@ -18,7 +18,7 @@ async function createAdminUser() {
 
     // Create new admin user
     const adminUser = new User({
-      fullName: "Admin User",
+      name: "Admin User",
       email: "admin@gmail.com",
       password: "admin123",
       role: "admin",
@@ -32,7 +32,7 @@ async function createAdminUser() {
 
     // Create test regular user
     const regularUser = new User({
-      fullName: "Test User",
+      name: "Test User",
       email: "user@gmail.com",
       password: "user@123",
       role: "user",

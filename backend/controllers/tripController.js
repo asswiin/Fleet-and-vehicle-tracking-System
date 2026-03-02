@@ -600,7 +600,13 @@ exports.startJourney = async (req, res) => {
 exports.updateDeliveryStatus = async (req, res) => {
   try {
     const { tripId, parcelId } = req.params;
-    const { deliveryStatus, notes } = req.body;
+    const { deliveryStatus, status, notes } = req.body;
+
+    // Accept both 'deliveryStatus' and 'status' from request body for compatibility
+    const resolvedStatus = deliveryStatus || status;
+    if (!resolvedStatus) {
+      return res.status(400).json({ message: "Missing delivery status. Send 'deliveryStatus' in the request body." });
+    }
 
     // Robust Trip lookup (handles both Mongo ID and String ID)
     let trip;
@@ -621,7 +627,7 @@ exports.updateDeliveryStatus = async (req, res) => {
       return res.status(404).json({ message: "Destination not found in this trip" });
     }
 
-    const currentStatus = deliveryStatus.toLowerCase();
+    const currentStatus = resolvedStatus.toLowerCase();
     console.log(`[DEBUG] Updating parcel ${parcelId} to ${currentStatus}`);
 
     trip.deliveryDestinations[destinationIndex].deliveryStatus = currentStatus;
@@ -945,19 +951,104 @@ exports.toggleSOS = async (req, res) => {
   }
 };
 
+// Helper: Backfill DeliveredParcel records for completed trips that are missing from the archive
+async function backfillDeliveredParcels(driverFilter) {
+  try {
+    // Build query for completed trips
+    const tripQuery = { status: "completed" };
+    if (driverFilter) {
+      tripQuery.driverId = driverFilter;
+    }
+
+    const completedTrips = await Trip.find(tripQuery)
+      .populate("driverId", "name phone email profilePhoto")
+      .populate("vehicleId", "regNumber model type capacity")
+      .populate("parcelIds", "trackingId weight type paymentAmount sender recipient deliveryLocation status");
+
+    let backfilledCount = 0;
+
+    for (const trip of completedTrips) {
+      const deliveredDests = (trip.deliveryDestinations || []).filter(
+        d => d.deliveryStatus === "delivered"
+      );
+
+      for (const dest of deliveredDests) {
+        // Check if already archived
+        const existing = await DeliveredParcel.findOne({
+          tripObjectId: trip._id,
+          parcelId: dest.parcelId
+        });
+
+        if (existing) continue; // Already archived
+
+        // Find the parcel data from populated parcelIds
+        const parcelData = (trip.parcelIds || []).find(
+          p => p._id && p._id.toString() === (dest.parcelId ? dest.parcelId.toString() : "")
+        );
+
+        const archiveData = {
+          tripId: trip.tripId,
+          tripObjectId: trip._id,
+          trackId: parcelData?.trackingId || trip.trackId || "N/A",
+          parcelId: dest.parcelId || (parcelData ? parcelData._id : null),
+          parcelDetails: {
+            type: parcelData?.type || "Parcel",
+            weight: parcelData?.weight || 0,
+            amount: parcelData?.paymentAmount || 0
+          },
+          sender: parcelData?.sender || { name: "N/A" },
+          recipient: parcelData?.recipient || { name: "N/A" },
+          vehicle: {
+            vehicleId: trip.vehicleId?._id || trip.vehicleId,
+            regNumber: trip.vehicleId?.regNumber || "N/A",
+            model: trip.vehicleId?.model || "N/A",
+            type: trip.vehicleId?.type || "N/A"
+          },
+          driver: {
+            driverId: trip.driverId?._id || trip.driverId,
+            name: trip.driverId?.name || "Unknown"
+          },
+          takenTime: trip.startedAt || trip.assignedAt || trip.createdAt,
+          reachedTime: dest.deliveredAt || trip.completedAt || new Date(),
+          deliveryLocation: parcelData?.deliveryLocation || {
+            latitude: dest.latitude,
+            longitude: dest.longitude,
+            locationName: dest.locationName
+          },
+          notes: dest.notes
+        };
+
+        try {
+          await new DeliveredParcel(archiveData).save();
+          backfilledCount++;
+        } catch (saveErr) {
+          console.error("Backfill save error:", saveErr.message);
+        }
+      }
+    }
+
+    if (backfilledCount > 0) {
+      console.log(`✅ Backfilled ${backfilledCount} delivered parcel records`);
+    }
+  } catch (err) {
+    console.error("Backfill error:", err.message);
+  }
+}
+
 // Get delivery history for a specific driver
 exports.getDriverHistory = async (req, res) => {
   try {
     const { driverId } = req.params;
 
     // Ensure driverId is handled correctly as an ObjectId
-    const query = {};
-    if (mongoose.Types.ObjectId.isValid(driverId)) {
-      query["driver.driverId"] = new mongoose.Types.ObjectId(driverId);
-    } else {
-      query["driver.driverId"] = driverId;
-    }
+    const driverObjId = mongoose.Types.ObjectId.isValid(driverId)
+      ? new mongoose.Types.ObjectId(driverId)
+      : driverId;
 
+    // Backfill any missing archive records from completed trips
+    await backfillDeliveredParcels(driverObjId);
+
+    const query = { "driver.driverId": driverObjId };
     const history = await DeliveredParcel.find(query)
       .sort({ reachedTime: -1 });
 
@@ -968,9 +1059,77 @@ exports.getDriverHistory = async (req, res) => {
   }
 };
 
+// Haversine formula: distance (km) between two lat/lon points
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Total route distance: start → dest1 → dest2 → … (sorted by order)
+function calcTripDistance(trip) {
+  const s = trip.startLocation;
+  const dests = (trip.deliveryDestinations || [])
+    .slice()
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  if (!s?.latitude || !s?.longitude || !dests.length) return 0;
+  let km = 0, pLat = s.latitude, pLon = s.longitude;
+  for (const d of dests) {
+    if (d.latitude && d.longitude) {
+      km += haversineKm(pLat, pLon, d.latitude, d.longitude);
+      pLat = d.latitude;
+      pLon = d.longitude;
+    }
+  }
+  return Math.round(km * 10) / 10;
+}
+
+// Get vehicle trip history
+exports.getVehicleHistory = async (req, res) => {
+  try {
+    const { vehicleId } = req.params;
+    const mongoose = require("mongoose");
+
+    let vehicleObjId;
+    if (mongoose.Types.ObjectId.isValid(vehicleId)) {
+      vehicleObjId = new mongoose.Types.ObjectId(vehicleId);
+    } else {
+      return res.status(400).json({ message: "Invalid vehicle ID" });
+    }
+
+    // Find all trips for this vehicle, populate driver and parcels
+    const trips = await Trip.find({ vehicleId: vehicleObjId })
+      .populate("driverId", "name phone profilePhoto")
+      .populate("vehicleId", "regNumber model type")
+      .populate("parcelIds", "trackingId senderName recipientName recipientPhone weight parcelType status deliveryLocation")
+      .sort({ createdAt: -1 });
+
+    // Attach totalDistance (km) to every trip
+    const result = trips.map((t) => {
+      const obj = t.toObject();
+      if (!obj.totalDistance) obj.totalDistance = calcTripDistance(obj);
+      return obj;
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Fetch Vehicle History Error:", error);
+    res.status(500).json({ message: "Failed to fetch vehicle history", error: error.message });
+  }
+};
+
 // Get all delivery history (for manager/admin)
 exports.getAllHistory = async (req, res) => {
   try {
+    // Backfill any missing archive records from completed trips
+    await backfillDeliveredParcels(null);
+
     const history = await DeliveredParcel.find()
       .sort({ reachedTime: -1 });
 

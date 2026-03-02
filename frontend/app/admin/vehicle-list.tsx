@@ -91,12 +91,12 @@ const VehicleListScreen = () => {
     }
   };
 
-  // 5. Navigate to Details (Passing the Role)
+  // 5. Navigate to Details (Passing only the ID for faster navigation)
   const handleVehicleClick = (vehicle: Vehicle) => {
     router.push({
       pathname: "/admin/vehicle-details",
       params: {
-        vehicle: JSON.stringify(vehicle),
+        vehicleId: vehicle._id,
         userRole: userRole // Pass role so details screen knows whether to show "Sell" button
       }
     });
@@ -144,7 +144,10 @@ const VehicleListScreen = () => {
         <View style={styles.cardContent}>
           <View style={styles.iconBox}>
             {item.profilePhoto ? (
-              <Image source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }} style={styles.vehicleImage} />
+              <Image
+                source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }}
+                style={styles.vehicleImage}
+              />
             ) : (
               <Truck size={24} color="#4F46E5" fill="#4F46E5" />
             )}
