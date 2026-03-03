@@ -92,7 +92,7 @@ const ActiveTripPage = () => {
       );
     };
 
-    if (activeTrip && activeTrip.status === 'in-progress') {
+    if (activeTrip && (activeTrip.status === 'in-progress' || activeTrip.status === 'returning')) {
       startWatching();
     }
 
@@ -379,9 +379,13 @@ const ActiveTripPage = () => {
               if (response.ok) {
                 Alert.alert("Success", "Parcel marked as delivered!");
 
-                // If the entire trip is now completed, navigate back to dashboard
-                // The backend returns the updated trip object
-                if (response.data && response.data.status === "completed") {
+                // If the entire trip is now in "returning" state (all parcels delivered), navigate back to dashboard
+                if (response.data && response.data.status === "returning") {
+                  router.push({
+                    pathname: "/driver/driver-dashboard",
+                    params: { userId: driverId }
+                  } as any);
+                } else if (response.data && response.data.status === "completed") {
                   router.push({
                     pathname: "/shared/trip-history",
                     params: { driverId: driverId, role: 'driver' }
@@ -511,6 +515,8 @@ const ActiveTripPage = () => {
         return "#6B7280";
       case "completed":
         return "#3B82F6";
+      case "returning":
+        return "#0891B2";
       default:
         return "#6B7280";
     }
@@ -569,7 +575,7 @@ const ActiveTripPage = () => {
   const destinations = activeTrip.deliveryDestinations || [];
   const mapRegion = getMapRegion();
   const routeCoords = getRouteCoords();
-  const isInProgress = activeTrip.status === "in-progress";
+  const isInProgress = activeTrip.status === "in-progress" || activeTrip.status === "returning";
 
   return (
     <SafeAreaView style={styles.safeArea}>

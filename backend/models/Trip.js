@@ -27,7 +27,7 @@ const tripSchema = new mongoose.Schema(
     // Trip status
     status: {
       type: String,
-      enum: ["pending", "accepted", "in-progress", "completed", "cancelled", "declined"],
+      enum: ["pending", "accepted", "in-progress", "returning", "completed", "cancelled", "declined"],
       default: "pending",
     },
     // Starting point for the trip

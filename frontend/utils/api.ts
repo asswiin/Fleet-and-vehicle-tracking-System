@@ -324,7 +324,7 @@ const DEV_URL = localhost ? `http://${localhost}:5000` : "http://localhost:5000"
 const PROD_URL = "https://fleet-vehicle-backend.vercel.app";
 
 // Set to TRUE for production, FALSE for local testing
-const IS_PRODUCTION = false;
+const IS_PRODUCTION = true;
 
 export const API_BASE_URL = IS_PRODUCTION ? PROD_URL : DEV_URL;
 
@@ -435,6 +435,8 @@ const api = {
   createVehicleService: (data: any) => apiCall("/api/vehicle-services", { method: "POST", body: JSON.stringify(data) }),
   updateVehicleService: (id: string, data: any) => apiCall(`/api/vehicle-services/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   getVehicleServiceHistory: (vehicleId: string) => apiCall(`/api/vehicle-services/vehicle/${vehicleId}`),
+  getAllVehicleServices: () => apiCall("/api/vehicle-services"),
+  getServiceAlertsCount: () => apiCall("/api/vehicle-services/alerts/count"),
   updateServiceStatus: (id: string, status: string) => apiCall(`/api/vehicle-services/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   // DRIVERS
@@ -491,6 +493,7 @@ const api = {
   updateTripResources: (id: string, data: any) => apiCall(`/api/trips/${id}/resources`, { method: "PATCH", body: JSON.stringify(data) }),
   updateTripLocation: (id: string, data: any) => apiCall(`/api/trips/${id}/location`, { method: "PATCH", body: JSON.stringify(data) }),
   toggleSOS: (id: string, sos: boolean, data?: any) => apiCall(`/api/trips/${id}/sos`, { method: "PATCH", body: JSON.stringify({ sos, ...data }) }),
+  completeReturnTrip: (id: string) => apiCall(`/api/trips/${id}/complete-return`, { method: "POST" }),
 
 
   // NOTIFICATIONS

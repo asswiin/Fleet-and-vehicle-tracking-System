@@ -82,6 +82,7 @@ const ManagerDashboard = () => {
   const [hasVehicleAlerts, setHasVehicleAlerts] = useState(false);
   const [activeTrips, setActiveTrips] = useState<any[]>([]);
   const [sosAlertActive, setSosAlertActive] = useState(false);
+  const [serviceAlertCount, setServiceAlertCount] = useState(0);
 
   // Expiry Warning Helpers
   const parseDate = (dateInput?: string): Date | null => {
@@ -161,10 +162,16 @@ const ManagerDashboard = () => {
         }
       };
 
-      const refreshData = () => {
+      const refreshData = async () => {
         fetchDeclined();
         checkVehicleExpiries();
         fetchActiveTrips();
+
+        // Fetch service alerts (Repairs)
+        const sRes = await api.getServiceAlertsCount();
+        if (sRes.ok && sRes.data) {
+          setServiceAlertCount(sRes.data.count);
+        }
       };
 
       refreshData();
@@ -326,9 +333,17 @@ const ManagerDashboard = () => {
               <Text style={styles.actionLabel}>Assign Trip</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => router.push("/manager/vehicle-service-history" as any)}
+            >
               <View style={[styles.actionIcon, { backgroundColor: "#FFEDD5" }]}>
                 <Wrench size={24} color="#EA580C" />
+                {serviceAlertCount > 0 && (
+                  <View style={[styles.declinedBadge, { backgroundColor: '#F59E0B' }]}>
+                    <Text style={styles.declinedBadgeText}>!</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.actionLabel}>Repairs</Text>
             </TouchableOpacity>

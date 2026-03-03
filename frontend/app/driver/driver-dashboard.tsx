@@ -20,7 +20,8 @@ import {
   LayoutGrid,
   Truck,
   Clock as PunchIcon,
-  User
+  User,
+  CheckCircle
 } from "lucide-react-native";
 import { useState, useCallback } from "react";
 import { api, Driver } from "../../utils/api";
@@ -31,6 +32,7 @@ const DriverDashboard = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [driverData, setDriverData] = useState<Driver | null>(null);
+  const [activeTrip, setActiveTrip] = useState<any>(null);
   const [notificationCount, setNotificationCount] = useState(0);
 
   // Prefer fetched driver data; fallback to login param
@@ -65,10 +67,22 @@ const DriverDashboard = () => {
     }
   };
 
+  const fetchActiveTrip = async () => {
+    if (!driverId) return;
+    try {
+      const res = await api.getActiveTrip(driverId as string);
+      if (res.ok && res.data) setActiveTrip(res.data);
+      else setActiveTrip(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchDriver();
       fetchNotificationCount();
+      fetchActiveTrip();
     }, [driverId])
   );
 
@@ -232,13 +246,71 @@ const DriverDashboard = () => {
             <Text style={styles.cardSubtitle}>Emergency help</Text>
           </TouchableOpacity>
 
-          {/* Card 4: Settings */}
-          <TouchableOpacity style={styles.card}>
+          {/* Card 4: Report Breakdown */}
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => {
+              if (activeTrip?.vehicleId) {
+                router.push({
+                  pathname: "/manager/report-vehicle-service" as any,
+                  params: {
+                    vehicleId: activeTrip.vehicleId._id,
+                    vehicleReg: activeTrip.vehicleId.regNumber,
+                  }
+                });
+              } else {
+                Alert.alert("No Active Trip", "You can only report a breakdown while on an active trip.");
+              }
+            }}
+          >
             <View style={[styles.iconCircle, { backgroundColor: "#F1F5F9" }]}>
               <Settings size={24} color="#475569" />
             </View>
-            <Text style={styles.cardTitle}>Settings</Text>
-            <Text style={styles.cardSubtitle}>Preferences</Text>
+            <Text style={styles.cardTitle}>Report Info</Text>
+            <Text style={styles.cardSubtitle}>Breakdown Report</Text>
+          </TouchableOpacity>
+
+          {/* Card 5: Complete Return Trip */}
+          <TouchableOpacity
+            style={[styles.card, activeTrip?.status !== "returning" && { opacity: 0.6 }]}
+            onPress={() => {
+              if (activeTrip?.status !== "returning") {
+                Alert.alert("Action Not Available", "You can only finalize a return trip after delivering all parcels.");
+                return;
+              }
+
+              Alert.alert(
+                "Complete Return Trip",
+                "Are you sure you have completed the return journey and are ready to clear your status?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Complete",
+                    onPress: async () => {
+                      try {
+                        const res = await api.completeReturnTrip(activeTrip._id);
+                        if (res.ok) {
+                          Alert.alert("Success", "Trip completed. You are now available.");
+                          fetchActiveTrip();
+                          fetchDriver();
+                        } else {
+                          Alert.alert("Error", res.error || "Failed to complete trip");
+                        }
+                      } catch (e) {
+                        console.error(e);
+                        Alert.alert("Error", "Something went wrong.");
+                      }
+                    }
+                  }
+                ]
+              );
+            }}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: activeTrip?.status === "returning" ? "#E0F2FE" : "#F1F5F9" }]}>
+              <CheckCircle size={24} color={activeTrip?.status === "returning" ? "#0891B2" : "#94A3B8"} />
+            </View>
+            <Text style={styles.cardTitle}>Return Trip Done</Text>
+            <Text style={styles.cardSubtitle}>Finalize travel</Text>
           </TouchableOpacity>
 
         </View>

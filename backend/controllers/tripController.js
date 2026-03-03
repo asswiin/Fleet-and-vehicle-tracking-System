@@ -164,7 +164,7 @@ exports.getActiveTrip = async (req, res) => {
     const { driverId } = req.params;
     const activeTrip = await Trip.findOne({
       driverId,
-      status: { $in: ["accepted", "in-progress"] },
+      status: { $in: ["accepted", "in-progress", "returning"] },
     })
       .populate("driverId", "name phone email profilePhoto") // Keep for driver app
       .populate("vehicleId", "regNumber model type capacity profilePhoto") // Keep for driver app
@@ -732,28 +732,11 @@ exports.updateDeliveryStatus = async (req, res) => {
     );
 
     if (allDone) {
-      trip.status = "completed";
-      trip.completedAt = new Date();
+      trip.status = "returning"; // Changed from 'completed' to 'returning'
+      // trip.completedAt = new Date(); // Only set when 'Return Trip Done' is clicked
 
-      // Free up Driver and Vehicle
-      try {
-        const driver = await Driver.findById(trip.driverId);
-        await Driver.findByIdAndUpdate(trip.driverId, {
-          driverStatus: (driver && driver.isAvailable) ? "available" : "offline",
-          currentTripId: null
-        });
-
-        await Vehicle.findByIdAndUpdate(trip.vehicleId, {
-          status: "Active",
-          currentTripId: null
-        });
-
-        // Clean up OngoingTrip
-        await OngoingTrip.findOneAndDelete({ trip: trip._id });
-        console.log(`✅ Trip ${trip.tripId} marked as completed and resources freed.`);
-      } catch (resourceErr) {
-        console.error("❌ Failed to free up resources after trip completion:", resourceErr.message);
-      }
+      // Driver and Vehicle status should remain "On-trip" as requested
+      console.log(`✅ Trip ${trip.tripId} marked as returning. Resources remain occupied.`);
     }
 
     await trip.save();
@@ -787,11 +770,11 @@ exports.deleteTrip = async (req, res) => {
   }
 };
 
-// Get Ongoing Trips specifically (includes Accepted and In-Progress)
+// Get Ongoing Trips specifically (includes Accepted, In-Progress, and Returning)
 exports.getOngoingTrips = async (req, res) => {
   try {
     const activeTrips = await Trip.find({
-      status: { $in: ["accepted", "in-progress"] }
+      status: { $in: ["accepted", "in-progress", "returning"] }
     })
       .populate("driverId", "name phone profilePhoto")
       .populate("vehicleId", "regNumber model type profilePhoto")
@@ -1067,8 +1050,8 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -1137,5 +1120,50 @@ exports.getAllHistory = async (req, res) => {
   } catch (error) {
     console.error("Fetch All History Error:", error);
     res.status(500).json({ message: "Failed to fetch all history", error: error.message });
+  }
+};
+
+// Finalize return trip and free up resources
+exports.completeReturnTrip = async (req, res) => {
+  try {
+    const { id } = req.params; // Trip ID (Mongo or String)
+    let trip;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      trip = await Trip.findById(id);
+    } else {
+      trip = await Trip.findOne({ tripId: id });
+    }
+
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+    // Transition to completed
+    trip.status = "completed";
+    trip.completedAt = new Date();
+    await trip.save();
+
+    // Free up Driver status
+    const driver = await Driver.findById(trip.driverId);
+    if (driver) {
+      await Driver.findByIdAndUpdate(trip.driverId, {
+        driverStatus: driver.isAvailable ? "available" : "offline",
+        currentTripId: null
+      });
+    }
+
+    // Free up Vehicle status
+    await Vehicle.findByIdAndUpdate(trip.vehicleId, {
+      status: "Active",
+      currentTripId: null
+    });
+
+    // Clean up OngoingTrip (Simulations/Live Track)
+    await OngoingTrip.findOneAndDelete({ trip: trip._id });
+
+    console.log(`✅ Return Trip Finalized for ${trip.tripId}`);
+    res.status(200).json({ message: "Return trip completed successfully", trip });
+  } catch (error) {
+    console.error("Complete Return Trip Error:", error);
+    res.status(500).json({ message: "Failed to complete return trip", error: error.message });
   }
 };

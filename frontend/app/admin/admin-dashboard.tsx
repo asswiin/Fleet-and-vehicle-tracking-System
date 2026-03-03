@@ -63,10 +63,11 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
 
       // 2. Fetch Users, Vehicles, AND Drivers in parallel
-      const [usersRes, vehiclesRes, driversRes] = await Promise.all([
+      const [usersRes, vehiclesRes, driversRes, parcelsRes] = await Promise.all([
         api.getUsers(),
         api.getVehicles(),
-        api.getDrivers()
+        api.getDrivers(),
+        api.getParcels()
       ]);
 
       let managerList: User[] = [];
@@ -94,12 +95,28 @@ const AdminDashboard: React.FC = () => {
         setDrivers(driverList);
       }
 
+      // 4. Calculate Revenue
+      let monthlyRevenue = 0;
+      if (parcelsRes.ok && parcelsRes.data) {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        monthlyRevenue = parcelsRes.data.reduce((acc: number, parcel: any) => {
+          const parcelDate = new Date(parcel.createdAt || parcel.date);
+          if (parcelDate.getMonth() === currentMonth && parcelDate.getFullYear() === currentYear) {
+            return acc + (Number(parcel.paymentAmount) || 0);
+          }
+          return acc;
+        }, 0);
+      }
+
       // Update Stats
       setStats({
         managers: managerList.length,
         drivers: driverList.length,
         vehicles: vehicleCount,
-        revenue: 0,
+        revenue: monthlyRevenue,
       });
 
     } catch (error) {
@@ -203,13 +220,16 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.cardValue}>{stats.vehicles}</Text>
           </View>
 
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push("/admin/hub-overview" as any)}
+          >
             <View style={[styles.iconContainer, { backgroundColor: "#DCFCE7" }]}>
               <IndianRupee size={24} color="#22C55E" />
             </View>
             <Text style={styles.cardLabel}>Monthly Rev</Text>
-            <Text style={styles.cardValue}>₹0</Text>
-          </View>
+            <Text style={styles.cardValue}>₹{stats.revenue.toLocaleString('en-IN')}</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.card}

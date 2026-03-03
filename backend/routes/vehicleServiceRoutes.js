@@ -15,6 +15,9 @@ router.post("/", async (req, res) => {
       odometerReading,
       serviceStartDate,
       workshopName,
+      totalServiceCost,
+      serviceCompletionDate,
+      status,
     } = req.body;
 
     const record = new VehicleService({
@@ -26,7 +29,9 @@ router.post("/", async (req, res) => {
       odometerReading,
       serviceStartDate,
       workshopName,
-      status: "In-Service",
+      totalServiceCost,
+      serviceCompletionDate,
+      status: status || "In-Service",
     });
 
     await record.save();
@@ -111,6 +116,26 @@ router.patch("/:id/status", async (req, res) => {
     }
 
     res.json(record);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// 4. GET ALL SERVICE RECORDS
+router.get("/", async (req, res) => {
+  try {
+    const records = await VehicleService.find().sort({ createdAt: -1 });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// 5. GET SERVICE ALERTS COUNT (Active reports for Manager)
+router.get("/alerts/count", async (req, res) => {
+  try {
+    const count = await VehicleService.countDocuments({ status: "In-Service" });
+    res.json({ count });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

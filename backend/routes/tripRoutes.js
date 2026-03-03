@@ -61,4 +61,7 @@ router.get("/ongoing/:id", tripController.getOngoingTrip);
 // Toggle SOS status
 router.patch("/:id/sos", tripController.toggleSOS);
 
+// Finalize return trip (Driver Dashboard button)
+router.post("/:id/complete-return", tripController.completeReturnTrip);
+
 module.exports = router;

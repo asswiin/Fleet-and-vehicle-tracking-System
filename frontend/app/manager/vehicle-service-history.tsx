@@ -46,10 +46,16 @@ const VehicleServiceHistoryScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchRecords = useCallback(async (silent = false) => {
-    if (!params.vehicleId) return;
+    // If no vehicleId, we fetch ALL history (Management view)
     if (!silent) setLoading(true);
     try {
-      const res = await api.getVehicleServiceHistory(params.vehicleId);
+      let res;
+      if (params.vehicleId) {
+        res = await api.getVehicleServiceHistory(params.vehicleId);
+      } else {
+        res = await api.getAllVehicleServices();
+      }
+
       if (res.ok && Array.isArray(res.data)) {
         setRecords(res.data);
       }
@@ -133,8 +139,15 @@ const VehicleServiceHistoryScreen = () => {
             </View>
           </View>
 
+          {/* Vehicle Info if viewing all */}
+          {!params.vehicleId && (
+            <View style={styles.vehicleInfoRow}>
+              <Text style={styles.vehicleRegText}>{item.registrationNumber}</Text>
+            </View>
+          )}
+
           {/* Description */}
-          <Text style={styles.description} numberOfLines={2}>
+          <Text style={styles.description}>
             {item.issueDescription}
           </Text>
 
@@ -201,7 +214,9 @@ const VehicleServiceHistoryScreen = () => {
             <ChevronLeft size={28} color="#0F172A" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Service History</Text>
+            <Text style={styles.headerTitle}>
+              {params.vehicleId ? "Vehicle Service History" : "All Service Reports"}
+            </Text>
             {params.vehicleReg && (
               <Text style={styles.headerSubtitle}>{params.vehicleReg}</Text>
             )}
@@ -246,7 +261,9 @@ const VehicleServiceHistoryScreen = () => {
               <Wrench size={48} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>No Service Records</Text>
               <Text style={styles.emptySubtitle}>
-                This vehicle has no service history yet.
+                {params.vehicleId
+                  ? "This vehicle has no service history yet."
+                  : "There are no service reports available at the moment."}
               </Text>
             </View>
           ) : (
@@ -340,6 +357,19 @@ const styles = StyleSheet.create({
     color: "#475569",
     lineHeight: 18,
     marginBottom: 12,
+  },
+  vehicleInfoRow: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+    marginBottom: 8,
+  },
+  vehicleRegText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#475569",
   },
 
   // Info grid
