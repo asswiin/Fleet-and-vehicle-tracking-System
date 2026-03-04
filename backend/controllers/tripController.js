@@ -192,14 +192,15 @@ exports.updateTripResources = async (req, res) => {
     const oldDriverId = trip.driverId ? trip.driverId.toString() : null;
     const oldVehicleId = trip.vehicleId ? trip.vehicleId.toString() : null;
 
-    // Determine what changed
-    const isDriverChanged = driverId && driverId !== oldDriverId;
-    const isVehicleChanged = vehicleId && vehicleId !== oldVehicleId;
+    // Determine what changed (Force "changed" state if the trip was previously declined)
+    const isDeclined = trip.status === "declined";
+    const isDriverChanged = driverId && (driverId !== oldDriverId || isDeclined);
+    const isVehicleChanged = vehicleId && (vehicleId !== oldVehicleId || isDeclined);
 
     // --- HANDLE DRIVER CHANGE ---
     if (isDriverChanged) {
-      // 1. Free up the OLD driver
-      if (oldDriverId) {
+      // 1. Free up the OLD driver (Only if it's actually a different driver)
+      if (oldDriverId && oldDriverId !== driverId) {
         await Driver.findByIdAndUpdate(oldDriverId, {
           driverStatus: "available",
           currentTripId: null
@@ -217,8 +218,8 @@ exports.updateTripResources = async (req, res) => {
 
     // --- HANDLE VEHICLE CHANGE ---
     if (isVehicleChanged) {
-      // 1. Free up the OLD vehicle
-      if (oldVehicleId) {
+      // 1. Free up the OLD vehicle (Only if it's actually a different vehicle)
+      if (oldVehicleId && oldVehicleId !== vehicleId) {
         await Vehicle.findByIdAndUpdate(oldVehicleId, {
           status: "Active", // Revert to Active/Available
           currentTripId: null,

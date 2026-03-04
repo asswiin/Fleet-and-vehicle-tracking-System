@@ -11,12 +11,13 @@ import {
     StatusBar,
     Animated,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Truck, MessageSquare, Navigation, User as UserIcon, AlertTriangle, MapPin } from "lucide-react-native";
 import api, { type Trip } from "../../utils/api";
 
 const OnGoingTripScreen = () => {
     const router = useRouter();
+    const params = useLocalSearchParams<{ userId: string; userName: string }>();
     const [trips, setTrips] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -98,7 +99,11 @@ const OnGoingTripScreen = () => {
                 style={styles.tripCard}
                 onPress={() => router.push({
                     pathname: "/manager/track-trip",
-                    params: { tripId: item._id }
+                    params: {
+                        tripId: item._id,
+                        userId: params.userId,
+                        userName: params.userName
+                    }
                 } as any)}
                 activeOpacity={0.7}
             >

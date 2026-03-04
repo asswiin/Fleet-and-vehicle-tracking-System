@@ -6,7 +6,11 @@ import { api, type Trip } from "../../utils/api";
 
 const TripDetailsScreen = () => {
   const router = useRouter();
-  const { tripId } = useLocalSearchParams<{ tripId: string }>();
+  const { tripId, userId, userName } = useLocalSearchParams<{
+    tripId: string;
+    userId: string;
+    userName: string;
+  }>();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +38,12 @@ const TripDetailsScreen = () => {
   const handleEdit = () => {
     router.push({
       pathname: "/manager/edit-trip",
-      params: { tripId: tripId, tripData: JSON.stringify(trip) }
+      params: {
+        tripId: tripId,
+        tripData: JSON.stringify(trip),
+        userId: userId,
+        userName: userName
+      }
     } as any);
   };
 

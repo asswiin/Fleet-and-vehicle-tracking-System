@@ -288,7 +288,10 @@ const ManagerDashboard = () => {
           <View style={styles.actionGrid}>
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => router.push("/manager/on-going-trip" as any)}
+              onPress={() => router.push({
+                pathname: "/manager/on-going-trip",
+                params: { userId: userId, userName: displayName }
+              } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
                 <Truck size={24} color="#0284C7" />
@@ -306,7 +309,10 @@ const ManagerDashboard = () => {
 
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => router.push("/manager/trip-list" as any)}
+              onPress={() => router.push({
+                pathname: "/manager/trip-list",
+                params: { userId: userId, userName: displayName }
+              } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
                 <Truck size={24} color="#0284C7" />
@@ -360,7 +366,10 @@ const ManagerDashboard = () => {
           {/* Active Deliveries Section */}
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Active Deliveries</Text>
-            <TouchableOpacity onPress={() => router.push("/manager/on-going-trip" as any)}>
+            <TouchableOpacity onPress={() => router.push({
+              pathname: "/manager/on-going-trip",
+              params: { userId: userId, userName: displayName }
+            } as any)}>
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -489,7 +498,10 @@ const ManagerDashboard = () => {
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => router.push("/manager/parcel-list")}
+          onPress={() => router.push({
+            pathname: "/manager/parcel-list",
+            params: { userId: userId, userName: displayName }
+          } as any)}
         >
           <Package size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Parcel</Text>

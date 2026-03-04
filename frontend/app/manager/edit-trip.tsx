@@ -18,7 +18,7 @@ import { api, Driver, Vehicle } from "../../utils/api";
 
 const EditTripScreen = () => {
   const router = useRouter();
-  const { tripId, tripData } = useLocalSearchParams<{ tripId: string; tripData: string }>();
+  const { tripId, tripData, userId, userName } = useLocalSearchParams<{ tripId: string; tripData: string; userId: string; userName: string }>();
 
   // Parse initial data
   const initialTrip = JSON.parse(tripData || "{}");
@@ -147,7 +147,10 @@ const EditTripScreen = () => {
             text: "OK",
             onPress: () => {
               // Redirect to Manager Dashboard after editing
-              router.push("/manager/manager-dashboard" as any);
+              router.push({
+                pathname: "/manager/manager-dashboard",
+                params: { userId: userId, userName: userName }
+              } as any);
             }
           }]
         );

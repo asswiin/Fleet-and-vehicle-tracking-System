@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from "react";
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, StatusBar } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Truck, User, ChevronRight, AlertCircle } from "lucide-react-native";
 import { api, type Trip } from "../../utils/api";
 
 const TripListScreen = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{ userId: string; userName: string }>();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +46,14 @@ const TripListScreen = () => {
   const renderItem = ({ item }: { item: Trip }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push({ pathname: "/manager/trip-details", params: { tripId: item._id } } as any)}
+      onPress={() => router.push({
+        pathname: "/manager/trip-details",
+        params: {
+          tripId: item._id,
+          userId: params.userId,
+          userName: params.userName
+        }
+      } as any)}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.tripId}>Trip #{item.tripId}</Text>
