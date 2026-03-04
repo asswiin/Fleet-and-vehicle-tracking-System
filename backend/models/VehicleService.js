@@ -25,6 +25,12 @@ const vehicleServiceSchema = new mongoose.Schema(
       enum: ["In-Service", "Completed"],
       default: "In-Service",
     },
+    reportedBy: { type: String, required: true }, // Name of the person who reported
+    reporterRole: {
+      type: String,
+      enum: ["Driver", "Manager"],
+      required: true,
+    },
   },
   { timestamps: true }
 );

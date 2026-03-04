@@ -21,6 +21,7 @@ import {
   CheckCircle,
   Edit2,
   IndianRupee,
+  User,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
 
@@ -39,6 +40,7 @@ const VehicleServiceHistoryScreen = () => {
     vehicleId?: string;
     vehicleReg?: string;
     vehicleModel?: string;
+    userName?: string;
   }>();
 
   const [records, setRecords] = useState<any[]>([]);
@@ -107,6 +109,8 @@ const VehicleServiceHistoryScreen = () => {
         editMode: "true",
         serviceRecordId: item._id,
         existingData: JSON.stringify(item),
+        reporterName: params.userName,
+        reporterRole: "Manager",
       },
     });
   };
@@ -187,6 +191,13 @@ const VehicleServiceHistoryScreen = () => {
                 <Text style={styles.infoValue}>{formatDate(item.serviceCompletionDate)}</Text>
               </View>
             )}
+            <View style={[styles.infoItem, { width: "100%" }]}>
+              <User size={14} color="#64748B" />
+              <Text style={styles.infoLabel}>As Reported By</Text>
+              <Text style={styles.infoValue}>
+                {item.reportedBy || "Unknown"} ({item.reporterRole || "N/A"})
+              </Text>
+            </View>
           </View>
 
           {/* Mark completed button if still In-Service */}

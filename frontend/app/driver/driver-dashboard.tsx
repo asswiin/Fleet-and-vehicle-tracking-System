@@ -256,6 +256,8 @@ const DriverDashboard = () => {
                   params: {
                     vehicleId: activeTrip.vehicleId._id,
                     vehicleReg: activeTrip.vehicleId.regNumber,
+                    reporterName: driverName,
+                    reporterRole: "Driver",
                   }
                 });
               } else {

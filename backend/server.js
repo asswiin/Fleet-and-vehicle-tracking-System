@@ -49,6 +49,7 @@ app.use("/api/parcels", require("./routes/parcelRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/trips", require("./routes/tripRoutes"));
 app.use("/api/vehicle-services", require("./routes/vehicleServiceRoutes"));
+app.use("/api/expenses", require("./routes/expenseRoutes"));
 
 const PORT = process.env.PORT || 5000;
 

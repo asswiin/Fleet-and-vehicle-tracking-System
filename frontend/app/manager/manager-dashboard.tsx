@@ -14,8 +14,6 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
-  Search,
-  Bell,
   Truck,
   Clock,
   Package,
@@ -243,13 +241,6 @@ const ManagerDashboard = () => {
               </View>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Search size={24} color="#374151" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Bell size={24} color="#374151" />
-                <View style={styles.notificationDot} />
-              </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
                 <LogOut size={24} color="#EF4444" />
               </TouchableOpacity>
@@ -342,7 +333,10 @@ const ManagerDashboard = () => {
 
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => router.push("/manager/vehicle-service-history" as any)}
+              onPress={() => router.push({
+                pathname: "/manager/vehicle-service-history",
+                params: { userName: displayName }
+              } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#FFEDD5" }]}>
                 <Wrench size={24} color="#EA580C" />
@@ -355,7 +349,13 @@ const ManagerDashboard = () => {
               <Text style={styles.actionLabel}>Repairs</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionItem}>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => router.push({
+                pathname: "/manager/expenses",
+                params: { userId: userId, userName: displayName }
+              } as any)}
+            >
               <View style={[styles.actionIcon, { backgroundColor: "#DCFCE7" }]}>
                 <DollarSign size={24} color="#166534" />
               </View>
@@ -517,7 +517,7 @@ const ManagerDashboard = () => {
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => router.push({ pathname: "/admin/vehicle-list", params: { userRole: "manager" } })}
+          onPress={() => router.push({ pathname: "/admin/vehicle-list", params: { userRole: "manager", userName: displayName } })}
         >
           <View style={{ position: 'relative' }}>
             <Car size={24} color="#9CA3AF" />
@@ -555,7 +555,6 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontSize: 11, color: "#6B7280" },
   headerRight: { flexDirection: "row", gap: 12 },
   iconBtn: { position: "relative" as const },
-  notificationDot: { position: "absolute", top: -2, right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444", borderWidth: 1.5, borderColor: "#F9FAFB" },
   statsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
   statCard: { width: (width - 40) / 2, height: 110, borderRadius: 16, padding: 12, justifyContent: "space-between" },
   blueCard: { backgroundColor: "#2563EB" },

@@ -540,8 +540,11 @@ const api = {
   updateNotificationStatus: (id: string, status: string) =>
     apiCall(`/api/notifications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
-  deleteNotification: (id: string) =>
-    apiCall(`/api/notifications/${id}`, { method: "DELETE" }),
+  // EXPENSES
+  getExpenses: () => apiCall("/api/expenses"),
+  getTripExpenses: (tripId: string) => apiCall(`/api/expenses/trip/${tripId}`),
+  createExpense: (data: any) => apiCall("/api/expenses", { method: "POST", body: JSON.stringify(data) }),
+  deleteExpense: (id: string) => apiCall(`/api/expenses/${id}`, { method: "DELETE" }),
 };
 
 export { api };

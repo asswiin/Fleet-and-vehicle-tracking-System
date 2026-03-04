@@ -28,7 +28,7 @@ const VehicleListScreen = () => {
   const router = useRouter();
 
   // 1. Get the user role passed from Dashboard (Admin or Manager)
-  const params = useLocalSearchParams<{ userRole: string }>();
+  const params = useLocalSearchParams<{ userRole: string; userName: string }>();
   const userRole = params.userRole || "admin"; // Default to admin if undefined
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -97,7 +97,8 @@ const VehicleListScreen = () => {
       pathname: "/admin/vehicle-details",
       params: {
         vehicleId: vehicle._id,
-        userRole: userRole // Pass role so details screen knows whether to show "Sell" button
+        userRole: userRole,
+        userName: params.userName,
       }
     });
   };

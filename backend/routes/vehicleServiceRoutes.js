@@ -18,6 +18,8 @@ router.post("/", async (req, res) => {
       totalServiceCost,
       serviceCompletionDate,
       status,
+      reportedBy,
+      reporterRole,
     } = req.body;
 
     const record = new VehicleService({
@@ -32,6 +34,8 @@ router.post("/", async (req, res) => {
       totalServiceCost,
       serviceCompletionDate,
       status: status || "In-Service",
+      reportedBy,
+      reporterRole,
     });
 
     await record.save();

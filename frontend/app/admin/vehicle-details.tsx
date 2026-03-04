@@ -25,7 +25,7 @@ import {
 
 const VehicleDetailsScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ vehicleId: string; userRole: string }>();
+  const params = useLocalSearchParams<{ vehicleId: string; userRole: string; userName: string }>();
 
   const userRole = params.userRole || "admin";
   const vehicleId = params.vehicleId;
@@ -153,7 +153,12 @@ const VehicleDetailsScreen = () => {
   const handleMarkAsService = () => {
     router.push({
       pathname: "/manager/report-vehicle-service" as any,
-      params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber },
+      params: {
+        vehicleId: vehicle._id,
+        vehicleReg: vehicle.regNumber,
+        reporterName: params.userName || "Manager",
+        reporterRole: "Manager",
+      },
     });
   };
 
@@ -195,126 +200,131 @@ const VehicleDetailsScreen = () => {
                 </View>
               )}
 
-          {/* Vehicle Photos Gallery */}
-          {vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoGallery}>
-              {vehicle.vehiclePhotos.map((photo: string, index: number) => (
-                <Image key={index} source={{ uri: api.getImageUrl(photo) || undefined }} style={styles.galleryImage} />
-              ))}
-            </ScrollView>
-          )}
-
-          {/* ... (Existing Main Card & Info) ... */}
-          <View style={styles.mainCard}>
-            <View style={styles.iconContainer}>
-              {vehicle.profilePhoto ? (
-                <Image source={{ uri: api.getImageUrl(vehicle.profilePhoto) || undefined }} style={styles.profilePhoto} />
-              ) : (
-                <Truck size={40} color="#0EA5E9" />
+              {/* Vehicle Photos Gallery */}
+              {vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoGallery}>
+                  {vehicle.vehiclePhotos.map((photo: string, index: number) => (
+                    <Image key={index} source={{ uri: api.getImageUrl(photo) || undefined }} style={styles.galleryImage} />
+                  ))}
+                </ScrollView>
               )}
-            </View>
-            <Text style={styles.modelText}>{vehicle.regNumber || "No Reg #"}</Text>
-            <Text style={styles.regText}>{vehicle.model || "Unknown Model"}</Text>
 
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vehicle.status) + "20" }]}>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />
-              <Text style={[styles.statusText, { color: getStatusColor(vehicle.status) }]}>
-                {vehicle.status || "Unknown"}
-              </Text>
-            </View>
-          </View>
+              {/* ... (Existing Main Card & Info) ... */}
+              <View style={styles.mainCard}>
+                <View style={styles.iconContainer}>
+                  {vehicle.profilePhoto ? (
+                    <Image source={{ uri: api.getImageUrl(vehicle.profilePhoto) || undefined }} style={styles.profilePhoto} />
+                  ) : (
+                    <Truck size={40} color="#0EA5E9" />
+                  )}
+                </View>
+                <Text style={styles.modelText}>{vehicle.regNumber || "No Reg #"}</Text>
+                <Text style={styles.regText}>{vehicle.model || "Unknown Model"}</Text>
 
-          {/* Vehicle Specifications */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vehicle Specifications</Text>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(vehicle.status) + "20" }]}>
+                  <View style={[styles.statusDot, { backgroundColor: getStatusColor(vehicle.status) }]} />
+                  <Text style={[styles.statusText, { color: getStatusColor(vehicle.status) }]}>
+                    {vehicle.status || "Unknown"}
+                  </Text>
+                </View>
+              </View>
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoLeft}>
-                <Text style={styles.label}>VEHICLE TYPE</Text>
-                <Text style={styles.value}>{vehicle.type || "N/A"}</Text>
-              </View>
-              <View style={styles.infoDivider} />
-              <View style={styles.infoRight}>
-                <Text style={styles.label}>WEIGHT CAPACITY</Text>
-                <Text style={styles.value}>
-                  {getWeight() ? `${getWeight()} Kg` : "N/A"}
-                </Text>
-              </View>
-            </View>
-          </View>
+              {/* Vehicle Specifications */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Vehicle Specifications</Text>
 
-          {/* ... (Existing Document Status Section) ... */}
-          <View style={styles.section}>
-            {/* Insurance, Pollution, Tax items as per your existing file */}
-            <Text style={styles.sectionTitle}>Document Status</Text>
-            {/* ... (Copy paste your existing docItem views here) ... */}
-            <View style={styles.docItem}>
-              <View style={styles.docIcon}><FileCheck size={20} color="#0EA5E9" /></View>
-              <View style={styles.docInfo}>
-                <Text style={styles.label}>Insurance Expiry</Text>
-                <Text style={styles.value}>{formatDateForDisplay(getInsuranceDate())}</Text>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoLeft}>
+                    <Text style={styles.label}>VEHICLE TYPE</Text>
+                    <Text style={styles.value}>{vehicle.type || "N/A"}</Text>
+                  </View>
+                  <View style={styles.infoDivider} />
+                  <View style={styles.infoRight}>
+                    <Text style={styles.label}>WEIGHT CAPACITY</Text>
+                    <Text style={styles.value}>
+                      {getWeight() ? `${getWeight()} Kg` : "N/A"}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getInsuranceDate()).color + "20" }]}>
-                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getInsuranceDate()).color }]}>{getExpiryStatus(getInsuranceDate()).text}</Text>
-              </View>
-            </View>
-            {/* Repeat for Pollution and Tax... */}
-            <View style={styles.docItem}>
-              <View style={styles.docIcon}><AlertCircle size={20} color="#0EA5E9" /></View>
-              <View style={styles.docInfo}>
-                <Text style={styles.label}>Pollution Certificate</Text>
-                <Text style={styles.value}>{formatDateForDisplay(getPollutionDate())}</Text>
-              </View>
-              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getPollutionDate()).color + "20" }]}>
-                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getPollutionDate()).color }]}>{getExpiryStatus(getPollutionDate()).text}</Text>
-              </View>
-            </View>
-            <View style={styles.docItem}>
-              <View style={styles.docIcon}><Tag size={20} color="#0EA5E9" /></View>
-              <View style={styles.docInfo}>
-                <Text style={styles.label}>Road Tax</Text>
-                <Text style={styles.value}>{formatDateForDisplay(getTaxDate())}</Text>
-              </View>
-              <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getTaxDate()).color + "20" }]}>
-                <Text style={[styles.docBadgeText, { color: getExpiryStatus(getTaxDate()).color }]}>{getExpiryStatus(getTaxDate()).text}</Text>
-              </View>
-            </View>
-          </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionContainer}>
-            <TouchableOpacity style={styles.outlineButton} onPress={() => {
-              router.push({
-                pathname: "/manager/vehicle-history" as any,
-                params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber, vehicleModel: vehicle.model }
-              });
-            }}>
-              <History size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
-              <Text style={styles.outlineButtonText}>View History</Text>
-            </TouchableOpacity>
+              {/* ... (Existing Document Status Section) ... */}
+              <View style={styles.section}>
+                {/* Insurance, Pollution, Tax items as per your existing file */}
+                <Text style={styles.sectionTitle}>Document Status</Text>
+                {/* ... (Copy paste your existing docItem views here) ... */}
+                <View style={styles.docItem}>
+                  <View style={styles.docIcon}><FileCheck size={20} color="#0EA5E9" /></View>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.label}>Insurance Expiry</Text>
+                    <Text style={styles.value}>{formatDateForDisplay(getInsuranceDate())}</Text>
+                  </View>
+                  <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getInsuranceDate()).color + "20" }]}>
+                    <Text style={[styles.docBadgeText, { color: getExpiryStatus(getInsuranceDate()).color }]}>{getExpiryStatus(getInsuranceDate()).text}</Text>
+                  </View>
+                </View>
+                {/* Repeat for Pollution and Tax... */}
+                <View style={styles.docItem}>
+                  <View style={styles.docIcon}><AlertCircle size={20} color="#0EA5E9" /></View>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.label}>Pollution Certificate</Text>
+                    <Text style={styles.value}>{formatDateForDisplay(getPollutionDate())}</Text>
+                  </View>
+                  <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getPollutionDate()).color + "20" }]}>
+                    <Text style={[styles.docBadgeText, { color: getExpiryStatus(getPollutionDate()).color }]}>{getExpiryStatus(getPollutionDate()).text}</Text>
+                  </View>
+                </View>
+                <View style={styles.docItem}>
+                  <View style={styles.docIcon}><Tag size={20} color="#0EA5E9" /></View>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.label}>Road Tax</Text>
+                    <Text style={styles.value}>{formatDateForDisplay(getTaxDate())}</Text>
+                  </View>
+                  <View style={[styles.docBadge, { backgroundColor: getExpiryStatus(getTaxDate()).color + "20" }]}>
+                    <Text style={[styles.docBadgeText, { color: getExpiryStatus(getTaxDate()).color }]}>{getExpiryStatus(getTaxDate()).text}</Text>
+                  </View>
+                </View>
+              </View>
 
-            <TouchableOpacity style={styles.outlineButton} onPress={() => {
-              router.push({
-                pathname: "/manager/vehicle-service-history" as any,
-                params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber, vehicleModel: vehicle.model }
-              });
-            }}>
-              <Truck size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
-              <Text style={styles.outlineButtonText}>Service History</Text>
-            </TouchableOpacity>
-          </View>
+              {/* Action Buttons */}
+              <View style={styles.actionContainer}>
+                <TouchableOpacity style={styles.outlineButton} onPress={() => {
+                  router.push({
+                    pathname: "/manager/vehicle-history" as any,
+                    params: { vehicleId: vehicle._id, vehicleReg: vehicle.regNumber, vehicleModel: vehicle.model }
+                  });
+                }}>
+                  <History size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
+                  <Text style={styles.outlineButtonText}>View History</Text>
+                </TouchableOpacity>
 
-          {userRole === "manager" && vehicle.status !== "Sold" && (
-            <View style={styles.actionContainer}>
-              <TouchableOpacity style={styles.serviceButton} onPress={handleMarkAsService} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.serviceButtonText}>Mark as In-Service</Text>}
-              </TouchableOpacity>
+                <TouchableOpacity style={styles.outlineButton} onPress={() => {
+                  router.push({
+                    pathname: "/manager/vehicle-service-history" as any,
+                    params: {
+                      vehicleId: vehicle._id,
+                      vehicleReg: vehicle.regNumber,
+                      vehicleModel: vehicle.model,
+                      userName: params.userName
+                    }
+                  });
+                }}>
+                  <Truck size={20} color="#0EA5E9" style={{ marginRight: 8 }} />
+                  <Text style={styles.outlineButtonText}>Service History</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity style={styles.dangerButton} onPress={handleMarkAsSold} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.dangerButtonText}>Mark as Sold</Text>}
-              </TouchableOpacity>
-            </View>
-          )}
+              {userRole === "manager" && vehicle.status !== "Sold" && (
+                <View style={styles.actionContainer}>
+                  <TouchableOpacity style={styles.serviceButton} onPress={handleMarkAsService} disabled={loading}>
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.serviceButtonText}>Mark as In-Service</Text>}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.dangerButton} onPress={handleMarkAsSold} disabled={loading}>
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.dangerButtonText}>Mark as Sold</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
             </>
           )}
         </ScrollView>

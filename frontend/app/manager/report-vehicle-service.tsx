@@ -27,6 +27,8 @@ const ReportVehicleServiceScreen = () => {
     editMode?: string;
     serviceRecordId?: string;
     existingData?: string;
+    reporterName?: string;
+    reporterRole?: string;
   }>();
 
   const isEdit = params.editMode === "true";
@@ -110,6 +112,8 @@ const ReportVehicleServiceScreen = () => {
         odometerReading: parseInt(formData.odometerReading),
         serviceStartDate: formData.serviceStartDate.toISOString(),
         workshopName: formData.workshopName,
+        reportedBy: isEdit ? existing?.reportedBy : (params.reporterName || "Unknown"),
+        reporterRole: isEdit ? existing?.reporterRole : (params.reporterRole || "Manager"),
       };
 
       if (formData.totalServiceCost.trim()) {
