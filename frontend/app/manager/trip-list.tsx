@@ -14,8 +14,10 @@ const TripListScreen = () => {
     try {
       const response = await api.getAllTrips();
       if (response.ok && response.data) {
+        // Filter: only show pending or declined trips
+        const eligibleTrips = response.data.filter((t: any) => t.status === "pending" || t.status === "declined");
         // Sort by newest first
-        setTrips(response.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+        setTrips(eligibleTrips.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
       }
     } catch (error) {
       console.error(error);

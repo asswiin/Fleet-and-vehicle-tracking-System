@@ -57,8 +57,7 @@ exports.createTrip = async (req, res) => {
 
     // Update driver status
     await Driver.findByIdAndUpdate(driverId, {
-      driverStatus: "pending",
-      isAvailable: false
+      driverStatus: "pending"
     });
 
     // Update vehicle status
@@ -202,7 +201,6 @@ exports.updateTripResources = async (req, res) => {
       // 1. Free up the OLD driver
       if (oldDriverId) {
         await Driver.findByIdAndUpdate(oldDriverId, {
-          isAvailable: true,
           driverStatus: "available",
           currentTripId: null
         });
@@ -210,7 +208,6 @@ exports.updateTripResources = async (req, res) => {
 
       // 2. Assign the NEW driver
       await Driver.findByIdAndUpdate(driverId, {
-        isAvailable: false,
         driverStatus: "pending" // Waiting for acceptance
       });
 
@@ -404,8 +401,7 @@ exports.reassignTrip = async (req, res) => {
 
     // Update new driver
     await Driver.findByIdAndUpdate(newDriverId, {
-      driverStatus: "pending",
-      isAvailable: false
+      driverStatus: "pending"
     });
 
     // Update parcels

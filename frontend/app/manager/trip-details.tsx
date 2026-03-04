@@ -53,10 +53,14 @@ const TripDetailsScreen = () => {
           <ArrowLeft size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trip Details</Text>
-        <TouchableOpacity onPress={handleEdit} style={styles.editBtn}>
-          <Edit2 size={20} color="#2563EB" />
-          <Text style={styles.editText}>Edit</Text>
-        </TouchableOpacity>
+        {(trip.status === "pending" || trip.status === "declined") ? (
+          <TouchableOpacity onPress={handleEdit} style={styles.editBtn}>
+            <Edit2 size={20} color="#2563EB" />
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -66,7 +70,7 @@ const TripDetailsScreen = () => {
           <Text style={styles.value}>{trip.tripId}</Text>
           <View style={styles.divider} />
           <Text style={styles.label}>Status</Text>
-          <Text style={[styles.value, { color: trip.status === 'declined' ? '#EF4444' : '#10B981' }]}> 
+          <Text style={[styles.value, { color: trip.status === 'declined' ? '#EF4444' : '#10B981' }]}>
             {trip.status.toUpperCase()}
           </Text>
         </View>
@@ -80,7 +84,7 @@ const TripDetailsScreen = () => {
               <View style={styles.resourceInfo}>
                 <Text style={styles.resourceLabel}>Driver</Text>
                 <Text style={styles.resourceValue}>{trip.driverId?.name || "Unassigned"}</Text>
-                <Text style={styles.resourceSub}>{trip.driverId?.phone}</Text>
+                <Text style={styles.resourceSub}>{trip.driverId?.mobile}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -139,7 +143,7 @@ const TripDetailsScreen = () => {
               </View>
               {/* Sender Details */}
               {(parcel as any).sender && (
-                <View style={{marginTop: 4}}>
+                <View style={{ marginTop: 4 }}>
                   <Text style={styles.resourceLabel}>Sender:</Text>
                   <Text style={styles.parcelSubText}>Name: {(parcel as any).sender.name}</Text>
                   <Text style={styles.parcelSubText}>Phone: {(parcel as any).sender.phone}</Text>
@@ -148,7 +152,7 @@ const TripDetailsScreen = () => {
               )}
               {/* Receiver Details */}
               {parcel.recipient && (
-                <View style={{marginTop: 4}}>
+                <View style={{ marginTop: 4 }}>
                   <Text style={styles.resourceLabel}>Receiver:</Text>
                   <Text style={styles.parcelSubText}>Name: {parcel.recipient.name}</Text>
                   {(parcel.recipient as any).phone && <Text style={styles.parcelSubText}>Phone: {(parcel.recipient as any).phone}</Text>}

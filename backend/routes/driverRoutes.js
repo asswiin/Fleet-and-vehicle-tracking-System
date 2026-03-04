@@ -230,61 +230,87 @@ router.put("/:id", async (req, res) => {
 router.post("/:id/punch", async (req, res) => {
   try {
     const driverId = req.params.id;
-    const driver = await Driver.findById(driverId);
+    console.log(`[PUNCH-IN] Request for driver: ${driverId}`);
+    console.log(`[PUNCH-IN] DB readyState: ${require('mongoose').connection.readyState}`);
 
+    const driver = await Driver.findById(driverId);
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
     }
+    console.log(`[PUNCH-IN] Driver found: ${driver.name}, mobile: ${driver.mobile}, email: ${driver.email}`);
 
-    // Use client's local date components to create the correct date
-    // This fixes timezone issues where server UTC differs from client's local time
-    let today;
-    if (req.body.localDate) {
+    // Calculate today's date boundaries
+    // Use client's local date if provided (handles timezone differences)
+    let startOfDay, endOfDay;
+    if (req.body && req.body.localDate) {
       const { year, month, day } = req.body.localDate;
-      today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
     } else {
-      today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const now = new Date();
+      startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
     }
 
-    // Check if a record already exists for today
+    console.log(`[PUNCH-IN] Date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+
+    // Check if a record already exists for today (use date range for robustness)
     const existingRecord = await PunchRecord.findOne({
       driver: driverId,
-      date: today
+      date: { $gte: startOfDay, $lte: endOfDay }
     });
 
     if (existingRecord) {
+      console.log(`[PUNCH-IN] Already punched in: ${existingRecord._id}`);
       return res.status(400).json({ message: "You have already punched in today." });
     }
 
-    // Create new Punch Record
-    const newPunch = new PunchRecord({
-      driver: driverId,
-      name: driver.name,
-      email: driver.email,
-      phone: driver.mobile,
-      date: today,
-      punchIn: new Date(),
-      status: "On-Duty"
-    });
-    await newPunch.save();
+    // Step 1: Create PunchRecord FIRST and verify it persisted
+    let savedPunch;
+    try {
+      const punchData = {
+        driver: driverId,
+        name: driver.name || "Unknown",
+        email: driver.email || "unknown@unknown.com",
+        phone: driver.mobile || "0000000000",
+        date: startOfDay,
+        punchIn: new Date(),
+        status: "On-Duty"
+      };
+      console.log(`[PUNCH-IN] Creating PunchRecord with data:`, JSON.stringify(punchData));
 
-    // Update Driver Status for Dashboard
+      savedPunch = await PunchRecord.create(punchData);
+      console.log(`[PUNCH-IN] PunchRecord.create() returned _id: ${savedPunch?._id}, status: ${savedPunch?.status}`);
+    } catch (createErr) {
+      console.error(`[PUNCH-IN] PunchRecord.create() FAILED:`, createErr.message);
+      return res.status(500).json({ message: "Failed to create punch record", error: createErr.message });
+    }
+
+    // Step 2: Verify the record actually exists in DB
+    const verified = await PunchRecord.findById(savedPunch._id);
+    if (!verified) {
+      console.error(`[PUNCH-IN] VERIFICATION FAILED - PunchRecord ${savedPunch._id} not found after create!`);
+      return res.status(500).json({ message: "Punch record was not saved to database" });
+    }
+    console.log(`[PUNCH-IN] VERIFIED PunchRecord ${verified._id} exists with status: ${verified.status}`);
+
+    // Step 3: Only NOW update Driver status (after punch record is confirmed)
     driver.isAvailable = true;
-
-    // Only set the display status to available if they don't have an active/pending trip
     const hasActiveTrip = ["Accepted", "On-trip", "pending"].includes(driver.driverStatus);
     if (!hasActiveTrip) {
       driver.driverStatus = "available";
     }
     await driver.save();
 
+    console.log(`[PUNCH-IN] Driver ${driverId} updated: isAvailable=true, driverStatus=${driver.driverStatus}`);
+
     res.json({
       message: "Punch in recorded successfully.",
-      data: driver
+      data: driver,
+      punchRecordId: savedPunch._id
     });
   } catch (err) {
-    console.error("Punch Driver Error:", err);
+    console.error("[PUNCH-IN] UNEXPECTED ERROR:", err.message, err.stack);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
@@ -293,26 +319,28 @@ router.post("/:id/punch", async (req, res) => {
 router.post("/:id/punch-out", async (req, res) => {
   try {
     const driverId = req.params.id;
-    const driver = await Driver.findById(driverId);
+    console.log(`[PUNCH-OUT] Request for driver: ${driverId}`);
 
+    const driver = await Driver.findById(driverId);
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
     }
 
-    // Use client's local date components to create the correct date
-    // This fixes timezone issues where server UTC differs from client's local time
-    let today;
-    if (req.body.localDate) {
+    // Calculate today's date boundaries
+    let startOfDay, endOfDay;
+    if (req.body && req.body.localDate) {
       const { year, month, day } = req.body.localDate;
-      today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
     } else {
-      today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const now = new Date();
+      startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
     }
 
     const activeRecord = await PunchRecord.findOne({
       driver: driverId,
-      date: today,
+      date: { $gte: startOfDay, $lte: endOfDay },
       punchOut: null // Ensure it hasn't been punched out yet
     });
 
@@ -320,7 +348,7 @@ router.post("/:id/punch-out", async (req, res) => {
       // Check if they punched out already
       const completedRecord = await PunchRecord.findOne({
         driver: driverId,
-        date: today,
+        date: { $gte: startOfDay, $lte: endOfDay },
         punchOut: { $ne: null }
       });
 
@@ -335,8 +363,10 @@ router.post("/:id/punch-out", async (req, res) => {
     activeRecord.status = "Completed";
     await activeRecord.save();
 
+    console.log(`[PUNCH-OUT] Record updated: ${activeRecord._id}`);
+
     // Update Driver Status for Dashboard
-    driver.isAvailable = false; // Marking as not available for new assignments regardless of current status
+    driver.isAvailable = false;
 
     // Only set the display status to offline if they don't have an active/pending trip
     const hasActiveTrip = ["Accepted", "On-trip", "pending"].includes(driver.driverStatus);
@@ -350,7 +380,7 @@ router.post("/:id/punch-out", async (req, res) => {
       data: driver
     });
   } catch (err) {
-    console.error("Punch Out Driver Error:", err);
+    console.error("Punch Out Driver Error:", err.message, err.stack);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });

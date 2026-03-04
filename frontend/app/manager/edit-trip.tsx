@@ -19,16 +19,16 @@ import { api, Driver, Vehicle } from "../../utils/api";
 const EditTripScreen = () => {
   const router = useRouter();
   const { tripId, tripData } = useLocalSearchParams<{ tripId: string; tripData: string }>();
-  
+
   // Parse initial data
   const initialTrip = JSON.parse(tripData || "{}");
 
   const [selectedDriver, setSelectedDriver] = useState<string>(initialTrip.driverId?._id || "");
   const [selectedVehicle, setSelectedVehicle] = useState<string>(initialTrip.vehicleId?._id || "");
-  
+
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  
+
   const [loadingResources, setLoadingResources] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -62,6 +62,12 @@ const EditTripScreen = () => {
   };
 
   useEffect(() => {
+    // Only allow editing if pending or declined
+    if (initialTrip.status !== "pending" && initialTrip.status !== "declined") {
+      Alert.alert("Access Denied", "Only pending or declined trips can be edited.");
+      router.back();
+      return;
+    }
     fetchResources();
   }, []);
 
@@ -75,7 +81,7 @@ const EditTripScreen = () => {
 
       if (driversRes.ok && driversRes.data) {
         const driverList = Array.isArray(driversRes.data) ? driversRes.data : (driversRes.data as any).data;
-        const available = driverList.filter((d: Driver) => 
+        const available = driverList.filter((d: Driver) =>
           (d.status === "Active" && d.isAvailable && d.driverStatus !== "On-trip") || d._id === initialTrip.driverId?._id
         );
         setDrivers(available);
@@ -115,11 +121,11 @@ const EditTripScreen = () => {
 
     Alert.alert("Confirm Update", confirmMessage, [
       { text: "Cancel", style: "cancel" },
-      { 
-        text: "Confirm", 
+      {
+        text: "Confirm",
         onPress: async () => {
           performUpdate();
-        } 
+        }
       }
     ]);
   };
@@ -135,14 +141,14 @@ const EditTripScreen = () => {
 
       if (response.ok) {
         Alert.alert(
-          "Success", 
-          "Trip updated successfully! " + (selectedDriver !== initialTrip.driverId?._id ? "New driver has been notified." : ""), 
-          [{ 
-            text: "OK", 
+          "Success",
+          "Trip updated successfully! " + (selectedDriver !== initialTrip.driverId?._id ? "New driver has been notified." : ""),
+          [{
+            text: "OK",
             onPress: () => {
               // Redirect to Manager Dashboard after editing
               router.push("/manager/manager-dashboard" as any);
-            } 
+            }
           }]
         );
       } else {
@@ -183,8 +189,8 @@ const EditTripScreen = () => {
 
         {/* Driver Selection */}
         <Text style={styles.label}>Assigned Driver</Text>
-        <TouchableOpacity 
-          style={styles.selector} 
+        <TouchableOpacity
+          style={styles.selector}
           onPress={() => setShowDriverModal(true)}
         >
           <View style={styles.selectorContent}>
@@ -201,7 +207,7 @@ const EditTripScreen = () => {
 
         {/* Vehicle Selection */}
         <Text style={styles.label}>Assigned Vehicle</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.selector}
           onPress={() => setShowVehicleModal(true)}
         >
@@ -217,8 +223,8 @@ const EditTripScreen = () => {
           <Text style={styles.changeText}>Change</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.saveBtn, saving && styles.disabledBtn]} 
+        <TouchableOpacity
+          style={[styles.saveBtn, saving && styles.disabledBtn]}
           onPress={handleSave}
           disabled={saving}
         >
@@ -243,13 +249,13 @@ const EditTripScreen = () => {
             <Text style={styles.modalTitle}>Select Driver</Text>
             <View style={{ width: 24 }} />
           </View>
-          {loadingResources ? <ActivityIndicator size="large" color="#2563EB" style={{marginTop: 20}} /> : (
+          {loadingResources ? <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 20 }} /> : (
             <FlatList
               data={drivers}
               keyExtractor={item => item._id}
               contentContainerStyle={{ padding: 16 }}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.modalItem, selectedDriver === item._id && styles.modalItemSelected]}
                   onPress={() => {
                     setSelectedDriver(item._id);
@@ -257,7 +263,7 @@ const EditTripScreen = () => {
                   }}
                 >
                   <View>
-                    <Text style={[styles.itemTitle, selectedDriver === item._id && {color: "#2563EB"}]}>{item.name}</Text>
+                    <Text style={[styles.itemTitle, selectedDriver === item._id && { color: "#2563EB" }]}>{item.name}</Text>
                     <Text style={styles.itemSub}>{item.mobile} • {item.driverStatus || "Available"}</Text>
                   </View>
                   {selectedDriver === item._id && <CheckCircle size={20} color="#2563EB" />}
@@ -278,13 +284,13 @@ const EditTripScreen = () => {
             <Text style={styles.modalTitle}>Select Vehicle</Text>
             <View style={{ width: 24 }} />
           </View>
-          {loadingResources ? <ActivityIndicator size="large" color="#2563EB" style={{marginTop: 20}} /> : (
+          {loadingResources ? <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 20 }} /> : (
             <FlatList
               data={vehicles}
               keyExtractor={item => item._id}
               contentContainerStyle={{ padding: 16 }}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.modalItem, selectedVehicle === item._id && styles.modalItemSelected]}
                   onPress={() => {
                     setSelectedVehicle(item._id);
@@ -292,7 +298,7 @@ const EditTripScreen = () => {
                   }}
                 >
                   <View>
-                    <Text style={[styles.itemTitle, selectedVehicle === item._id && {color: "#2563EB"}]}>{item.regNumber}</Text>
+                    <Text style={[styles.itemTitle, selectedVehicle === item._id && { color: "#2563EB" }]}>{item.regNumber}</Text>
                     <Text style={styles.itemSub}>{item.model} • {item.capacity}kg</Text>
                   </View>
                   {selectedVehicle === item._id && <CheckCircle size={20} color="#2563EB" />}
@@ -314,7 +320,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   content: { padding: 20 },
   sectionLabel: { fontSize: 16, fontWeight: "700", color: "#1E293B", marginBottom: 20 },
-  
+
   warningBox: {
     flexDirection: "row",
     backgroundColor: "#FFFBEB",
@@ -328,17 +334,17 @@ const styles = StyleSheet.create({
   warningText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 20 },
 
   label: { fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
-  selector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#fff", padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 20, shadowColor: "#000", shadowOffset: {width:0, height:1}, shadowOpacity:0.05, shadowRadius:2, elevation: 1 },
+  selector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#fff", padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   selectorContent: { flexDirection: "row", alignItems: "center", gap: 16 },
   iconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   selectorLabel: { fontSize: 11, color: "#64748B", fontWeight: "600" },
   selectorText: { fontSize: 16, color: "#0F172A", fontWeight: "700" },
   changeText: { color: "#2563EB", fontWeight: "600", fontSize: 14 },
-  
-  saveBtn: { backgroundColor: "#2563EB", flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 18, borderRadius: 16, gap: 8, marginTop: 20, shadowColor: "#2563EB", shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation: 6 },
+
+  saveBtn: { backgroundColor: "#2563EB", flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 18, borderRadius: 16, gap: 8, marginTop: 20, shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   disabledBtn: { opacity: 0.7 },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  
+
   // Modal
   modalContainer: { flex: 1, backgroundColor: "#fff" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },

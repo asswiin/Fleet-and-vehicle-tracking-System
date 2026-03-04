@@ -394,8 +394,7 @@ exports.reassignDriver = async (req, res) => {
 
     // Update new driver status to "pending" when trip is reassigned
     await Driver.findByIdAndUpdate(newDriverId, {
-      driverStatus: "pending",
-      isAvailable: false
+      driverStatus: "pending"
     });
 
     // Update parcels with new driver assignment

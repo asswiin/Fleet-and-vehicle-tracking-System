@@ -30,6 +30,7 @@ import {
   MessageSquare,
   LogOut,
   MapPin,
+  DollarSign,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
 import type { User as UserType } from "../../utils/api";
@@ -349,10 +350,10 @@ const ManagerDashboard = () => {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionItem}>
-              <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
-                <AlertTriangle size={24} color="#DC2626" />
+              <View style={[styles.actionIcon, { backgroundColor: "#DCFCE7" }]}>
+                <DollarSign size={24} color="#166534" />
               </View>
-              <Text style={styles.actionLabel}>Alerts</Text>
+              <Text style={styles.actionLabel}>Expenses</Text>
             </TouchableOpacity>
           </View>
 
@@ -553,10 +554,10 @@ const styles = StyleSheet.create({
   statBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   statLabelWhite: { color: "#fff", fontSize: 16, fontWeight: "500" },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginBottom: 12 },
-  actionGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: 8, marginBottom: 20 },
-  actionItem: { alignItems: "center", width: (width - 32 - 24) / 4, marginBottom: 12 },
-  actionIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 6 },
-  actionLabel: { fontSize: 10, fontWeight: "600", color: "#4B5563" },
+  actionGrid: { flexDirection: "row", justifyContent: "space-between", alignItems: 'flex-start', marginBottom: 20 },
+  actionItem: { alignItems: "center", width: (width - 32) / 5 },
+  actionIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 6 },
+  actionLabel: { fontSize: 9, fontWeight: "700", color: "#4B5563", textAlign: 'center' },
   declinedBadge: {
     position: 'absolute',
     top: -6,

@@ -33,6 +33,7 @@ export interface User {
 }
 
 export interface Vehicle {
+  [x: string]: any;
   _id: string;
   regNumber: string;
   model: string;
@@ -444,8 +445,24 @@ const api = {
   getDriver: (id: string) => apiCall(`/api/drivers/${id}`),
   createDriver: (data: any) => apiCall("/api/drivers/register", { method: "POST", body: JSON.stringify(data) }),
   updateDriver: (id: string, data: any) => apiCall(`/api/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  punchDriver: (id: string) => apiCall(`/api/drivers/${id}/punch`, { method: "POST" }),
-  punchOutDriver: (id: string) => apiCall(`/api/drivers/${id}/punch-out`, { method: "POST" }),
+  punchDriver: (id: string) => {
+    const now = new Date();
+    return apiCall(`/api/drivers/${id}/punch`, {
+      method: "POST",
+      body: JSON.stringify({
+        localDate: { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() }
+      })
+    });
+  },
+  punchOutDriver: (id: string) => {
+    const now = new Date();
+    return apiCall(`/api/drivers/${id}/punch-out`, {
+      method: "POST",
+      body: JSON.stringify({
+        localDate: { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() }
+      })
+    });
+  },
   getPunchHistory: (id: string) => apiCall(`/api/drivers/${id}/punch-history`, { method: "GET" }),
   checkLicenseExists: (license: string, excludeId?: string) =>
     apiCall(`/api/drivers/check-license/${license}${excludeId ? `?excludeId=${excludeId}` : ''}`),
