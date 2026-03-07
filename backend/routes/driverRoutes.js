@@ -275,7 +275,7 @@ router.post("/:id/punch", async (req, res) => {
         phone: driver.mobile || "0000000000",
         date: startOfDay,
         punchIn: new Date(),
-        status: "On-Duty"
+        status: "on duty"
       };
       console.log(`[PUNCH-IN] Creating PunchRecord with data:`, JSON.stringify(punchData));
 
@@ -360,19 +360,14 @@ router.post("/:id/punch-out", async (req, res) => {
 
     // Update Punch Record
     activeRecord.punchOut = new Date();
-    activeRecord.status = "Completed";
+    activeRecord.status = "completed";
     await activeRecord.save();
 
     console.log(`[PUNCH-OUT] Record updated: ${activeRecord._id}`);
 
     // Update Driver Status for Dashboard
     driver.isAvailable = false;
-
-    // Only set the display status to offline if they don't have an active/pending trip
-    const hasActiveTrip = ["Accepted", "On-trip", "pending"].includes(driver.driverStatus);
-    if (!hasActiveTrip) {
-      driver.driverStatus = "offline";
-    }
+    driver.driverStatus = "offline";
     await driver.save();
 
     res.json({
@@ -398,7 +393,8 @@ router.get("/:id/punch-history", async (req, res) => {
     const formattedHistory = history.map(record => ({
       date: record.date,
       punchInTime: record.punchIn,
-      punchOutTime: record.punchOut
+      punchOutTime: record.punchOut,
+      status: record.status
     }));
 
     res.json({

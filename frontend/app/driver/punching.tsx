@@ -48,6 +48,7 @@ interface PunchRecord {
   date: string;
   punchInTime?: string;
   punchOutTime?: string;
+  status?: string;
 }
 
 const PunchingScreen = () => {
@@ -139,6 +140,14 @@ const PunchingScreen = () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setCurrentAddress("Permission Denied");
+        setIsLocationLoading(false);
+        return;
+      }
+
+      // Check if location services are enabled
+      const enabled = await Location.hasServicesEnabledAsync();
+      if (!enabled) {
+        setCurrentAddress("GPS Disabled");
         setIsLocationLoading(false);
         return;
       }

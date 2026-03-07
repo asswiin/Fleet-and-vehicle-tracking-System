@@ -14,7 +14,7 @@ cron.schedule('0 0 * * *', async () => {
 
     // 1. Find all active punch records that haven't been closed (punchOut is null)
     const activePunchRecords = await PunchRecord.find({
-      status: 'On-Duty',
+      status: 'on duty',
       punchOut: null
     });
 
@@ -32,23 +32,15 @@ cron.schedule('0 0 * * *', async () => {
       endOfDay.setUTCHours(23, 59, 59, 999);
 
       record.punchOut = endOfDay;
-      record.status = 'Completed';
+      record.status = 'completed';
       await record.save();
 
       // 3. Update the associated Driver
-      // Set isAvailable to false and driverStatus to 'offline'
+      // Set isAvailable to false and driverStatus to 'offline' ALWAYS at end of day
       const driver = await Driver.findById(record.driver);
       if (driver) {
         driver.isAvailable = false;
-
-        // Only set status to offline if they aren't currently on a trip
-        // but typically drivers who forget to punch out should be set to offline for the next day
-        if (!['Accepted', 'On-trip'].includes(driver.driverStatus)) {
-          driver.driverStatus = 'offline';
-        } else {
-          // If they were on a trip but forgot to punch out, they are still offline now
-          driver.driverStatus = 'offline';
-        }
+        driver.driverStatus = 'offline';
 
         await driver.save();
         updatedCount++;

@@ -25,12 +25,12 @@ const ManagerNotificationsScreen = () => {
 
   const fetchNotifications = useCallback(async () => {
     if (!managerId) return;
-    
+
     try {
       const response = await api.getManagerNotifications(managerId);
       if (response.ok && response.data) {
         // Sort by created date, newest first
-        const sortedNotifications = response.data.sort((a, b) => 
+        const sortedNotifications = response.data.sort((a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         setNotifications(sortedNotifications);
@@ -80,8 +80,8 @@ const ManagerNotificationsScreen = () => {
     try {
       await api.markNotificationAsRead(notificationId);
       // Update local state
-      setNotifications(prev => 
-        prev.map(notif => 
+      setNotifications(prev =>
+        prev.map(notif =>
           notif._id === notificationId ? { ...notif, read: true } : notif
         )
       );
@@ -92,6 +92,7 @@ const ManagerNotificationsScreen = () => {
 
   const renderNotificationItem = ({ item }: { item: Notification }) => {
     const isDeclined = item.type === "driver_declined";
+    const isDelivered = item.type === "parcel_delivered";
     const canReassign = isDeclined && item.status === "pending";
 
     return (
@@ -99,7 +100,8 @@ const ManagerNotificationsScreen = () => {
         style={[
           styles.notificationCard,
           !item.read && styles.unreadCard,
-          canReassign && styles.actionableCard
+          canReassign && styles.actionableCard,
+          isDelivered && styles.deliveredCard
         ]}
         onPress={() => {
           if (!item.read) {
@@ -107,6 +109,11 @@ const ManagerNotificationsScreen = () => {
           }
           if (canReassign) {
             handleReassignDriver(item);
+          } else if (isDelivered && item.deliveredParcelId) {
+            router.push({
+              pathname: "/manager/delivered-parcel-details",
+              params: { historyId: item.deliveredParcelId }
+            } as any);
           }
         }}
       >
@@ -115,6 +122,10 @@ const ManagerNotificationsScreen = () => {
             {isDeclined ? (
               <View style={styles.declinedBadge}>
                 <Text style={styles.declinedBadgeText}>DRIVER DECLINED</Text>
+              </View>
+            ) : isDelivered ? (
+              <View style={styles.deliveredBadge}>
+                <Text style={styles.deliveredBadgeText}>PARCEL DELIVERED</Text>
               </View>
             ) : (
               <View style={styles.infoBadge}>
@@ -152,7 +163,7 @@ const ManagerNotificationsScreen = () => {
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.timeContainer}>
             <Clock size={12} color="#9CA3AF" />
             <Text style={styles.timeText}>
@@ -293,6 +304,10 @@ const styles = StyleSheet.create({
     borderColor: "#F59E0B",
     backgroundColor: "#FFFBEB",
   },
+  deliveredCard: {
+    borderColor: "#10B981",
+    backgroundColor: "#ECFDF5",
+  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -314,6 +329,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: "#DC2626",
+  },
+  deliveredBadge: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  deliveredBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#059669",
   },
   infoBadge: {
     backgroundColor: "#EFF6FF",

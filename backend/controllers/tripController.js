@@ -694,7 +694,8 @@ exports.updateDeliveryStatus = async (req, res) => {
                 type: "parcel_delivered",
                 status: "accepted",
                 message: `Parcel ${fullParcel.trackingId} has been delivered by ${fullTrip.driverId?.name || "the driver"}.`,
-                assignedBy: fullTrip.assignedBy
+                assignedBy: fullTrip.assignedBy,
+                deliveredParcelId: archivedDelivery._id
               });
               await managerNotification.save();
             } catch (notifErr) {

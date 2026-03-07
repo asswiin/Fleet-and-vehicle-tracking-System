@@ -11,7 +11,7 @@ import {
   TextInput,
   FlatList,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Package, ArrowLeft, Plus, MapPin, User, Search, Truck, UserCheck } from "lucide-react-native";
 import { api, type Parcel } from "../../utils/api";
 
@@ -48,11 +48,12 @@ interface StatusStyle {
 
 const ParcelListScreen = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [selectedTab, setSelectedTab] = useState("All");
+  const [selectedTab, setSelectedTab] = useState((params.status as string) || "All");
 
   const loadParcels = useCallback(async () => {
     setLoading(true);

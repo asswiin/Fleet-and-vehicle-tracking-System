@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   Animated,
+  Modal,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -29,6 +30,9 @@ import {
   LogOut,
   MapPin,
   DollarSign,
+  Bell,
+  CheckCircle,
+  Activity,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
 import type { User as UserType } from "../../utils/api";
@@ -82,6 +86,9 @@ const ManagerDashboard = () => {
   const [activeTrips, setActiveTrips] = useState<any[]>([]);
   const [sosAlertActive, setSosAlertActive] = useState(false);
   const [serviceAlertCount, setServiceAlertCount] = useState(0);
+  const [deliveryUnreadCount, setDeliveryUnreadCount] = useState(0);
+  const [latestDeliveredNotification, setLatestDeliveredNotification] = useState<any>(null);
+  const [isNotifModalVisible, setIsNotifModalVisible] = useState(false);
 
   // Expiry Warning Helpers
   const parseDate = (dateInput?: string): Date | null => {
@@ -161,8 +168,35 @@ const ManagerDashboard = () => {
         }
       };
 
+      const fetchUnreadNotifications = async () => {
+        if (!userId) return;
+
+        // Unread count
+        const countRes = await api.getManagerUnreadNotificationCount(userId);
+        if (countRes.ok && countRes.data) {
+          setDeliveryUnreadCount(countRes.data.count);
+        } else {
+          setDeliveryUnreadCount(0);
+        }
+
+        // List of all delivery notifications
+        const listRes = await api.getManagerNotifications(userId);
+        if (listRes.ok && Array.isArray(listRes.data)) {
+          // Find the latest unread delivery notification
+          const unreadDeliveries = listRes.data.filter(n => !n.read && n.type === "parcel_delivered");
+          if (unreadDeliveries.length > 0) {
+            setLatestDeliveredNotification(unreadDeliveries[0]);
+          } else {
+            // Also keep track of the last one even if read, for the '1' badge logic if needed
+            // but the user wants '1' only for unread.
+            setLatestDeliveredNotification(listRes.data.find(n => n.type === "parcel_delivered") || null);
+          }
+        }
+      };
+
       const refreshData = async () => {
         fetchDeclined();
+        fetchUnreadNotifications();
         checkVehicleExpiries();
         fetchActiveTrips();
 
@@ -241,6 +275,28 @@ const ManagerDashboard = () => {
               </View>
             </View>
             <View style={styles.headerRight}>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => {
+                  if (latestDeliveredNotification) {
+                    setIsNotifModalVisible(true);
+                  } else {
+                    router.push({
+                      pathname: "/manager/manager-notifications",
+                      params: { managerId: userId },
+                    } as any);
+                  }
+                }}
+              >
+                <Bell size={24} color="#64748B" />
+                {(declinedCount > 0 || serviceAlertCount > 0 || deliveryUnreadCount > 0) && (
+                  <View style={styles.notificationDot}>
+                    <Text style={styles.notificationBadgeText}>
+                      {deliveryUnreadCount > 0 ? deliveryUnreadCount : ""}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
                 <LogOut size={24} color="#EF4444" />
               </TouchableOpacity>
@@ -277,26 +333,19 @@ const ManagerDashboard = () => {
           {/* Quick Actions */}
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionGrid}>
+            {/* ROW 1: CORE OPERATIONS */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => router.push({
-                pathname: "/manager/on-going-trip",
-                params: { userId: userId, userName: displayName }
+                pathname: "/manager/selecting-parcel-improved",
+                params: { managerId: userId }
               } as any)}
             >
-              <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
-                <Truck size={24} color="#0284C7" />
-                {sosAlertActive && (
-                  <View style={[styles.declinedBadge, { backgroundColor: '#EF4444' }]}>
-                    <Text style={[styles.declinedBadgeText, { fontSize: 9 }]}>⚠️</Text>
-                  </View>
-                )}
+              <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
+                <Navigation size={22} color="#9333EA" />
               </View>
-              <Text style={styles.actionLabel}>Trip</Text>
+              <Text style={styles.actionLabel}>Assign Trip</Text>
             </TouchableOpacity>
-
-
-
 
             <TouchableOpacity
               style={styles.actionItem}
@@ -305,8 +354,8 @@ const ManagerDashboard = () => {
                 params: { userId: userId, userName: displayName }
               } as any)}
             >
-              <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
-                <Truck size={24} color="#0284C7" />
+              <View style={[styles.actionIcon, { backgroundColor: "#DBEAFE" }]}>
+                <Truck size={22} color="#2563EB" />
                 {declinedCount > 0 && (
                   <View style={styles.declinedBadge}>
                     <Text style={styles.declinedBadgeText}>{declinedCount}</Text>
@@ -316,30 +365,50 @@ const ManagerDashboard = () => {
               <Text style={styles.actionLabel}>Manage Trips</Text>
             </TouchableOpacity>
 
-
-
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => router.push({
-                pathname: "/manager/selecting-parcel-improved",
-                params: { managerId: userId }
+                pathname: "/manager/on-going-trip",
+                params: { userId: userId, userName: displayName }
               } as any)}
             >
-              <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
-                <Navigation size={24} color="#9333EA" />
+              <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
+                <Activity size={22} color="#0284C7" />
+                {sosAlertActive && (
+                  <View style={[styles.declinedBadge, { backgroundColor: '#EF4444' }]}>
+                    <Text style={[styles.declinedBadgeText, { fontSize: 9 }]}>⚠️</Text>
+                  </View>
+                )}
               </View>
-              <Text style={styles.actionLabel}>Assign Trip</Text>
+              <Text style={styles.actionLabel}>Ongoing</Text>
+            </TouchableOpacity>
+
+            {/* ROW 2: MANAGEMENT & HISTORY */}
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => router.push("/manager/delivered-parcels" as any)}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: "#DCFCE7" }]}>
+                <CheckCircle size={22} color="#166534" />
+              </View>
+              <Text style={styles.actionLabel}>Delivered</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => router.push({
-                pathname: "/manager/vehicle-service-history",
-                params: { userName: displayName }
-              } as any)}
+              onPress={async () => {
+                if (serviceAlertCount > 0) {
+                  await api.markVehicleServicesAsRead();
+                  setServiceAlertCount(0);
+                }
+                router.push({
+                  pathname: "/manager/vehicle-service-history",
+                  params: { userName: displayName }
+                } as any);
+              }}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#FFEDD5" }]}>
-                <Wrench size={24} color="#EA580C" />
+                <Wrench size={22} color="#EA580C" />
                 {serviceAlertCount > 0 && (
                   <View style={[styles.declinedBadge, { backgroundColor: '#F59E0B' }]}>
                     <Text style={styles.declinedBadgeText}>!</Text>
@@ -356,8 +425,8 @@ const ManagerDashboard = () => {
                 params: { userId: userId, userName: displayName }
               } as any)}
             >
-              <View style={[styles.actionIcon, { backgroundColor: "#DCFCE7" }]}>
-                <DollarSign size={24} color="#166534" />
+              <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
+                <DollarSign size={22} color="#DC2626" />
               </View>
               <Text style={styles.actionLabel}>Expenses</Text>
             </TouchableOpacity>
@@ -565,10 +634,29 @@ const styles = StyleSheet.create({
   statBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   statLabelWhite: { color: "#fff", fontSize: 16, fontWeight: "500" },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginBottom: 12 },
-  actionGrid: { flexDirection: "row", justifyContent: "space-between", alignItems: 'flex-start', marginBottom: 20 },
-  actionItem: { alignItems: "center", width: (width - 32) / 5 },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  actionItem: {
+    alignItems: "center",
+    width: (width - 64 - 24) / 3, // 32 (scroll padding) + 32 (grid padding)
+    marginBottom: 12
+  },
   actionIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 6 },
-  actionLabel: { fontSize: 9, fontWeight: "700", color: "#4B5563", textAlign: 'center' },
+  actionLabel: { fontSize: 10, fontWeight: "700", color: "#4B5563", textAlign: 'center' },
   declinedBadge: {
     position: 'absolute',
     top: -6,
@@ -583,6 +671,114 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: '#fff',
+  },
+  notificationDot: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#EF4444",
+    borderWidth: 2,
+    borderColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  notificationPreviewCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  previewCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  deliveredBadge: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  deliveredBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#059669",
+  },
+  previewTime: {
+    fontSize: 12,
+    color: "#64748B",
+  },
+  previewMessage: {
+    fontSize: 15,
+    color: "#1E293B",
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  previewFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2563EB",
+  },
+  noNotifText: {
+    textAlign: "center",
+    color: "#64748B",
+    paddingVertical: 40,
+    fontSize: 15,
+  },
+  viewAllBtn: {
+    marginTop: 20,
+    backgroundColor: "#2563EB",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  viewAllBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
   declinedBadgeText: {
     color: '#fff',

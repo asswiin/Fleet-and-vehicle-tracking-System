@@ -21,14 +21,14 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from 'expo-file-system/legacy';
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { api, Driver } from "../../utils/api";
-import { 
-  ChevronLeft, 
-  Save, 
-  MapPin, 
-  Camera, 
-  Upload, 
-  User, 
-  Calendar, 
+import {
+  ChevronLeft,
+  Save,
+  MapPin,
+  Camera,
+  Upload,
+  User,
+  Calendar,
   CreditCard,
   ChevronDown,
   Check
@@ -45,18 +45,18 @@ const KERALA_DISTRICTS = [
 const EditDriverProfileScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ driverData: string }>();
-  
+
   const [loading, setLoading] = useState(false);
-  
+
   // Parse initial data
   let initialData: Driver | null = null;
   try {
     if (params.driverData) initialData = JSON.parse(params.driverData);
-  } catch(e) { console.error(e); }
+  } catch (e) { console.error(e); }
 
   // Strip +91 from mobile if present
-  const cleanMobile = initialData?.mobile?.startsWith('+91') 
-    ? initialData.mobile.substring(3) 
+  const cleanMobile = initialData?.mobile?.startsWith('+91')
+    ? initialData.mobile.substring(3)
     : initialData?.mobile || "";
 
   // Format license with space after first 4 characters
@@ -103,7 +103,7 @@ const EditDriverProfileScreen = () => {
   const [newLicenseAsset, setNewLicenseAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   // --- HANDLERS ---
-  
+
   const pickImage = async (type: 'profile' | 'license') => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -113,15 +113,15 @@ const EditDriverProfileScreen = () => {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true, 
-      aspect: type === 'profile' ? [1, 1] : [4, 3], 
-      quality: 0.3, 
+      allowsEditing: true,
+      aspect: type === 'profile' ? [1, 1] : [4, 3],
+      quality: 0.3,
     });
 
     if (!result.canceled) {
       const asset = result.assets[0];
       if (type === 'profile') {
-        setProfileImageUri(asset.uri); 
+        setProfileImageUri(asset.uri);
         setNewProfileAsset(asset); // Store asset
       } else {
         setLicenseImageUri(asset.uri);
@@ -145,7 +145,7 @@ const EditDriverProfileScreen = () => {
 
   const handleDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') setShowDobPicker(false);
-    
+
     if (selectedDate) {
       setForm({ ...form, dob: selectedDate.toISOString() });
     }
@@ -160,13 +160,13 @@ const EditDriverProfileScreen = () => {
   const handleLicenseChange = (text: string) => {
     // Remove all spaces and convert to uppercase
     const cleaned = text.toUpperCase().replace(/\s/g, '');
-    
+
     // Format: AAXX YYYYYYYYYYY (space after first 4 characters)
     let formatted = cleaned;
     if (cleaned.length > 4) {
       formatted = cleaned.slice(0, 4) + ' ' + cleaned.slice(4);
     }
-    
+
     // Limit to 15 characters (excluding space)
     if (cleaned.length <= 15) {
       setForm({ ...form, license: formatted });
@@ -175,7 +175,7 @@ const EditDriverProfileScreen = () => {
 
   const handleUpdate = async () => {
     if (!initialData?._id) return;
-    
+
     if (!form.name || !form.email || !form.mobile || !form.license || !form.gender || !form.dob) {
       Alert.alert("Error", "All fields including License, Gender, and DOB are required.");
       return;
@@ -191,7 +191,7 @@ const EditDriverProfileScreen = () => {
     // Email Validation (Allowed Providers)
     const allowedDomainsRegex = /@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com|icloud\.com|proton\.me|protonmail\.com|zoho\.com|aol\.com|mail\.com|gmx\.com|yandex\.com|rediffmail\.com|yahoo\.co\.in|outlook\.in|live\.com|msn\.com|hey\.com)$/i;
     const standardEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    
+
     if (!standardEmailRegex.test(form.email) || !allowedDomainsRegex.test(form.email)) {
       Alert.alert("Invalid Email", "Please enter a valid email address.");
       return;
@@ -203,7 +203,7 @@ const EditDriverProfileScreen = () => {
 
     if (cleanLicense.length !== 15 || !licenseRegex.test(cleanLicense)) {
       Alert.alert(
-        "Invalid License", 
+        "Invalid License",
         "License must follow format: State(2) RTO(2) Year(4) ID(7).\nExample: MH14 20110062821"
       );
       return;
@@ -217,7 +217,7 @@ const EditDriverProfileScreen = () => {
       if (licenseCheck.ok && licenseCheck.data?.exists) {
         setLoading(false);
         Alert.alert(
-          "License Already Exists", 
+          "License Already Exists",
           `This license number is already registered to another driver${licenseCheck.data.driverName ? ` (${licenseCheck.data.driverName})` : ''}.`
         );
         return;
@@ -269,7 +269,7 @@ const EditDriverProfileScreen = () => {
         ]);
       } else {
         let errorMessage = response.error || "Could not update profile";
-        
+
         // Parse additional error details if available
         if (response.data && typeof response.data === 'string') {
           try {
@@ -281,13 +281,13 @@ const EditDriverProfileScreen = () => {
         } else if (response.data?.message) {
           errorMessage = response.data.message;
         }
-        
+
         console.error('Update failed:', {
           status: response.status,
           error: response.error,
           data: response.data
         });
-        
+
         Alert.alert("Update Failed", errorMessage);
       }
     } catch (error) {
@@ -316,12 +316,12 @@ const EditDriverProfileScreen = () => {
         <View style={{ width: 28 }} />
       </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          
+
           {/* --- PROFILE PHOTO --- */}
           <View style={styles.profilePhotoContainer}>
             <TouchableOpacity onPress={() => pickImage('profile')} style={styles.avatarWrapper}>
@@ -329,9 +329,9 @@ const EditDriverProfileScreen = () => {
                 <Image source={{ uri: profileImageUri }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                   <Text style={{ fontSize: 30, color: '#CBD5E1', fontWeight:'bold' }}>
-                      {form.name ? form.name.charAt(0).toUpperCase() : "D"}
-                   </Text>
+                  <Text style={{ fontSize: 30, color: '#CBD5E1', fontWeight: 'bold' }}>
+                    {form.name ? form.name.charAt(0).toUpperCase() : "D"}
+                  </Text>
                 </View>
               )}
               <View style={styles.cameraBadge}>
@@ -342,7 +342,7 @@ const EditDriverProfileScreen = () => {
           </View>
 
           <Text style={styles.sectionHeader}>Personal Information</Text>
-          
+
           {/* Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
@@ -351,7 +351,7 @@ const EditDriverProfileScreen = () => {
               <TextInput
                 style={styles.iconInput}
                 value={form.name}
-                onChangeText={(t) => setForm({...form, name: t})}
+                onChangeText={(t) => setForm({ ...form, name: t })}
               />
             </View>
           </View>
@@ -363,12 +363,12 @@ const EditDriverProfileScreen = () => {
               style={styles.dropdownButton}
               onPress={() => setShowGenderModal(true)}
             >
-               <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <User size={20} color="#94A3B8" style={styles.inputIcon} />
-                  <Text style={[styles.dropdownText, !form.gender && { color: "#94A3B8" }]}>
-                    {form.gender ? form.gender.charAt(0).toUpperCase() + form.gender.slice(1) : "Select Gender"}
-                  </Text>
-               </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <User size={20} color="#94A3B8" style={styles.inputIcon} />
+                <Text style={[styles.dropdownText, !form.gender && { color: "#94A3B8" }]}>
+                  {form.gender ? form.gender.charAt(0).toUpperCase() + form.gender.slice(1) : "Select Gender"}
+                </Text>
+              </View>
               <ChevronDown size={18} color="#94A3B8" />
             </TouchableOpacity>
           </View>
@@ -411,7 +411,7 @@ const EditDriverProfileScreen = () => {
                 value={form.mobile}
                 keyboardType="phone-pad"
                 maxLength={10}
-                onChangeText={(t) => setForm({...form, mobile: t.replace(/[^0-9]/g, '')})}
+                onChangeText={(t) => setForm({ ...form, mobile: t.replace(/[^0-9]/g, '') })}
               />
             </View>
           </View>
@@ -424,7 +424,7 @@ const EditDriverProfileScreen = () => {
               value={form.email}
               keyboardType="email-address"
               autoCapitalize="none"
-              onChangeText={(t) => setForm({...form, email: t})}
+              onChangeText={(t) => setForm({ ...form, email: t })}
             />
           </View>
 
@@ -450,20 +450,20 @@ const EditDriverProfileScreen = () => {
 
           {/* --- LICENSE PHOTO --- */}
           <View style={styles.licenseContainer}>
-             <Text style={styles.label}>Driving License Photo</Text>
-             <TouchableOpacity style={styles.licenseUploadBox} onPress={() => pickImage('license')}>
-                {licenseImageUri ? (
-                  <Image source={{ uri: licenseImageUri }} style={styles.licenseImage} resizeMode="cover" />
-                ) : (
-                  <View style={styles.uploadPlaceholder}>
-                    <Upload size={24} color="#64748B" />
-                    <Text style={styles.uploadText}>Upload License Image</Text>
-                  </View>
-                )}
-                <View style={styles.editIconOverlay}>
-                   <Camera size={16} color="#2563EB" />
+            <Text style={styles.label}>Driving License Photo</Text>
+            <TouchableOpacity style={styles.licenseUploadBox} onPress={() => pickImage('license')}>
+              {licenseImageUri ? (
+                <Image source={{ uri: licenseImageUri }} style={styles.licenseImage} resizeMode="cover" />
+              ) : (
+                <View style={styles.uploadPlaceholder}>
+                  <Upload size={24} color="#64748B" />
+                  <Text style={styles.uploadText}>Upload License Image</Text>
                 </View>
-             </TouchableOpacity>
+              )}
+              <View style={styles.editIconOverlay}>
+                <Camera size={16} color="#2563EB" />
+              </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.divider} />
@@ -507,7 +507,7 @@ const EditDriverProfileScreen = () => {
                 style={styles.dropdownButton}
                 onPress={() => setShowDistrictModal(true)}
               >
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MapPin size={20} color="#94A3B8" style={styles.inputIcon} />
                   <Text style={[styles.dropdownText, !form.address.district && { color: "#94A3B8" }]}>
                     {form.address.district || "Select District"}
@@ -541,7 +541,7 @@ const EditDriverProfileScreen = () => {
 
           <View style={{ height: 20 }} />
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.saveBtn, loading && { opacity: 0.7 }]}
             onPress={handleUpdate}
             disabled={loading}
@@ -555,7 +555,7 @@ const EditDriverProfileScreen = () => {
               </>
             )}
           </TouchableOpacity>
-          
+
           <View style={{ height: 40 }} />
 
         </ScrollView>
@@ -582,12 +582,12 @@ const EditDriverProfileScreen = () => {
                   data={GENDER_OPTIONS}
                   keyExtractor={(item) => item}
                   renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={styles.modalItem} 
+                    <TouchableOpacity
+                      style={styles.modalItem}
                       onPress={() => handleGenderSelect(item)}
                     >
                       <Text style={[
-                        styles.modalItemText, 
+                        styles.modalItemText,
                         form.gender.toLowerCase() === item.toLowerCase() && styles.selectedModalItemText
                       ]}>
                         {item}
@@ -623,12 +623,12 @@ const EditDriverProfileScreen = () => {
                   data={KERALA_DISTRICTS}
                   keyExtractor={(item) => item}
                   renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={styles.modalItem} 
+                    <TouchableOpacity
+                      style={styles.modalItem}
                       onPress={() => handleDistrictSelect(item)}
                     >
                       <Text style={[
-                        styles.modalItemText, 
+                        styles.modalItemText,
                         form.address.district === item && styles.selectedModalItemText
                       ]}>
                         {item}
@@ -656,25 +656,25 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
   backBtn: { padding: 4 },
   content: { padding: 20 },
-  
+
   // Profile Photo
   profilePhotoContainer: { alignItems: 'center', marginBottom: 25 },
   avatarWrapper: { position: 'relative' },
   avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#fff' },
-  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#E2E8F0', justifyContent:'center', alignItems:'center', borderWidth: 3, borderColor: '#fff' },
-  cameraBadge: { 
-    position: 'absolute', bottom: 0, right: 0, 
-    backgroundColor: '#2563EB', padding: 8, borderRadius: 20, 
-    borderWidth: 2, borderColor: '#fff' 
+  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
+  cameraBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    backgroundColor: '#2563EB', padding: 8, borderRadius: 20,
+    borderWidth: 2, borderColor: '#fff'
   },
   photoHint: { fontSize: 12, color: '#64748B', marginTop: 8 },
 
   sectionHeaderContainer: { flexDirection: "row", alignItems: "center", marginTop: 10, marginBottom: 15 },
   sectionHeader: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginLeft: 8 },
-  
+
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
-  
+
   // Inputs
   input: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
@@ -709,15 +709,15 @@ const styles = StyleSheet.create({
 
   // License Photo
   licenseContainer: { marginBottom: 16 },
-  licenseUploadBox: { 
-    height: 160, backgroundColor: '#F1F5F9', borderRadius: 12, 
+  licenseUploadBox: {
+    height: 160, backgroundColor: '#F1F5F9', borderRadius: 12,
     borderWidth: 1, borderColor: '#CBD5E1', borderStyle: 'dashed',
     justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative'
   },
   licenseImage: { width: '100%', height: '100%' },
   uploadPlaceholder: { alignItems: 'center' },
   uploadText: { marginTop: 8, color: '#64748B', fontSize: 13, fontWeight: '500' },
-  editIconOverlay: { position: 'absolute', top: 10, right: 10, backgroundColor:'#fff', padding:6, borderRadius:20, shadowColor:'#000', shadowOpacity:0.1, elevation:2 },
+  editIconOverlay: { position: 'absolute', top: 10, right: 10, backgroundColor: '#fff', padding: 6, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.1, elevation: 2 },
 
   row: { flexDirection: "row" },
   divider: { height: 1, backgroundColor: "#E2E8F0", marginVertical: 15 },

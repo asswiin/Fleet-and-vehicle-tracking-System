@@ -31,6 +31,7 @@ const vehicleServiceSchema = new mongoose.Schema(
       enum: ["Driver", "Manager"],
       required: true,
     },
+    isRead: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

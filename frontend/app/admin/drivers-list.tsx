@@ -11,20 +11,28 @@ import {
   Image,
   TextInput,
   FlatList,
+  Dimensions,
 } from "react-native";
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useState, useCallback } from "react";
-import { ChevronLeft, Phone, CreditCard, Plus, Search, User, Clock } from "lucide-react-native";
+import { useState, useCallback, useMemo } from "react";
+import {
+  ChevronLeft,
+  Phone,
+  Plus,
+  Search,
+  User,
+  Clock,
+  MapPin,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  ArrowRight
+} from "lucide-react-native";
 import { api, Driver } from "../../utils/api";
 
-// 1. Added "Pending" to the tabs
-const FILTER_TABS = ["All", "Available", "Offline", "Pending", "Accepted", "On-trip", "Resigned"];
+const { width } = Dimensions.get("window");
 
-interface StatusStyle {
-  bg: string;
-  text: string;
-  label: string;
-}
+const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Pending"];
 
 const DriversListScreen = () => {
   const router = useRouter();
@@ -62,82 +70,63 @@ const DriversListScreen = () => {
     fetchDrivers();
   };
 
-  // 2. Updated Filter Logic
-  const filteredDrivers = drivers.filter(driver => {
-    const matchesSearch =
-      driver.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      driver.mobile.toLowerCase().includes(searchText.toLowerCase()) ||
-      driver.license.toLowerCase().includes(searchText.toLowerCase());
+  const filteredDrivers = useMemo(() => {
+    return drivers.filter(driver => {
+      const matchesSearch =
+        driver.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        driver.mobile.toLowerCase().includes(searchText.toLowerCase());
 
-    let statusMatch = true;
-    if (selectedTab !== "All") {
-      if (selectedTab === "Available") {
-        // Available = punched in AND not (On-trip, Accepted, or Pending)
-        statusMatch = driver.isAvailable === true &&
-          driver.driverStatus !== "On-trip" &&
-          driver.driverStatus !== "Accepted" &&
-          driver.driverStatus !== "pending";
-      } else if (selectedTab === "Offline") {
-        // Offline = not punched in (and not resigned or on a trip)
-        statusMatch = driver.isAvailable === false &&
-          driver.status !== "Resigned" &&
-          driver.driverStatus !== "Accepted" &&
-          driver.driverStatus !== "On-trip" &&
-          driver.driverStatus !== "pending";
-      } else if (selectedTab === "Pending") {
-        // Pending = driverStatus is explicitly 'pending'
-        statusMatch = driver.driverStatus === "pending";
-      } else if (selectedTab === "Accepted") {
-        statusMatch = driver.driverStatus === "Accepted";
-      } else if (selectedTab === "On-trip") {
-        statusMatch = driver.driverStatus === "On-trip";
-      } else if (selectedTab === "Resigned") {
-        statusMatch = driver.status === "Resigned";
-      } else {
-        const currentStatus = driver.status || "Available";
-        statusMatch = currentStatus === selectedTab;
+      let statusMatch = true;
+      if (selectedTab !== "All") {
+        if (selectedTab === "Available") {
+          statusMatch = driver.isAvailable === true && driver.driverStatus !== "On-trip";
+        } else if (selectedTab === "Offline") {
+          statusMatch = driver.isAvailable === false && driver.driverStatus !== "On-trip";
+        } else if (selectedTab === "On-trip") {
+          statusMatch = driver.driverStatus === "On-trip";
+        } else if (selectedTab === "Pending") {
+          statusMatch = driver.driverStatus === "pending";
+        }
       }
-    }
+      return matchesSearch && statusMatch;
+    });
+  }, [drivers, searchText, selectedTab]);
 
-    return matchesSearch && statusMatch;
-  });
+  const stats = useMemo(() => {
+    return {
+      total: drivers.length,
+      available: drivers.filter(d => d.isAvailable && d.driverStatus !== "On-trip").length,
+      onTrip: drivers.filter(d => d.driverStatus === "On-trip").length,
+    };
+  }, [drivers]);
 
-  // 3. Updated Status Styles to handle "pending"
-  const getStatusStyles = (driver: Driver): StatusStyle => {
-    // Priority 1: On-trip
+  const getStatusConfig = (driver: Driver) => {
     if (driver.driverStatus === "On-trip") {
-      return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
+      return { color: '#2563EB', bg: '#EFF6FF', label: 'On Trip', icon: Truck };
     }
-
-    // Priority 2: Accepted
-    if (driver.driverStatus === "Accepted") {
-      return { bg: '#FEF3C7', text: '#D97706', label: 'Accepted' };
+    if (driver.isAvailable) {
+      return { color: '#059669', bg: '#F0FDF4', label: 'Available', icon: CheckCircle2 };
     }
-
-    // Priority 3: Pending (Trip Assigned but not accepted)
     if (driver.driverStatus === "pending") {
-      return { bg: '#FFF7ED', text: '#C2410C', label: 'Pending' }; // Orange
+      return { color: '#D97706', bg: '#FFFBEB', label: 'Pending', icon: Clock };
     }
-
-    // Priority 4: Resigned
-    if (driver.status === "Resigned") {
-      return { bg: '#FEE2E2', text: '#991B1B', label: 'Resigned' };
-    }
-
-    // Priority 5: Availability Check
-    if (driver.isAvailable === true) {
-      return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
-    } else {
-      return { bg: '#F3E8FF', text: '#6B21A8', label: 'Offline' };
-    }
+    return { color: '#64748B', bg: '#F1F5F9', label: 'Offline', icon: XCircle };
   };
 
+  const renderStatCard = (label: string, count: number, color: string) => (
+    <View style={styles.miniStatCard}>
+      <Text style={[styles.miniStatCount, { color }]}>{count}</Text>
+      <Text style={styles.miniStatLabel}>{label}</Text>
+    </View>
+  );
+
   const renderItem = ({ item }: { item: Driver }) => {
-    const statusStyle = getStatusStyles(item);
+    const config = getStatusConfig(item);
+    const StatusIcon = config.icon;
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={styles.driverCard}
         onPress={() => {
           router.push({
             pathname: "/admin/drivers-details",
@@ -146,39 +135,44 @@ const DriversListScreen = () => {
         }}
         activeOpacity={0.7}
       >
-        <View style={styles.cardContent}>
-          <View style={styles.avatarContainer}>
+        <View style={styles.cardTop}>
+          <View style={styles.profileContainer}>
             {item.profilePhoto ? (
               <Image
-                source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }}
-                style={styles.avatarImage}
+                source={{ uri: api.getImageUrl(item.profilePhoto)! }}
+                style={styles.profileImage}
               />
             ) : (
-              <Text style={styles.avatarText}>
-                {item.name ? item.name.charAt(0).toUpperCase() : "D"}
-              </Text>
+              <View style={styles.profilePlaceholder}>
+                <User size={24} color="#94A3B8" />
+              </View>
             )}
-            {item.driverStatus === "On-trip" && (
-              <View style={styles.onTripDot} />
-            )}
+            <View style={[styles.statusDot, { backgroundColor: config.color }]} />
           </View>
 
-          <View style={styles.driverInfo}>
-            <Text style={styles.driverName}>{item.name}</Text>
-            <View style={styles.driverDetail}>
+          <View style={styles.headerInfo}>
+            <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
+            <View style={[styles.statusPill, { backgroundColor: config.bg }]}>
+              <StatusIcon size={12} color={config.color} />
+              <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
+            </View>
+          </View>
+
+          <ArrowRight size={18} color="#CBD5E1" />
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.cardBottom}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
               <Phone size={14} color="#64748B" />
-              <Text style={styles.driverDetailText}>{item.mobile}</Text>
+              <Text style={styles.infoText}>{item.mobile}</Text>
             </View>
-            <View style={styles.driverDetail}>
-              <CreditCard size={14} color="#64748B" />
-              <Text style={styles.driverDetailText}>{item.license}</Text>
+            <View style={styles.infoItem}>
+              <MapPin size={14} color="#64748B" />
+              <Text style={styles.infoText}>{item.address?.city || "Unknown"}</Text>
             </View>
-          </View>
-
-          <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-              {statusStyle.label}
-            </Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -187,25 +181,36 @@ const DriversListScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <ChevronLeft size={28} color="#0F172A" />
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ChevronLeft size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Drivers</Text>
-          <View style={{ width: 28 }} />
+          {userRole === "manager" ? (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => router.push("/admin/register-driver")}
+            >
+              <Plus size={24} color="#2563EB" />
+            </TouchableOpacity>
+          ) : <View style={{ width: 40 }} />}
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchWrapper}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+        <View style={styles.statsOverview}>
+          {renderStatCard("Total", stats.total, "#0F172A")}
+          {renderStatCard("Available", stats.available, "#059669")}
+          {renderStatCard("On Trip", stats.onTrip, "#2563EB")}
+        </View>
+
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Search size={18} color="#94A3B8" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by name, mobile or license"
+              placeholder="Search by name or number..."
               placeholderTextColor="#94A3B8"
               value={searchText}
               onChangeText={setSearchText}
@@ -213,176 +218,260 @@ const DriversListScreen = () => {
           </View>
         </View>
 
-        {/* Filter Tabs */}
-        <View style={styles.tabsWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabsContainer}
-          >
-            {FILTER_TABS.map((tab) => {
-              const isActive = selectedTab === tab;
-              return (
-                <TouchableOpacity
-                  key={tab}
-                  style={[styles.tab, isActive && styles.activeTab]}
-                  onPress={() => setSelectedTab(tab)}
-                >
-                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-                    {tab}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterBar}
+          contentContainerStyle={styles.filterContent}
+        >
+          {FILTER_TABS.map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, selectedTab === tab && styles.activeTab]}
+              onPress={() => setSelectedTab(tab)}
+            >
+              <Text style={[styles.tabText, selectedTab === tab && styles.activeTabText]}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-        {/* Driver List */}
+      <View style={styles.container}>
         {loading ? (
-          <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
+          <View style={styles.center}>
+            <ActivityIndicator size="small" color="#2563EB" />
+          </View>
         ) : (
           <FlatList
             data={filteredDrivers}
             keyExtractor={(item) => item._id}
             renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
+            contentContainerStyle={styles.list}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <User size={48} color="#E2E8F0" />
+              <View style={styles.empty}>
                 <Text style={styles.emptyText}>No drivers found</Text>
-                <Text style={styles.emptySubtext}>
-                  {searchText || selectedTab !== "All"
-                    ? "Try adjusting your filters"
-                    : "Tap the + button to add your first driver"}
-                </Text>
               </View>
             }
           />
         )}
       </View>
-
-      {/* FAB - Add Driver Button (Managers only) */}
-      {userRole === "manager" && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push("/admin/register-driver")}
-        >
-          <Plus size={32} color="#fff" />
-        </TouchableOpacity>
-      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
+    paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  backBtn: { padding: 4 },
-  searchWrapper: { paddingHorizontal: 20, paddingTop: 12 },
-  searchContainer: {
+  headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  addButton: {
+    padding: 8,
+    marginRight: -8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.5,
+  },
+  statsOverview: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  miniStatCard: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  miniStatCount: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  miniStatLabel: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
   },
-  searchInput: { flex: 1, fontSize: 15, color: "#0F172A" },
-  tabsWrapper: { paddingVertical: 12, backgroundColor: "#fff", marginBottom: 12 },
-  tabsContainer: { paddingHorizontal: 20, gap: 8 },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: "#0F172A",
+  },
+  filterBar: {
+    marginBottom: 12,
+  },
+  filterContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
   tab: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  activeTab: { backgroundColor: "#4F46E5" },
-  tabText: { color: "#64748B", fontSize: 13, fontWeight: "600" },
-  activeTabText: { color: "#fff" },
-  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+  activeTab: {
+    backgroundColor: "#0F172A",
+    borderColor: "#0F172A",
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  activeTabText: {
+    color: "#FFFFFF",
+  },
+  container: {
+    flex: 1,
+  },
+  list: {
+    padding: 20,
+    gap: 16,
+  },
+  driverCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
-  cardContent: { flexDirection: "row", alignItems: "center" },
-  avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#4F46E5",
-    justifyContent: "center",
+  cardTop: {
+    flexDirection: "row",
     alignItems: "center",
-    marginRight: 12,
+  },
+  profileContainer: {
     position: "relative",
   },
-  avatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    resizeMode: "cover",
+  profileImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#F1F5F9",
   },
-  avatarText: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  onTripDot: {
+  profilePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statusDot: {
     position: "absolute",
     bottom: 0,
     right: 0,
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#2563EB",
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
-  driverInfo: { flex: 1 },
-  driverName: { fontSize: 15, fontWeight: "600", color: "#1E293B", marginBottom: 4 },
-  driverDetail: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  driverDetailText: { fontSize: 13, color: "#64748B", marginLeft: 6 },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+  headerInfo: {
+    flex: 1,
+    marginLeft: 14,
   },
-  badgeText: { fontSize: 11, fontWeight: "600" },
-  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
-  emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 12, fontWeight: "600" },
-  emptySubtext: { fontSize: 14, color: "#94A3B8", textAlign: "center", marginTop: 4 },
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#4F46E5",
+  nameText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  statusLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginVertical: 14,
+  },
+  cardBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  infoRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  infoText: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  center: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+  },
+  empty: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "#94A3B8",
+    fontSize: 15,
+    fontWeight: "500",
   },
 });
 
 export default DriversListScreen;
+

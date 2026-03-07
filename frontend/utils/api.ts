@@ -213,13 +213,16 @@ export interface Notification {
     address: string;
   };
   deliveryLocations?: Array<{
-    latitude: number;
-    longitude: number;
-    address?: string;
     locationName?: string;
     order?: number;
     parcelId?: string;
   }>;
+  deliveredParcelId?: string;
+  declinedDriverId?: {
+    _id: string;
+    name: string;
+    mobile?: string;
+  };
 }
 
 export interface DeliveredParcel {
@@ -242,8 +245,14 @@ export interface DeliveredParcel {
     type: string;
     amount?: number;
   };
+  sender?: {
+    name: string;
+    phone?: string;
+    address: string;
+  };
   recipient: {
     name: string;
+    phone?: string;
     address: string;
   };
   deliveryLocation?: {
@@ -398,13 +407,15 @@ const api = {
     apiCall(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
   // USER PROFILE IMAGE UPLOAD (Special Handling for Managers)
-  updateUserProfileWithImage: async (id: string, formData: FormData) => {
+  updateUserProfileWithImage: async (id: string, payload: any) => {
     const url = `${API_BASE_URL}/api/users/${id}/profile`;
+    const isFormData = payload instanceof FormData;
+
     try {
       const response = await fetch(url, {
         method: "PUT",
-        body: formData,
-        // DO NOT set Content-Type header here; fetch handles multipart boundary automatically
+        headers: isFormData ? {} : { "Content-Type": "application/json" },
+        body: isFormData ? payload : JSON.stringify(payload),
       });
       return await handleResponse(response);
     } catch (error: any) {
@@ -438,6 +449,7 @@ const api = {
   getVehicleServiceHistory: (vehicleId: string) => apiCall(`/api/vehicle-services/vehicle/${vehicleId}`),
   getAllVehicleServices: () => apiCall("/api/vehicle-services"),
   getServiceAlertsCount: () => apiCall("/api/vehicle-services/alerts/count"),
+  markVehicleServicesAsRead: () => apiCall("/api/vehicle-services/mark-all-read", { method: "POST" }),
   updateServiceStatus: (id: string, status: string) => apiCall(`/api/vehicle-services/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   // DRIVERS
@@ -468,13 +480,15 @@ const api = {
     apiCall(`/api/drivers/check-license/${license}${excludeId ? `?excludeId=${excludeId}` : ''}`),
 
   // DRIVER IMAGE UPLOAD (Special Handling)
-  updateDriverProfileWithImage: async (id: string, formData: FormData) => {
+  updateDriverProfileWithImage: async (id: string, payload: any) => {
     const url = `${API_BASE_URL}/api/drivers/${id}`;
+    const isFormData = payload instanceof FormData;
+
     try {
       const response = await fetch(url, {
         method: "PUT",
-        body: formData,
-        // DO NOT set Content-Type header here; fetch handles multipart boundary automatically
+        headers: isFormData ? {} : { "Content-Type": "application/json" },
+        body: isFormData ? payload : JSON.stringify(payload),
       });
       return await handleResponse(response);
     } catch (error: any) {
@@ -536,6 +550,12 @@ const api = {
 
   markNotificationAsRead: (id: string) =>
     apiCall(`/api/notifications/${id}/read`, { method: "PATCH" }),
+
+  getManagerNotifications: (managerId: string) =>
+    apiCall<Notification[]>(`/api/notifications/manager/${managerId}`),
+
+  getManagerUnreadNotificationCount: (managerId: string) =>
+    apiCall<{ count: number }>(`/api/notifications/manager/${managerId}/unread-count`),
 
   updateNotificationStatus: (id: string, status: string) =>
     apiCall(`/api/notifications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),

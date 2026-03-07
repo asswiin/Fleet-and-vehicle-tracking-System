@@ -10,38 +10,42 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  RefreshControl,
+  Dimensions,
 } from "react-native";
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { api, type Vehicle } from "../../utils/api";
-import { ChevronLeft, Plus, Search, Truck, AlertTriangle } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Plus,
+  Search,
+  Truck,
+  AlertTriangle,
+  ArrowRight,
+  TrendingUp,
+  Settings,
+  Scale
+} from "lucide-react-native";
 
-const FILTER_TABS = ["All", "Available", "On-trip", "In-Service", "Sold"];
+const { width } = Dimensions.get("window");
 
-interface StatusStyle {
-  bg: string;
-  text: string;
-  label: string;
-}
+const FILTER_TABS = ["All", "Available", "On-trip", "In-Service"];
 
 const VehicleListScreen = () => {
   const router = useRouter();
-
-  // 1. Get the user role passed from Dashboard (Admin or Manager)
   const params = useLocalSearchParams<{ userRole: string; userName: string }>();
-  const userRole = params.userRole || "admin"; // Default to admin if undefined
+  const userRole = params.userRole || "admin";
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedTab, setSelectedTab] = useState("All");
 
-  // 2. Fetch Data
   const fetchVehicles = async () => {
     try {
-      setLoading(true);
       const response = await api.getVehicles();
-
       if (response.ok && response.data) {
         setVehicles(response.data);
       }
@@ -49,6 +53,7 @@ const VehicleListScreen = () => {
       console.error("Error fetching vehicles:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -58,123 +63,116 @@ const VehicleListScreen = () => {
     }, [])
   );
 
-  // 3. Filter Logic
-  const filteredVehicles = vehicles.filter(v => {
-    const matchesSearch =
-      v.regNumber.toLowerCase().includes(searchText.toLowerCase()) ||
-      v.model.toLowerCase().includes(searchText.toLowerCase());
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchVehicles();
+  };
 
-    let statusMatch = true;
-    if (selectedTab !== "All") {
-      const currentStatus = v.status === "Active" ? "Available" : v.status;
-      statusMatch = currentStatus === selectedTab;
-    }
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      const matchesSearch =
+        v.regNumber.toLowerCase().includes(searchText.toLowerCase()) ||
+        v.model.toLowerCase().includes(searchText.toLowerCase());
 
-    return matchesSearch && statusMatch;
-  });
+      let statusMatch = true;
+      if (selectedTab !== "All") {
+        const currentStatus = v.status === "Active" ? "Available" : v.status;
+        statusMatch = currentStatus === selectedTab;
+      }
+      return matchesSearch && statusMatch;
+    });
+  }, [vehicles, searchText, selectedTab]);
 
-  // 4. Helper for Status Badge Styles
-  const getStatusStyles = (status?: string): StatusStyle => {
+  const stats = useMemo(() => {
+    return {
+      total: vehicles.length,
+      available: vehicles.filter(v => v.status === "Active").length,
+      onTrip: vehicles.filter(v => v.status === "On-trip").length,
+    };
+  }, [vehicles]);
+
+  const getStatusConfig = (status?: string) => {
     const displayStatus = status === "Active" ? "Available" : status;
-
     switch (displayStatus) {
       case 'Available':
-        return { bg: '#DCFCE7', text: '#166534', label: 'Available' };
+        return { color: '#059669', bg: '#F0FDF4', label: 'Available', icon: TrendingUp };
       case 'On-trip':
-        return { bg: '#DBEAFE', text: '#1E40AF', label: 'On-trip' };
+        return { color: '#2563EB', bg: '#EFF6FF', label: 'On Trip', icon: Truck };
       case 'In-Service':
-        return { bg: '#FEF3C7', text: '#92400E', label: 'In-Service' };
-      case 'Sold':
-        return { bg: '#FEE2E2', text: '#991B1B', label: 'Sold' };
+        return { color: '#D97706', bg: '#FFFBEB', label: 'In Service', icon: Settings };
       default:
-        return { bg: '#F1F5F9', text: '#475569', label: status || 'Unknown' };
+        return { color: '#64748B', bg: '#F1F5F9', label: displayStatus || 'Unknown', icon: Truck };
     }
   };
 
-  // 5. Navigate to Details (Passing only the ID for faster navigation)
-  const handleVehicleClick = (vehicle: Vehicle) => {
-    router.push({
-      pathname: "/admin/vehicle-details",
-      params: {
-        vehicleId: vehicle._id,
-        userRole: userRole,
-        userName: params.userName,
-      }
-    });
-  };
-
-  // 6. Expiry Warning Logic
-  const parseDate = (dateInput?: string): Date | null => {
-    if (!dateInput) return null;
-    if (dateInput.includes('/')) {
-      const parts = dateInput.split('/');
-      if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-    }
-    const date = new Date(dateInput);
-    if (!isNaN(date.getTime())) return date;
-    return null;
-  };
-
-  const isExpiringSoon = (dateInput?: string) => {
-    const date = parseDate(dateInput);
-    if (!date) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tenDaysFromNow = new Date(today);
-    tenDaysFromNow.setDate(today.getDate() + 10);
-    return date <= tenDaysFromNow;
-  };
-
-  const hasExpiringDocs = (v: Vehicle) => {
-    return (
-      isExpiringSoon(v.insuranceDate || (v as any).insuranceExpiry) ||
-      isExpiringSoon(v.pollutionDate || (v as any).pollutionExpiry) ||
-      isExpiringSoon(v.taxDate || (v as any).taxExpiry)
-    );
-  };
+  const renderStatCard = (label: string, count: number, color: string) => (
+    <View style={styles.miniStatCard}>
+      <Text style={[styles.miniStatCount, { color }]}>{count}</Text>
+      <Text style={styles.miniStatLabel}>{label}</Text>
+    </View>
+  );
 
   const renderItem = ({ item }: { item: Vehicle }) => {
-    const statusStyle = getStatusStyles(item.status);
+    const config = getStatusConfig(item.status);
+    const StatusIcon = config.icon;
 
     return (
       <TouchableOpacity
-        style={styles.card}
-        onPress={() => handleVehicleClick(item)}
+        style={styles.vehicleCard}
+        onPress={() => {
+          router.push({
+            pathname: "/admin/vehicle-details",
+            params: {
+              vehicleId: item._id,
+              userRole: userRole,
+              userName: params.userName,
+            }
+          });
+        }}
         activeOpacity={0.7}
       >
-        <View style={styles.cardContent}>
-          <View style={styles.iconBox}>
+        <View style={styles.cardTop}>
+          <View style={styles.imageContainer}>
             {item.profilePhoto ? (
               <Image
-                source={{ uri: api.getImageUrl(item.profilePhoto) || undefined }}
+                source={{ uri: api.getImageUrl(item.profilePhoto)! }}
                 style={styles.vehicleImage}
               />
             ) : (
-              <Truck size={24} color="#4F46E5" fill="#4F46E5" />
-            )}
-          </View>
-
-          <View style={styles.infoContainer}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.modelText}>{item.regNumber}</Text>
-              {hasExpiringDocs(item) && (
-                <AlertTriangle size={16} color="#EF4444" style={{ marginLeft: 6 }} />
-              )}
-            </View>
-            <Text style={styles.regText}>{item.model}</Text>
-          </View>
-
-          <View style={{ alignItems: 'flex-end' }}>
-            <View style={[styles.badge, { backgroundColor: statusStyle.bg, marginBottom: 4 }]}>
-              <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-                {statusStyle.label}
-              </Text>
-            </View>
-            {hasExpiringDocs(item) && (
-              <View style={[styles.badge, { backgroundColor: '#FEF2F2' }]}>
-                <Text style={[styles.badgeText, { color: '#EF4444' }]}>Warning</Text>
+              <View style={styles.imagePlaceholder}>
+                <Truck size={28} color="#94A3B8" />
               </View>
             )}
+            <View style={[styles.statusDot, { backgroundColor: config.color }]} />
+          </View>
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.regNoText}>{item.regNumber}</Text>
+            <View style={[styles.statusPill, { backgroundColor: config.bg }]}>
+              <StatusIcon size={12} color={config.color} />
+              <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
+            </View>
+          </View>
+
+          <ArrowRight size={18} color="#CBD5E1" />
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.cardBottom}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Text style={styles.modelText}>{item.model}</Text>
+              <Text style={styles.typeText}>{item.type}</Text>
+            </View>
+          </View>
+          <View style={[styles.infoItem, { alignItems: 'flex-end' }]}>
+            <View style={styles.capacityBadge}>
+              <Scale size={13} color="#6366F1" />
+              <Text style={styles.capacityText}>
+                Cap: {(item.capacity || item.weight) ? `${item.capacity || item.weight}${String(item.capacity || item.weight).toLowerCase().includes('kg') ? '' : 'kg'}` : "N/A"}
+              </Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -183,25 +181,36 @@ const VehicleListScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <ChevronLeft size={28} color="#0F172A" />
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ChevronLeft size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Fleet Inventory</Text>
-          <View style={{ width: 28 }} />
+          <Text style={styles.headerTitle}>Inventory</Text>
+          {userRole === "manager" ? (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => router.push("/admin/register-vehicle")}
+            >
+              <Plus size={24} color="#2563EB" />
+            </TouchableOpacity>
+          ) : <View style={{ width: 40 }} />}
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchWrapper}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+        <View style={styles.statsOverview}>
+          {renderStatCard("Total", stats.total, "#0F172A")}
+          {renderStatCard("Available", stats.available, "#059669")}
+          {renderStatCard("On Trip", stats.onTrip, "#2563EB")}
+        </View>
+
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Search size={18} color="#94A3B8" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by Reg. # or Model"
+              placeholder="Search registration or model..."
               placeholderTextColor="#94A3B8"
               value={searchText}
               onChangeText={setSearchText}
@@ -209,149 +218,280 @@ const VehicleListScreen = () => {
           </View>
         </View>
 
-        {/* Filter Tabs */}
-        <View style={styles.tabsWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabsContainer}
-          >
-            {FILTER_TABS.map((tab) => {
-              const isActive = selectedTab === tab;
-              return (
-                <TouchableOpacity
-                  key={tab}
-                  style={[styles.tab, isActive && styles.activeTab]}
-                  onPress={() => setSelectedTab(tab)}
-                >
-                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-                    {tab}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterBar}
+          contentContainerStyle={styles.filterContent}
+        >
+          {FILTER_TABS.map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, selectedTab === tab && styles.activeTab]}
+              onPress={() => setSelectedTab(tab)}
+            >
+              <Text style={[styles.tabText, selectedTab === tab && styles.activeTabText]}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-        {/* Vehicle List */}
+      <View style={styles.container}>
         {loading ? (
-          <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
+          <View style={styles.center}>
+            <ActivityIndicator size="small" color="#2563EB" />
+          </View>
         ) : (
           <FlatList
             data={filteredVehicles}
             keyExtractor={(item) => item._id}
             renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Truck size={48} color="#E2E8F0" />
+              <View style={styles.empty}>
                 <Text style={styles.emptyText}>No vehicles found</Text>
               </View>
             }
           />
         )}
       </View>
-
-      {/* FAB - Add Vehicle Button (Managers only) */}
-      {userRole === "manager" && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push("/admin/register-vehicle")}
-        >
-          <Plus size={32} color="#fff" />
-        </TouchableOpacity>
-      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
+    paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  backBtn: { padding: 4 },
-  searchWrapper: { paddingHorizontal: 20, paddingTop: 12 },
-  searchContainer: {
+  headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  addButton: {
+    padding: 8,
+    marginRight: -8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.5,
+  },
+  statsOverview: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  miniStatCard: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  miniStatCount: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  miniStatLabel: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
   },
-  searchInput: { flex: 1, fontSize: 15, color: "#0F172A" },
-  tabsWrapper: { paddingVertical: 12, backgroundColor: "#fff", marginBottom: 12 },
-  tabsContainer: { paddingHorizontal: 20, gap: 8 },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: "#0F172A",
+  },
+  filterBar: {
+    marginBottom: 12,
+  },
+  filterContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
   tab: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  activeTab: { backgroundColor: "#4F46E5" },
-  tabText: { color: "#64748B", fontSize: 13, fontWeight: "600" },
-  activeTabText: { color: "#fff" },
-  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+  activeTab: {
+    backgroundColor: "#0F172A",
+    borderColor: "#0F172A",
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  activeTabText: {
+    color: "#FFFFFF",
+  },
+  container: {
+    flex: 1,
+  },
+  list: {
+    padding: 20,
+    gap: 16,
+  },
+  vehicleCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
-  cardContent: { flexDirection: "row", alignItems: "center" },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+  cardTop: {
+    flexDirection: "row",
     alignItems: "center",
-    marginRight: 12,
-    overflow: 'hidden',
   },
-  vehicleImage: { width: 48, height: 48, borderRadius: 10 },
-  infoContainer: { flex: 1 },
-  modelText: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
-  regText: { fontSize: 13, color: "#64748B", marginTop: 2 },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+  imageContainer: {
+    position: "relative",
   },
-  badgeText: { fontSize: 11, fontWeight: "600" },
-  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
-  emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 12 },
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#4F46E5",
+  vehicleImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+  },
+  imagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+  },
+  statusDot: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  headerInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  regNoText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  statusLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginVertical: 14,
+  },
+  cardBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  infoRow: {
+    flex: 1,
+  },
+  infoItem: {
+    justifyContent: "center",
+  },
+  modelText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  typeText: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  capacityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#E0E7FF",
+  },
+  capacityText: {
+    fontSize: 12,
+    color: "#4338CA",
+    fontWeight: "700",
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  empty: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "#94A3B8",
+    fontSize: 15,
+    fontWeight: "500",
   },
 });
 
 export default VehicleListScreen;
+
+
 

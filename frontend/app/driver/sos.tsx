@@ -208,28 +208,39 @@ const SOSPage = () => {
     useEffect(() => {
         let subscription: any = null;
         (async () => {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') return;
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') return;
 
-            // Initial phone location as fallback
-            let loc = await Location.getCurrentPositionAsync({});
-            setLocation(loc);
-
-            // ONLY search here if we DON'T have a simulation location yet
-            if (!simulatedLocation) {
-                searchNearbyServices(loc.coords.latitude, loc.coords.longitude);
-            }
-
-            subscription = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.Balanced,
-                    distanceInterval: 10,
-                    timeInterval: 5000,
-                },
-                (newLocation) => {
-                    setLocation(newLocation);
+                // Check if location services are enabled
+                const enabled = await Location.hasServicesEnabledAsync();
+                if (!enabled) {
+                    console.warn("Location services are disabled in SOSPage");
+                    return;
                 }
-            );
+
+                // Initial phone location as fallback
+                let loc = await Location.getCurrentPositionAsync({});
+                setLocation(loc);
+
+                // ONLY search here if we DON'T have a simulation location yet
+                if (!simulatedLocation) {
+                    searchNearbyServices(loc.coords.latitude, loc.coords.longitude);
+                }
+
+                subscription = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.Balanced,
+                        distanceInterval: 10,
+                        timeInterval: 5000,
+                    },
+                    (newLocation) => {
+                        setLocation(newLocation);
+                    }
+                );
+            } catch (err: any) {
+                console.error("SOSPage location error:", err);
+            }
         })();
 
         fetchActiveTrip();

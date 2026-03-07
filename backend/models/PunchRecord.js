@@ -33,8 +33,8 @@ const punchRecordSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["On-Duty", "Completed"],
-      default: "On-Duty"
+      enum: ["on duty", "completed"],
+      default: "on duty"
     }
   },
   { timestamps: true }

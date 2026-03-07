@@ -135,11 +135,27 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 5. GET SERVICE ALERTS COUNT (Active reports for Manager)
+// 5. GET SERVICE ALERTS COUNT (Unread/Active reports for Manager)
 router.get("/alerts/count", async (req, res) => {
   try {
-    const count = await VehicleService.countDocuments({ status: "In-Service" });
+    const count = await VehicleService.countDocuments({
+      status: "In-Service",
+      isRead: false
+    });
     res.json({ count });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// 6. MARK ALL AS READ
+router.post("/mark-all-read", async (req, res) => {
+  try {
+    await VehicleService.updateMany(
+      { status: "In-Service", isRead: false },
+      { isRead: true }
+    );
+    res.json({ message: "Repairs marked as read" });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

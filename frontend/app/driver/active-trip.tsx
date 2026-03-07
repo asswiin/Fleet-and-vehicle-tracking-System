@@ -69,27 +69,43 @@ const ActiveTripPage = () => {
     let locationSubscription: Location.LocationSubscription | null = null;
 
     const startWatching = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return;
-      }
-
-      locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 30000, // 30 seconds
-          distanceInterval: 50, // 50 meters
-        },
-        (location) => {
-          setDriverLocation(location);
-          if (activeTrip && activeTrip.status === 'in-progress') {
-            api.updateTripLocation(activeTrip._id, {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude
-            });
-          }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.warn("Location permission not granted");
+          return;
         }
-      );
+
+        // Check if location services are enabled
+        const enabled = await Location.hasServicesEnabledAsync();
+        if (!enabled) {
+          console.warn("Location services are disabled");
+          setError("Location services are disabled. Please enable GPS.");
+          return;
+        }
+
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 30000, // 30 seconds
+            distanceInterval: 50, // 50 meters
+          },
+          (location) => {
+            setDriverLocation(location);
+            if (activeTrip && activeTrip.status === 'in-progress') {
+              api.updateTripLocation(activeTrip._id, {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+              });
+            }
+          }
+        );
+      } catch (err: any) {
+        console.error("Error starting location watch:", err);
+        if (err.message.includes("location services are disabled") || err.message.includes("unavailable")) {
+          setError("Current location is unavailable. Make sure that location services are enabled.");
+        }
+      }
     };
 
     if (activeTrip && (activeTrip.status === 'in-progress' || activeTrip.status === 'returning')) {

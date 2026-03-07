@@ -20,6 +20,7 @@ interface PunchRecord {
   date: string;
   punchInTime?: string;
   punchOutTime?: string;
+  status?: string;
   punchInAddress?: string;
   punchOutAddress?: string;
 }
@@ -31,7 +32,7 @@ const PunchingHistoryScreen = () => {
 
   const [punchHistory, setPunchHistory] = useState<PunchRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Date State
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -84,7 +85,7 @@ const PunchingHistoryScreen = () => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
-    
+
     if (date) {
       setSelectedDate(date);
     }
@@ -112,7 +113,7 @@ const PunchingHistoryScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -124,8 +125,8 @@ const PunchingHistoryScreen = () => {
 
       {/* Date Selector Trigger */}
       <View style={styles.dateSelector}>
-        <TouchableOpacity 
-          style={styles.dateValue} 
+        <TouchableOpacity
+          style={styles.dateValue}
           onPress={() => setShowDatePicker(true)}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -163,10 +164,10 @@ const PunchingHistoryScreen = () => {
                 <Text style={styles.statusSummaryValue}>
                   {selectedRecords[0]?.punchInTime
                     ? new Date(selectedRecords[0].punchInTime).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
                     : "Not recorded"}
                 </Text>
                 <Text style={[
@@ -184,10 +185,10 @@ const PunchingHistoryScreen = () => {
                 <Text style={styles.statusSummaryValue}>
                   {selectedRecords[0]?.punchOutTime
                     ? new Date(selectedRecords[0].punchOutTime).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
                     : "Not recorded"}
                 </Text>
                 <Text style={[

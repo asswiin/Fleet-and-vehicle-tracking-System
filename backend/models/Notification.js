@@ -99,6 +99,10 @@ const notificationSchema = new mongoose.Schema(
         type: String,
       },
     },
+    deliveredParcelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeliveredParcel",
+    },
     expiresAt: {
       type: Date,
       default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
