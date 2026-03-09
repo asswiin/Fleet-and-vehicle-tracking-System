@@ -29,7 +29,16 @@ const vehicleSchema = new mongoose.Schema(
     vehiclePhotos: { type: [String], default: [] },
 
     // Vehicle Profile Photo (Base64)
-    profilePhoto: { type: String, default: "" }
+    profilePhoto: { type: String, default: "" },
+
+    // Sale Details (for decommissioned vehicles)
+    saleDetails: {
+      buyerName: { type: String, default: "" },
+      buyerAddress: { type: String, default: "" },
+      buyerContact: { type: String, default: "" },
+      saleDate: { type: String, default: "" },
+      salePrice: { type: String, default: "" },
+    }
   },
   { timestamps: true }
 );

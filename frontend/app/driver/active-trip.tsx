@@ -120,15 +120,15 @@ const ActiveTripPage = () => {
   }, [activeTrip?.status, activeTrip?._id]);
 
   // Fetch active trip data
-  const fetchActiveTrip = async () => {
+  const fetchActiveTrip = async (silent = false) => {
     if (!driverId) {
       setError("Driver ID not found");
-      setLoading(false);
+      if (!silent) setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const response = await api.getActiveTrip(driverId);
 
@@ -139,11 +139,13 @@ const ActiveTripPage = () => {
       }
     } catch (err) {
       console.error("Error fetching active trip:", err);
-      setError("Failed to load trip details");
+      if (!silent) setError("Failed to load trip details");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+
 
   useFocusEffect(
     useCallback(() => {
@@ -349,14 +351,14 @@ const ActiveTripPage = () => {
                   "Your trip has begun. Drive safely!",
                   [{
                     text: "OK",
-                    onPress: () => router.push({
+                    onPress: () => router.replace({
                       pathname: "/driver/driver-dashboard",
                       params: { userId: driverId }
                     } as any)
                   }]
                 );
-                // Refresh the trip data
-                fetchActiveTrip();
+                // Refresh the trip data silently
+                fetchActiveTrip(true);
               } else {
                 Alert.alert("Error", response.error || "Failed to start journey");
               }
@@ -397,17 +399,17 @@ const ActiveTripPage = () => {
 
                 // If the entire trip is now in "returning" state (all parcels delivered), navigate back to dashboard
                 if (response.data && response.data.status === "returning") {
-                  router.push({
+                  router.replace({
                     pathname: "/driver/driver-dashboard",
                     params: { userId: driverId }
                   } as any);
                 } else if (response.data && response.data.status === "completed") {
-                  router.push({
+                  router.replace({
                     pathname: "/shared/trip-history",
                     params: { driverId: driverId, role: 'driver' }
                   } as any);
                 } else {
-                  fetchActiveTrip(); // Refresh data for remaining parcels
+                  fetchActiveTrip(true); // Refresh data for remaining parcels silently
                 }
               } else {
                 Alert.alert("Error", response.error || "Failed to update status");
@@ -664,7 +666,7 @@ const ActiveTripPage = () => {
               </View>
               <View style={styles.bannerTextContainer}>
                 <Text style={styles.destReachedTitle}>Reached {reachedDest.locationName}!</Text>
-                <Text style={styles.destReachedText}>Please manually confirm delivery for the parcel(s) at this location.</Text>
+                <Text style={styles.destReachedText}>Please confirm delivery for the parcel</Text>
               </View>
             </View>
           );

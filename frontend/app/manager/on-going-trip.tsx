@@ -77,15 +77,17 @@ const OnGoingTripScreen = () => {
     }, [fetchActiveTrips]);
 
     const calculateProgress = (trip: any) => {
-        // 1. If delivered, show 100%
-        if (trip.status === "completed" || trip.status === "Delivered") return 100;
+        // 1. If delivered, completed, or returning, show 100% (deliveries are done)
+        if (["completed", "Delivered", "returning"].includes(trip.status)) {
+            return 100;
+        }
 
         // 2. If trip is accepted but not on-trip, strictly 0%
         if (trip.status === "accepted") return 0;
 
-        // 3. Use live progress from vehicle movement (distance based)
-        if (trip.liveProgress !== undefined) {
-            return trip.liveProgress;
+        // 3. Use live progress from vehicle movement (no cap — trust the backend value)
+        if (trip.liveProgress !== undefined && trip.liveProgress !== null) {
+            return Math.round(trip.liveProgress);
         }
 
         return 0;

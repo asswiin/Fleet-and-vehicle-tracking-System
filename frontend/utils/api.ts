@@ -199,10 +199,12 @@ export interface Notification {
       address: string;
     };
     weight: number;
+    type: string;
   }>;
   tripId: string;
   type: string;
   status: string;
+  recipientType: "driver" | "manager";
   message: string;
   read: boolean;
   createdAt: string;
@@ -214,10 +216,12 @@ export interface Notification {
   };
   deliveryLocations?: Array<{
     locationName?: string;
+    latitude: number;
+    longitude: number;
     order?: number;
     parcelId?: string;
   }>;
-  deliveredParcelId?: string;
+  deliveredParcelId?: string | DeliveredParcel;
   declinedDriverId?: {
     _id: string;
     name: string;
@@ -441,6 +445,8 @@ const api = {
   updateVehicle: (id: string, data: any) => apiCall(`/api/vehicles/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   updateVehicleStatus: (id: string, status: string) =>
     apiCall(`/api/vehicles/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  sellVehicle: (id: string, data: { buyerName: string, buyerAddress: string, buyerContact: string, saleDate: string, salePrice: string }) =>
+    apiCall(`/api/vehicles/${id}/sell`, { method: "POST", body: JSON.stringify(data) }),
   getVehicleAlertsSummary: () => apiCall("/api/vehicles/alerts/summary"),
 
   // VEHICLE SERVICES
@@ -559,6 +565,9 @@ const api = {
 
   updateNotificationStatus: (id: string, status: string) =>
     apiCall(`/api/notifications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+
+  reassignDriver: (notificationId: string, data: any) =>
+    apiCall(`/api/notifications/${notificationId}/reassign-driver`, { method: "POST", body: JSON.stringify(data) }),
 
   // EXPENSES
   getExpenses: () => apiCall("/api/expenses"),

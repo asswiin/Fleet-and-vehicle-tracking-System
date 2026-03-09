@@ -254,6 +254,7 @@ exports.updateTripResources = async (req, res) => {
     }
 
     // Save changes to Trip
+    if (managerId) trip.assignedBy = managerId;
     await trip.save();
 
     // --- UPDATE PARCELS ---
@@ -398,6 +399,7 @@ exports.reassignTrip = async (req, res) => {
     trip.driverId = newDriverId;
     trip.status = "pending";
     trip.assignedAt = new Date();
+    if (managerId) trip.assignedBy = managerId;
     await trip.save();
 
     // Update new driver
@@ -569,23 +571,21 @@ exports.startJourney = async (req, res) => {
       { status: "In Transit" }
     );
 
-    // Send notifications to recipients
-    try {
-      const parcels = await Parcel.find({ _id: { $in: trip.parcelIds } });
-      for (const parcel of parcels) {
-        // Send SMS
-        if (parcel.recipient && parcel.recipient.phone) {
-          await smsService.sendTrackingSMS(parcel.recipient.phone, parcel.trackingId);
-        }
-        // Send Email
-        if (parcel.recipient && parcel.recipient.email) {
-          await sendTrackingEmail(parcel.recipient.email, parcel.recipient.name, parcel.trackingId);
-        }
-      }
-    } catch (notifyError) {
-      console.error("Failed to send tracking notifications:", notifyError);
-      // Don't fail the whole request if notifications fail
-    }
+    // Send notifications to recipients - Asynchronously to avoid blocking the response
+    Parcel.find({ _id: { $in: trip.parcelIds } })
+      .then(parcels => {
+        parcels.forEach(parcel => {
+          if (parcel.recipient && parcel.recipient.phone) {
+            smsService.sendTrackingSMS(parcel.recipient.phone, parcel.trackingId).catch(e => console.error("SMS error:", e));
+          }
+          if (parcel.recipient && parcel.recipient.email) {
+            sendTrackingEmail(parcel.recipient.email, parcel.recipient.name, parcel.trackingId).catch(e => console.error("Email error:", e));
+          }
+        });
+      })
+      .catch(notifyError => {
+        console.error("Failed to fetch parcels for notifications:", notifyError);
+      });
 
     res.status(200).json({ message: "Journey started successfully", trip });
   } catch (error) {
@@ -647,6 +647,7 @@ exports.updateDeliveryStatus = async (req, res) => {
           }
 
           // 1. Archiving
+          let archivedDelivery = null;
           try {
             const archiveData = {
               tripId: (fullTrip && fullTrip.tripId) || trip.tripId,
@@ -675,45 +676,50 @@ exports.updateDeliveryStatus = async (req, res) => {
               deliveryLocation: fullParcel.deliveryLocation,
               notes: notes || trip.deliveryDestinations[destinationIndex].notes
             };
-            const archivedDelivery = new DeliveredParcel(archiveData);
-            await archivedDelivery.save();
-            console.log(`✅ Archived delivery for parcel ${fullParcel.trackingId}`);
-          } catch (arcErr) {
-            console.error("❌ Archiving failed:", arcErr.message);
-          }
+            archivedDelivery = new DeliveredParcel(archiveData);
+            archivedDelivery.save().then(() => {
+              console.log(`✅ Archived delivery for parcel ${fullParcel.trackingId}`);
+            }).catch(arcErr => {
+              console.error("❌ Archiving failed:", arcErr.message);
+            });
 
-          // 2. Notify Manager
-          if (fullTrip && fullTrip.assignedBy) {
-            try {
-              const managerNotification = new Notification({
-                managerId: fullTrip.assignedBy,
-                recipientType: "manager",
-                vehicleId: fullTrip.vehicleId?._id || trip.vehicleId,
-                parcelIds: [fullParcel._id],
-                tripId: fullTrip.tripId,
-                type: "parcel_delivered",
-                status: "accepted",
-                message: `Parcel ${fullParcel.trackingId} has been delivered by ${fullTrip.driverId?.name || "the driver"}.`,
-                assignedBy: fullTrip.assignedBy,
-                deliveredParcelId: archivedDelivery._id
-              });
-              await managerNotification.save();
-            } catch (notifErr) {
-              console.error("❌ Manager notification failed:", notifErr.message);
+            // 2. Notify Manager
+            if (fullTrip && fullTrip.assignedBy) {
+              try {
+                const managerNotification = new Notification({
+                  managerId: fullTrip.assignedBy,
+                  recipientType: "manager",
+                  vehicleId: fullTrip.vehicleId?._id || trip.vehicleId,
+                  parcelIds: [fullParcel._id],
+                  tripId: fullTrip.tripId,
+                  type: "parcel_delivered",
+                  status: "pending",
+                  message: `Parcel ${fullParcel.trackingId} has been delivered by ${fullTrip.driverId?.name || "the driver"}.`,
+                  assignedBy: fullTrip.assignedBy,
+                  deliveredParcelId: archivedDelivery?._id
+                });
+                managerNotification.save().catch(notifErr => {
+                  console.error("❌ Manager notification failed:", notifErr.message);
+                });
+
+                // 2.a Real Phone Notification (Push Notification) - REMOVED
+              } catch (notifErr) {
+                console.error("❌ Manager notification failed:", notifErr.message);
+              }
             }
-          }
 
-          // 3. Notify Recipient Email
-          if (fullParcel.recipient && fullParcel.recipient.email) {
-            try {
-              await sendDeliverySuccessEmail(
+            // 3. Notify Recipient Email
+            if (fullParcel.recipient && fullParcel.recipient.email) {
+              sendDeliverySuccessEmail(
                 fullParcel.recipient.email,
                 fullParcel.recipient.name,
                 fullParcel.trackingId
-              );
-            } catch (emailErr) {
-              console.error("❌ Delivery success email failed:", emailErr.message);
+              ).catch(emailErr => {
+                console.error("❌ Delivery success email failed:", emailErr.message);
+              });
             }
+          } catch (archiveErr) {
+            console.error("❌ Archiving or notification setup failed:", archiveErr.message);
           }
         }
       } catch (innerErr) {

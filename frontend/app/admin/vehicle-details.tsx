@@ -30,6 +30,9 @@ import {
   Wrench,
   Ban,
   ExternalLink,
+  User,
+  MapPin,
+  Phone,
 } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
@@ -125,20 +128,15 @@ const VehicleDetailsScreen = () => {
   const getPollutionDate = () => vehicle.pollutionExpiry || vehicle.pollutionDate || vehicle.pollution_date;
   const getCapacity = () => vehicle.capacity || vehicle.weight || vehicle.weightCapacity;
 
-  const handleMarkAsSold = async () => {
-    Alert.alert("Confirm Sale", "Are you sure you want to mark this vehicle as sold?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Confirm Sold", style: "destructive", onPress: async () => {
-          if (!vehicle._id) return;
-          try {
-            setLoading(true);
-            const res = await api.updateVehicleStatus(vehicle._id, "Sold");
-            if (res.ok) fetchVehicle();
-          } catch (e) { Alert.alert("Error", "Action failed"); } finally { setLoading(false); }
-        }
-      }
-    ]);
+  const handleMarkAsSold = () => {
+    router.push({
+      pathname: "/manager/sale-form" as any,
+      params: {
+        vehicleId: vehicle._id,
+        vehicleReg: vehicle.regNumber,
+        vehicleModel: vehicle.model,
+      },
+    });
   };
 
   const handleEdit = () => {
@@ -191,7 +189,7 @@ const VehicleDetailsScreen = () => {
             <TouchableOpacity style={styles.glassCircle} onPress={() => router.back()}>
               <ChevronLeft size={24} color="#fff" />
             </TouchableOpacity>
-            {(userRole === 'manager' || userRole === 'admin') && (
+            {(userRole === 'manager' || userRole === 'admin') && vehicle.status !== "Sold" && (
               <TouchableOpacity style={styles.glassCircle} onPress={handleEdit}>
                 <Edit2 size={20} color="#fff" />
               </TouchableOpacity>
@@ -285,7 +283,8 @@ const VehicleDetailsScreen = () => {
                     vehicleId: vehicle._id,
                     vehicleReg: vehicle.regNumber,
                     vehicleModel: vehicle.model,
-                    userName: params.userName
+                    userName: params.userName,
+                    vehicleStatus: vehicle.status,
                   }
                 });
               }}
@@ -297,6 +296,60 @@ const VehicleDetailsScreen = () => {
               <ChevronLeft size={16} color="#94A3B8" style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
           </View>
+
+          {/* Sale details if Sold */}
+          {vehicle.status === "Sold" && vehicle.saleDetails && (
+            <>
+              <Text style={styles.sectionTitle}>Sale Information</Text>
+              <View style={styles.docListCard}>
+                <View style={styles.docRow}>
+                  <View style={[styles.docIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                    <User size={18} color="#EF4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docLabelName}>Buyer Name</Text>
+                    <Text style={styles.docDateVal}>{vehicle.saleDetails.buyerName || 'N/A'}</Text>
+                  </View>
+                </View>
+                <View style={styles.docRow}>
+                  <View style={[styles.docIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                    <MapPin size={18} color="#EF4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docLabelName}>Buyer Address</Text>
+                    <Text style={styles.docDateVal}>{vehicle.saleDetails.buyerAddress || 'N/A'}</Text>
+                  </View>
+                </View>
+                <View style={styles.docRow}>
+                  <View style={[styles.docIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                    <Phone size={18} color="#EF4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docLabelName}>Buyer contact</Text>
+                    <Text style={styles.docDateVal}>{vehicle.saleDetails.buyerContact || 'N/A'}</Text>
+                  </View>
+                </View>
+                <View style={styles.docRow}>
+                  <View style={[styles.docIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                    <Calendar size={18} color="#EF4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docLabelName}>Sale Date</Text>
+                    <Text style={styles.docDateVal}>{formatDateForDisplay(vehicle.saleDetails.saleDate)}</Text>
+                  </View>
+                </View>
+                <View style={[styles.docRow, { borderBottomWidth: 0 }]}>
+                  <View style={[styles.docIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                    <Tag size={18} color="#EF4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docLabelName}>Sale Price</Text>
+                    <Text style={styles.docDateVal}>₹{vehicle.saleDetails.salePrice || 'N/A'}</Text>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
 
           {/* Management Actions */}
           {userRole === "manager" && vehicle.status !== "Sold" && (

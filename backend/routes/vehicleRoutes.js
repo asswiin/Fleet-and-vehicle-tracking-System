@@ -126,7 +126,37 @@ router.patch("/:id/status", async (req, res) => {
   }
 });
 
-// 6. GET VEHICLE ALERTS SUMMARY (Optimized for Dashboard)
+// 6. SELL VEHICLE (RECORD SALE DETAILS)
+router.post("/:id/sell", async (req, res) => {
+  try {
+    const { buyerName, buyerAddress, buyerContact, saleDate, salePrice } = req.body;
+
+    const updatedVehicle = await Vehicle.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: "Sold",
+        saleDetails: {
+          buyerName,
+          buyerAddress,
+          buyerContact,
+          saleDate,
+          salePrice
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedVehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    res.json({ message: "Vehicle sold successfully", data: updatedVehicle });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// 7. GET VEHICLE ALERTS SUMMARY (Optimized for Dashboard)
 router.get("/alerts/summary", async (req, res) => {
   try {
     const today = new Date();

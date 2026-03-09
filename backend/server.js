@@ -18,6 +18,10 @@ app.get("/", (req, res) => {
   res.send("API running");
 });
 
+app.get("/api/test", (req, res) => {
+  res.json({ message: "Test successful" });
+});
+
 // Health check route
 app.get("/api/health", (req, res) => {
   res.json({

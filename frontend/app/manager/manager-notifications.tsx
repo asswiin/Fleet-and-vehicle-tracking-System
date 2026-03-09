@@ -11,8 +11,8 @@ import {
   RefreshControl,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ArrowLeft, Bell, Clock, User, Truck } from "lucide-react-native";
-import { api, type Notification } from "../../utils/api";
+import { ArrowLeft, Bell, Clock, User, Truck, Package, MapPin } from "lucide-react-native";
+import { api, type Notification, type DeliveredParcel } from "../../utils/api";
 
 const ManagerNotificationsScreen = () => {
   const router = useRouter();
@@ -99,21 +99,25 @@ const ManagerNotificationsScreen = () => {
       <TouchableOpacity
         style={[
           styles.notificationCard,
-          !item.read && styles.unreadCard,
-          canReassign && styles.actionableCard,
-          isDelivered && styles.deliveredCard
+          !item.read ? styles.unreadCard : styles.readCard,
+          canReassign && !item.read && styles.actionableCard,
+          isDelivered && (item.read ? styles.deliveredReadCard : styles.deliveredCard)
         ]}
         onPress={() => {
-          if (!item.read) {
-            markAsRead(item._id);
-          }
           if (canReassign) {
+            if (!item.read) markAsRead(item._id);
             handleReassignDriver(item);
           } else if (isDelivered && item.deliveredParcelId) {
+            const hId = typeof item.deliveredParcelId === 'object' ? (item.deliveredParcelId as any)._id : item.deliveredParcelId;
             router.push({
               pathname: "/manager/delivered-parcel-details",
-              params: { historyId: item.deliveredParcelId }
+              params: {
+                historyId: hId,
+                notificationId: item._id
+              }
             } as any);
+          } else if (!item.read) {
+            markAsRead(item._id);
           }
         }}
       >
@@ -148,6 +152,57 @@ const ManagerNotificationsScreen = () => {
             {item.declinedDriverId.mobile && (
               <Text style={styles.driverPhone}> • {item.declinedDriverId.mobile}</Text>
             )}
+          </View>
+        )}
+
+        {(isDelivered || (item.parcelIds && item.parcelIds.length > 0)) && (
+          <View style={styles.parcelInfoSection}>
+            {item.parcelIds?.map((parcel, idx) => (
+              <TouchableOpacity
+                key={parcel._id || idx}
+                style={styles.parcelDetailCard}
+                onPress={() => {
+                  if (isDelivered && item.deliveredParcelId) {
+                    const hId = typeof item.deliveredParcelId === 'object' ? (item.deliveredParcelId as any)._id : item.deliveredParcelId;
+                    router.push({
+                      pathname: "/manager/delivered-parcel-details",
+                      params: {
+                        historyId: hId,
+                        notificationId: item._id
+                      }
+                    } as any);
+                  } else {
+                    router.push({
+                      pathname: "/manager/parcel-details",
+                      params: { parcelId: parcel._id }
+                    } as any);
+                  }
+                }}
+              >
+                <View style={styles.parcelDetailRow}>
+                  <Package size={14} color="#64748B" />
+                  <Text style={styles.parcelDetailText}>
+                    <Text style={styles.boldText}>Type: </Text>{parcel.type}
+                  </Text>
+                  <View style={styles.detailSeparator} />
+                  <Text style={styles.parcelDetailText}>
+                    <Text style={styles.boldText}>Weight: </Text>{parcel.weight}kg
+                  </Text>
+                </View>
+                <View style={styles.parcelDetailRow}>
+                  <User size={14} color="#64748B" />
+                  <Text style={styles.parcelDetailText}>
+                    <Text style={styles.boldText}>To: </Text>{parcel.recipient?.name}
+                  </Text>
+                </View>
+                <View style={styles.parcelDetailRow}>
+                  <MapPin size={14} color="#64748B" />
+                  <Text style={styles.parcelDetailText} numberOfLines={1}>
+                    <Text style={styles.boldText}>Dest: </Text>{parcel.recipient?.address}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -217,7 +272,7 @@ const ManagerNotificationsScreen = () => {
           <Bell size={48} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No notifications</Text>
           <Text style={styles.emptyText}>
-            You'll receive notifications when drivers decline trips
+            You'll receive notifications when drivers confirms trips
           </Text>
         </View>
       ) : (
@@ -299,6 +354,12 @@ const styles = StyleSheet.create({
   unreadCard: {
     borderColor: "#3B82F6",
     backgroundColor: "#FEFEFF",
+    elevation: 4,
+    shadowOpacity: 0.1,
+  },
+  readCard: {
+    opacity: 0.7,
+    backgroundColor: "#F1F5F9",
   },
   actionableCard: {
     borderColor: "#F59E0B",
@@ -307,6 +368,10 @@ const styles = StyleSheet.create({
   deliveredCard: {
     borderColor: "#10B981",
     backgroundColor: "#ECFDF5",
+  },
+  deliveredReadCard: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#CBD5E1",
   },
   cardHeader: {
     flexDirection: "row",
@@ -427,6 +492,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#fff",
+  },
+  parcelInfoSection: {
+    marginTop: 4,
+    marginBottom: 12,
+    gap: 8,
+  },
+  parcelDetailCard: {
+    backgroundColor: "#F8FAFC",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  parcelDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  parcelDetailText: {
+    fontSize: 12,
+    color: "#475569",
+  },
+  boldText: {
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  detailSeparator: {
+    width: 1,
+    height: 10,
+    backgroundColor: "#CBD5E1",
+    marginHorizontal: 4,
   },
 });
 

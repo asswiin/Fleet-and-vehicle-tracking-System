@@ -85,7 +85,7 @@ const TripConfirmationScreen = () => {
             {
               text: "OK",
               onPress: () => {
-                router.push({
+                router.replace({
                   pathname: "/driver-dashboard",
                   params: { userId: params.driverId }
                 } as any);
@@ -122,7 +122,7 @@ const TripConfirmationScreen = () => {
                   {
                     text: "OK",
                     onPress: () => {
-                      router.push({
+                      router.replace({
                         pathname: "/driver-dashboard",
                         params: { userId: params.driverId }
                       } as any);

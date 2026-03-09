@@ -74,13 +74,14 @@ exports.createNotification = async (req, res) => {
       populatedNotification = await Notification.findById(notification._id)
         .populate("driverId", "name mobile")
         .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
-        .populate("parcelIds", "trackingId recipient weight");
+        .populate("parcelIds", "trackingId recipient weight type");
     } else {
       populatedNotification = await Notification.findById(notification._id)
         .populate("managerId", "name email")
         .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
-        .populate("parcelIds", "trackingId recipient weight")
-        .populate("declinedDriverId", "name mobile");
+        .populate("parcelIds", "trackingId recipient weight type")
+        .populate("declinedDriverId", "name mobile")
+        .populate("deliveredParcelId");
     }
 
     res.status(201).json(populatedNotification);
@@ -101,8 +102,9 @@ exports.getManagerNotifications = async (req, res) => {
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
       .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
-      .populate("parcelIds", "trackingId recipient weight")
+      .populate("parcelIds", "trackingId recipient weight type")
       .populate("declinedDriverId", "name mobile")
+      .populate("deliveredParcelId")
       .sort({ createdAt: -1 });
 
     res.json(notifications);
@@ -142,7 +144,7 @@ exports.getDriverNotifications = async (req, res) => {
       expiresAt: { $gt: new Date() }, // Only get non-expired notifications
     })
       .populate("vehicleId", "regNumber model type") // Optimized: Exclude profilePhoto
-      .populate("parcelIds", "trackingId recipient weight")
+      .populate("parcelIds", "trackingId recipient weight type")
       .sort({ createdAt: -1 });
 
     res.json(notifications);
@@ -179,7 +181,8 @@ exports.getNotification = async (req, res) => {
     const notification = await Notification.findById(id)
       .populate("driverId", "name mobile email")
       .populate("vehicleId", "regNumber model type weight profilePhoto")
-      .populate("parcelIds", "trackingId recipient weight type");
+      .populate("parcelIds", "trackingId recipient weight type")
+      .populate("deliveredParcelId");
 
     if (!notification) {
       return res.status(404).json({ message: "Notification not found" });
@@ -239,72 +242,59 @@ exports.updateNotificationStatus = async (req, res) => {
     await notification.save();
 
     if (status === "accepted") {
-      // Update the Trip status to "accepted"
-      await Trip.findOneAndUpdate(
-        { tripId: notification.tripId },
-        {
-          status: "accepted",
-          acceptedAt: new Date()
-        }
-      );
-
-      // Update vehicle status to "Trip Confirmed" (not On-trip yet - that's when driver starts)
-      await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
-        status: "Trip Confirmed",
-        currentTripId: notification.tripId,
-        driverId: notification.driverId._id,
-      });
-
-      // Update driver status to "Accepted"
-      await Driver.findByIdAndUpdate(notification.driverId._id, {
-        driverStatus: "Accepted",
-        currentTripId: notification.tripId,
-      });
-
-      // Update all parcels to "Confirmed"
-      for (const parcel of notification.parcelIds) {
-        await Parcel.findByIdAndUpdate(parcel._id, {
-          status: "Confirmed",
-          tripId: notification.tripId,
-          assignedDriver: notification.driverId._id,
-          assignedVehicle: notification.vehicleId._id,
-        });
-      }
+      // Update statuses in parallel
+      await Promise.all([
+        // Update the Trip status
+        Trip.findOneAndUpdate(
+          { tripId: notification.tripId },
+          { status: "accepted", acceptedAt: new Date() }
+        ),
+        // Update vehicle status
+        notification.vehicleId ? Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
+          status: "Trip Confirmed",
+          currentTripId: notification.tripId,
+          driverId: notification.driverId ? notification.driverId._id : null,
+        }) : Promise.resolve(),
+        // Update driver status
+        notification.driverId ? Driver.findByIdAndUpdate(notification.driverId._id, {
+          driverStatus: "Accepted",
+          currentTripId: notification.tripId,
+        }) : Promise.resolve(),
+        // Update all parcels bulk
+        Parcel.updateMany(
+          { _id: { $in: notification.parcelIds.map(p => p._id) } },
+          {
+            status: "Confirmed",
+            tripId: notification.tripId,
+            assignedDriver: notification.driverId ? notification.driverId._id : null,
+            assignedVehicle: notification.vehicleId ? notification.vehicleId._id : null,
+          }
+        )
+      ]);
     } else if (status === "declined") {
-      // NEW WORKFLOW: Driver declined - keep parcels in pending state
-      // and notify the manager for reassignment
+      // Update statuses in parallel
+      const updatePromises = [
+        Trip.findOneAndUpdate({ tripId: notification.tripId }, { status: "declined" }),
+        Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
+          status: "assigned",
+          currentTripId: null,
+          driverId: null,
+        }),
+        Driver.findByIdAndUpdate(notification.driverId._id, {
+          driverStatus: "available",
+          currentTripId: null,
+        }),
+        Parcel.updateMany(
+          { _id: { $in: notification.parcelIds.map(p => p._id) } },
+          {
+            status: "Pending",
+            tripId: notification.tripId,
+            assignedDriver: null,
+          }
+        )
+      ];
 
-      // Update the Trip status to "declined"
-      await Trip.findOneAndUpdate(
-        { tripId: notification.tripId },
-        { status: "declined" }
-      );
-
-      // Keep vehicle status as "assigned" since it's still assigned to the trip
-      await Vehicle.findByIdAndUpdate(notification.vehicleId._id, {
-        status: "assigned",
-        currentTripId: null,
-        driverId: null,
-      });
-
-      // Update driver status to "available" when declining trip
-      await Driver.findByIdAndUpdate(notification.driverId._id, {
-        driverStatus: "available",
-        currentTripId: null,
-      });
-
-      // KEEP PARCELS IN PENDING STATE (don't revert to "Booked")
-      // Vehicle stays assigned — only the driver is removed
-      for (const parcel of notification.parcelIds) {
-        await Parcel.findByIdAndUpdate(parcel._id, {
-          status: "Pending",
-          tripId: notification.tripId,
-          assignedDriver: null, // Remove current driver assignment
-          // assignedVehicle stays unchanged — vehicle is still assigned to this trip
-        });
-      }
-
-      // Create notification for manager about driver decline
+      // Create manager notification
       if (notification.assignedBy) {
         const managerNotification = new Notification({
           managerId: notification.assignedBy,
@@ -320,8 +310,10 @@ exports.updateNotificationStatus = async (req, res) => {
           declinedDriverId: notification.driverId._id,
           assignedBy: notification.assignedBy,
         });
-        await managerNotification.save();
+        updatePromises.push(managerNotification.save());
       }
+
+      await Promise.all(updatePromises);
     }
 
     // Return updated notification
@@ -388,7 +380,8 @@ exports.reassignDriver = async (req, res) => {
       {
         driverId: newDriverId,
         vehicleId: vehicleId,
-        status: "pending"
+        status: "pending",
+        assignedBy: managerNotification.managerId
       }
     );
 

@@ -46,12 +46,10 @@ const TrackTripScreen = () => {
     const fetchTripDetails = async () => {
         if (!tripId) return;
         try {
-            // Initial fetch of trip basic details if not already loaded
-            if (!trip) {
-                const response = await api.getTrip(tripId);
-                if (response.ok && response.data) {
-                    setTrip(response.data);
-                }
+            // Always fetch latest trip data to get updated statuses
+            const response = await api.getTrip(tripId);
+            if (response.ok && response.data) {
+                setTrip(response.data);
             }
 
             // Fetch live tracking data
@@ -73,7 +71,7 @@ const TrackTripScreen = () => {
             fetchTripDetails();
             const interval = setInterval(fetchTripDetails, 3000); // Poll every 3 seconds for smoother feel
             return () => clearInterval(interval);
-        }, [tripId, trip])
+        }, [tripId])
     );
 
     useEffect(() => {

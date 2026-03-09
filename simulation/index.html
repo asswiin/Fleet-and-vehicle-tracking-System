@@ -508,7 +508,8 @@
                                     lastKnownLocation: newItem.lastKnownLocation,
                                     isPaused: false,
                                     statusMsg: '',
-                                    syncInterval: null
+                                    syncInterval: null,
+                                    _lastUpdateTime: 0
                                 }
                             };
                         });
@@ -591,11 +592,22 @@
 
                         if (data.routes?.length) {
                             t.sim.routePoints = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                            t.sim.totalDistance = data.routes[0].distance / 1000;
+                            // 1. Calculate cumulative distances for accurate progress
+                            let cumulativeDist = 0;
+                            t.sim.cumulativeDistances = [0];
+                            for (let i = 1; i < t.sim.routePoints.length; i++) {
+                                const p1 = L.latLng(t.sim.routePoints[i - 1][0], t.sim.routePoints[i - 1][1]);
+                                const p2 = L.latLng(t.sim.routePoints[i][0], t.sim.routePoints[i][1]);
+                                cumulativeDist += p1.distanceTo(p2);
+                                t.sim.cumulativeDistances.push(cumulativeDist);
+                            }
+                            t.sim.totalRouteDistance = cumulativeDist; // in meters
+                            t.sim.totalDistance = cumulativeDist / 1000; // in km
+
                             t.sim.totalDuration = data.routes[0].duration / 60;
                             t.sim.canStart = true;
 
-                            // Store destination indices for pausing
+                            // 2. Store destination indices for pausing
                             t.sim.stopPoints = destinations.map(d => {
                                 // Find closest point in routePoints for each destination
                                 let minIdx = 0;
@@ -610,9 +622,20 @@
                                 return { index: minIdx, parcelId: d.parcelId, locationName: d.locationName };
                             });
 
-                            // Calculate starting index
+                            // 3. Calculate starting index
                             if (t.sim.progress > 0) {
-                                t.sim.currentIndex = Math.floor((t.sim.progress / 100) * (t.sim.routePoints.length - 1));
+                                // Find index where cumulative distance matches progress
+                                const targetDist = (t.sim.progress / 100) * t.sim.totalRouteDistance;
+                                let bestIdx = 0;
+                                let minDiff = Infinity;
+                                t.sim.cumulativeDistances.forEach((d, idx) => {
+                                    const diff = Math.abs(d - targetDist);
+                                    if (diff < minDiff) {
+                                        minDiff = diff;
+                                        bestIdx = idx;
+                                    }
+                                });
+                                t.sim.currentIndex = bestIdx;
                             } else if (t.sim.lastKnownLocation?.latitude) {
                                 let minIdx = 0;
                                 let minDist = Infinity;
@@ -624,7 +647,7 @@
                                     }
                                 });
                                 t.sim.currentIndex = minIdx;
-                                t.sim.progress = (minIdx / (t.sim.routePoints.length - 1)) * 100;
+                                t.sim.progress = (t.sim.cumulativeDistances[minIdx] / t.sim.totalRouteDistance) * 100;
                             }
 
                             // Initialize layers
@@ -701,6 +724,29 @@
                     } catch (e) { console.error('Refresh data error', e); }
                 };
 
+                // Send location update to backend (returns a promise)
+                const sendLocationUpdate = (t, point, progress) => {
+                    const id = t.trip._id.length === 24 ? t.trip._id : t.trip.tripId;
+                    return fetch(`${API_URL}/api/trips/${id}/location`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            latitude: point[0],
+                            longitude: point[1],
+                            address: 'Simulated Route',
+                            progress: progress,
+                            totalDistance: t.sim.totalDistance,
+                            totalDuration: t.sim.totalDuration
+                        })
+                    }).then(res => res.json()).then(data => {
+                        if (data.trip && data.trip.sos) {
+                            stopTripSim(t);
+                            t.trip.sos = true;
+                            alert(`🚨 Emergency Detected! Trip #${t.trip.tripId} simulation stopped.`);
+                        }
+                    }).catch(e => { });
+                };
+
                 const runSimLoop = async (t) => {
                     if (!t.sim.isRunning) return;
 
@@ -736,6 +782,11 @@
                             t.sim.isPaused = true;
                             t.sim.statusMsg = `STOP REACHED: ${stopAtCurrent.locationName} - WAITING FOR MANUAL DELIVERY`;
 
+                            // Always send update when paused at a stop
+                            const stopPt = t.sim.routePoints[t.sim.currentIndex];
+                            t.sim.progress = (t.sim.cumulativeDistances[t.sim.currentIndex] / t.sim.totalRouteDistance) * 100;
+                            sendLocationUpdate(t, stopPt, t.sim.progress);
+
                             t.sim.timer = backgroundTimer.setTimeout(() => runSimLoop(t), 2000);
                             return;
                         } else {
@@ -746,7 +797,7 @@
 
                     const point = t.sim.routePoints[t.sim.currentIndex];
                     if (t.sim.marker) t.sim.marker.setLatLng(point);
-                    t.sim.progress = (t.sim.currentIndex / (t.sim.routePoints.length - 1)) * 100;
+                    t.sim.progress = (t.sim.cumulativeDistances[t.sim.currentIndex] / t.sim.totalRouteDistance) * 100;
 
                     // Visualize progress on map (solid history, dashed future)
                     if (t.sim.pathLine) {
@@ -758,32 +809,12 @@
                         }
                     }
 
-                    // Update backend - non-blocking to ensure smooth simulation
-                    // Threshold increases with stepSize to avoid congestion
-                    const updateInterval = stepSize > 1 ? stepSize * 2 : 2;
-                    if (t.sim.currentIndex % updateInterval === 0 || t.sim.currentIndex >= t.sim.routePoints.length - stepSize) {
-                        const id = t.trip._id.length === 24 ? t.trip._id : t.trip.tripId;
-
-                        // Fire and forget (don't await) but handle SOS in response
-                        fetch(`${API_URL}/api/trips/${id}/location`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                latitude: point[0],
-                                longitude: point[1],
-                                address: 'Simulated Route',
-                                progress: t.sim.progress,
-                                totalDistance: t.sim.totalDistance,
-                                totalDuration: t.sim.totalDuration
-                            })
-                        }).then(res => res.json()).then(data => {
-                            // If SOS is triggered from the app, stop simulation automatically
-                            if (data.trip && data.trip.sos) {
-                                stopTripSim(t);
-                                t.trip.sos = true;
-                                alert(`🚨 Emergency Detected! Trip #${t.trip.tripId} simulation stopped.`);
-                            }
-                        }).catch(e => { });
+                    // Time-based throttle: send backend update at most once per 500ms
+                    const now = Date.now();
+                    const isLastPoint = t.sim.currentIndex >= t.sim.routePoints.length - stepSize;
+                    if (!t.sim._lastUpdateTime || (now - t.sim._lastUpdateTime) >= 500 || isLastPoint) {
+                        t.sim._lastUpdateTime = now;
+                        sendLocationUpdate(t, point, t.sim.progress);
                     }
 
                     // Advance index
@@ -826,21 +857,31 @@
                     // Automatic delivery status update is disabled.
                     // Delivery must be confirmed manually by the driver in the mobile app.
 
-
-                    // Final location update to ensure 100% progress is shown
+                    // Final location update — AWAITED with retry to guarantee 100% reaches backend
                     const id = t.trip._id.length === 24 ? t.trip._id : t.trip.tripId;
-                    try {
-                        fetch(`${API_URL}/api/trips/${id}/location`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                latitude: t.sim.routePoints[t.sim.routePoints.length - 1][0],
-                                longitude: t.sim.routePoints[t.sim.routePoints.length - 1][1],
-                                address: 'Destination Reached',
-                                progress: 100
-                            })
-                        });
-                    } catch (e) { }
+                    const lastPoint = t.sim.routePoints[t.sim.routePoints.length - 1];
+                    const sendFinal = async (retries = 3) => {
+                        for (let i = 0; i < retries; i++) {
+                            try {
+                                const res = await fetch(`${API_URL}/api/trips/${id}/location`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        latitude: lastPoint[0],
+                                        longitude: lastPoint[1],
+                                        address: 'Destination Reached',
+                                        progress: 100,
+                                        totalDistance: t.sim.totalDistance,
+                                        totalDuration: t.sim.totalDuration
+                                    })
+                                });
+                                if (res.ok) return; // success
+                            } catch (e) { }
+                            // small delay before retry
+                            await new Promise(r => setTimeout(r, 300));
+                        }
+                    };
+                    await sendFinal();
 
                     alert(`Trip #${t.trip.tripId} Simulation Finished! Ready for manual delivery.`);
                 };

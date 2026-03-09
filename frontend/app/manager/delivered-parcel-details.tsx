@@ -30,10 +30,20 @@ const { width } = Dimensions.get("window");
 
 const DeliveredParcelDetailsScreen = () => {
     const router = useRouter();
-    const { historyId } = useLocalSearchParams();
+    const { historyId, notificationId } = useLocalSearchParams();
     const [history, setHistory] = useState<DeliveredParcel | null>(null);
     const [trip, setTrip] = useState<Trip | null>(null);
     const [loading, setLoading] = useState(true);
+
+    const markRead = useCallback(async () => {
+        if (notificationId) {
+            try {
+                await api.markNotificationAsRead(notificationId as string);
+            } catch (err) {
+                console.error("Error marking as read:", err);
+            }
+        }
+    }, [notificationId]);
 
     const fetchDetails = useCallback(async () => {
         try {
@@ -47,6 +57,8 @@ const DeliveredParcelDetailsScreen = () => {
                     if (tripRes.ok && tripRes.data) {
                         setTrip(tripRes.data);
                     }
+                    // Mark as read after opening
+                    markRead();
                 }
             }
         } catch (error) {
@@ -54,7 +66,7 @@ const DeliveredParcelDetailsScreen = () => {
         } finally {
             setLoading(false);
         }
-    }, [historyId]);
+    }, [historyId, markRead]);
 
     useEffect(() => {
         fetchDetails();
@@ -159,6 +171,18 @@ const DeliveredParcelDetailsScreen = () => {
                             <Text style={styles.timelineLabel}>Accepted Date & Time</Text>
                             <Text style={styles.timelineValue}>
                                 {trip?.acceptedAt ? `${formatDate(trip.acceptedAt)} • ${formatTime(trip.acceptedAt)}` : "N/A"}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.timelineConnector} />
+
+                    <View style={styles.timelineItem}>
+                        <View style={styles.timelinePoint} />
+                        <View style={styles.timelineContent}>
+                            <Text style={styles.timelineLabel}>Journey Started Date & Time</Text>
+                            <Text style={styles.timelineValue}>
+                                {trip?.startedAt ? `${formatDate(trip.startedAt)} • ${formatTime(trip.startedAt)}` : "N/A"}
                             </Text>
                         </View>
                     </View>

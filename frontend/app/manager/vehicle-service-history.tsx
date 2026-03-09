@@ -41,6 +41,7 @@ const VehicleServiceHistoryScreen = () => {
     vehicleReg?: string;
     vehicleModel?: string;
     userName?: string;
+    vehicleStatus?: string;
   }>();
 
   const [records, setRecords] = useState<any[]>([]);
@@ -131,9 +132,11 @@ const VehicleServiceHistoryScreen = () => {
               <Text style={[styles.issueTypeLabel, { color: issueColor }]}>{item.issueType}</Text>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editBtn}>
-                <Edit2 size={14} color="#2563EB" />
-              </TouchableOpacity>
+              {params.vehicleStatus !== "Sold" && (
+                <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editBtn}>
+                  <Edit2 size={14} color="#2563EB" />
+                </TouchableOpacity>
+              )}
               <View style={[styles.statusBadge, { backgroundColor: isActive ? "#FEF3C7" : "#DCFCE7" }]}>
                 <View style={[styles.statusDot, { backgroundColor: isActive ? "#F59E0B" : "#22C55E" }]} />
                 <Text style={[styles.statusLabel, { color: isActive ? "#92400E" : "#166534" }]}>
@@ -201,7 +204,7 @@ const VehicleServiceHistoryScreen = () => {
           </View>
 
           {/* Mark completed button if still In-Service */}
-          {isActive && (
+          {isActive && params.vehicleStatus !== "Sold" && (
             <TouchableOpacity
               style={styles.completeButton}
               onPress={() => handleMarkCompleted(item._id)}

@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   Image,
+  BackHandler,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
@@ -83,6 +84,25 @@ const DriverDashboard = () => {
       fetchDriver();
       fetchNotificationCount();
       fetchActiveTrip();
+
+      // Add BackHandler to prevent going back to assignment/active-trip screens
+      const onBackPress = () => {
+        Alert.alert("Exit App", "Are you sure you want to exit the app?", [
+          {
+            text: "Cancel",
+            onPress: () => null,
+            style: "cancel",
+          },
+          { text: "YES", onPress: () => BackHandler.exitApp() },
+        ]);
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => {
+        backHandler.remove();
+      };
     }, [driverId])
   );
 

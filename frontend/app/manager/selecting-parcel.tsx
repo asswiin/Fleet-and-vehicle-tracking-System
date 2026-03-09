@@ -153,13 +153,13 @@ const SelectingParcelScreen = () => {
             {/* Weight and Type */}
             <View style={styles.parcelDetailsRow}>
               <View style={[styles.detailItem, styles.weightItem]}>
-                <Package size={16} color="#059669" style={{ marginRight: 4 }} />
-                <Text style={styles.weightLabel}>Weight:</Text>
+                <Package size={15} color="#16A34A" style={{ marginRight: 4 }} />
+                <Text style={styles.weightLabel}>Weight</Text>
                 <Text style={styles.weightText}>{item.weight || "---"} kg</Text>
               </View>
               <View style={[styles.detailItem, styles.typeItem]}>
-                <Box size={16} color="#7C3AED" style={{ marginRight: 4 }} />
-                <Text style={styles.typeLabel}>Type:</Text>
+                <Box size={15} color="#D97706" style={{ marginRight: 4 }} />
+                <Text style={styles.typeLabel}>Type</Text>
                 <Text style={styles.typeText}>{item.type || "---"}</Text>
               </View>
             </View>
@@ -451,14 +451,14 @@ const styles = StyleSheet.create({
   destinationText: { fontSize: 12, fontWeight: "700", color: "#991B1B", flex: 1 },
   
   // Color-coded weight styles
-  weightItem: { backgroundColor: "#F0FDF4", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 6 },
-  weightLabel: { fontSize: 11, fontWeight: "600", color: "#059669", marginRight: 4 },
-  weightText: { fontSize: 12, fontWeight: "700", color: "#047857" },
+  weightItem: { backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, marginRight: 6, borderWidth: 1, borderColor: "#86EFAC" },
+  weightLabel: { fontSize: 11, fontWeight: "700", color: "#16A34A", marginRight: 4 },
+  weightText: { fontSize: 13, fontWeight: "800", color: "#15803D" },
   
   // Color-coded type styles
-  typeItem: { backgroundColor: "#FAF5FF", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  typeLabel: { fontSize: 11, fontWeight: "600", color: "#7C3AED", marginRight: 4 },
-  typeText: { fontSize: 12, fontWeight: "700", color: "#5B21B6" },
+  typeItem: { backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: "#FCD34D" },
+  typeLabel: { fontSize: 11, fontWeight: "700", color: "#D97706", marginRight: 4 },
+  typeText: { fontSize: 13, fontWeight: "800", color: "#B45309" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyState: { justifyContent: "center", alignItems: "center", paddingVertical: 60 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginTop: 12 },

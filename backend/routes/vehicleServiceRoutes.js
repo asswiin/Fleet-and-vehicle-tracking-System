@@ -78,6 +78,10 @@ router.put("/:id", async (req, res) => {
     if (serviceCompletionDate !== undefined) updateData.serviceCompletionDate = serviceCompletionDate;
     if (status) updateData.status = status;
 
+    if (status === "Completed" && !serviceCompletionDate) {
+      updateData.serviceCompletionDate = new Date();
+    }
+
     const record = await VehicleService.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!record) return res.status(404).json({ message: "Record not found" });
 
@@ -107,9 +111,14 @@ router.get("/vehicle/:vehicleId", async (req, res) => {
 router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
+    const updatePayload = { status };
+    if (status === "Completed") {
+      updatePayload.serviceCompletionDate = new Date();
+    }
+
     const record = await VehicleService.findByIdAndUpdate(
       req.params.id,
-      { status },
+      updatePayload,
       { new: true }
     );
     if (!record) return res.status(404).json({ message: "Record not found" });

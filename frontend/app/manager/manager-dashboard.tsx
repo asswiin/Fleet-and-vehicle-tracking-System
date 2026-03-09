@@ -11,6 +11,7 @@ import {
   Alert,
   Animated,
   Modal,
+  BackHandler,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -34,8 +35,7 @@ import {
   CheckCircle,
   Activity,
 } from "lucide-react-native";
-import { api } from "../../utils/api";
-import type { User as UserType } from "../../utils/api";
+import { api, type User as UserType } from "../../utils/api";
 
 const { width } = Dimensions.get("window");
 
@@ -87,8 +87,6 @@ const ManagerDashboard = () => {
   const [sosAlertActive, setSosAlertActive] = useState(false);
   const [serviceAlertCount, setServiceAlertCount] = useState(0);
   const [deliveryUnreadCount, setDeliveryUnreadCount] = useState(0);
-  const [latestDeliveredNotification, setLatestDeliveredNotification] = useState<any>(null);
-  const [isNotifModalVisible, setIsNotifModalVisible] = useState(false);
 
   // Expiry Warning Helpers
   const parseDate = (dateInput?: string): Date | null => {
@@ -149,6 +147,7 @@ const ManagerDashboard = () => {
       const response = await api.getUser(userId as string);
       if (response.ok && response.data) {
         setManagerData(response.data);
+
       }
     } catch (error) {
       console.error("Error fetching manager data:", error);
@@ -171,26 +170,14 @@ const ManagerDashboard = () => {
       const fetchUnreadNotifications = async () => {
         if (!userId) return;
 
-        // Unread count
-        const countRes = await api.getManagerUnreadNotificationCount(userId);
-        if (countRes.ok && countRes.data) {
-          setDeliveryUnreadCount(countRes.data.count);
-        } else {
-          setDeliveryUnreadCount(0);
-        }
-
-        // List of all delivery notifications
         const listRes = await api.getManagerNotifications(userId);
         if (listRes.ok && Array.isArray(listRes.data)) {
-          // Find the latest unread delivery notification
-          const unreadDeliveries = listRes.data.filter(n => !n.read && n.type === "parcel_delivered");
-          if (unreadDeliveries.length > 0) {
-            setLatestDeliveredNotification(unreadDeliveries[0]);
-          } else {
-            // Also keep track of the last one even if read, for the '1' badge logic if needed
-            // but the user wants '1' only for unread.
-            setLatestDeliveredNotification(listRes.data.find(n => n.type === "parcel_delivered") || null);
-          }
+          const unreadDeliveries = listRes.data.filter(
+            (n: any) => !n.read && n.type === "parcel_delivered"
+          );
+          setDeliveryUnreadCount(unreadDeliveries.length);
+        } else {
+          setDeliveryUnreadCount(0);
         }
       };
 
@@ -210,8 +197,29 @@ const ManagerDashboard = () => {
       refreshData();
 
       // Polling for live updates on dashboard
-      const interval = setInterval(fetchActiveTrips, 4000);
-      return () => clearInterval(interval);
+      const interval = setInterval(() => {
+        fetchActiveTrips();
+        fetchUnreadNotifications();
+      }, 5000);
+      // Add BackHandler to prevent going back to assignment screens
+      const onBackPress = () => {
+        Alert.alert("Exit App", "Are you sure you want to exit the app?", [
+          {
+            text: "Cancel",
+            onPress: () => null,
+            style: "cancel",
+          },
+          { text: "YES", onPress: () => BackHandler.exitApp() },
+        ]);
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => {
+        clearInterval(interval);
+        backHandler.remove();
+      };
     }, [fetchManagerData])
   );
 
@@ -278,19 +286,15 @@ const ManagerDashboard = () => {
               <TouchableOpacity
                 style={styles.iconBtn}
                 onPress={() => {
-                  if (latestDeliveredNotification) {
-                    setIsNotifModalVisible(true);
-                  } else {
-                    router.push({
-                      pathname: "/manager/manager-notifications",
-                      params: { managerId: userId },
-                    } as any);
-                  }
+                  router.push({
+                    pathname: "/manager/manager-notifications",
+                    params: { managerId: userId },
+                  } as any);
                 }}
               >
-                <Bell size={24} color="#64748B" />
+                <Bell size={24} color={deliveryUnreadCount > 0 ? "#2563EB" : "#64748B"} fill={deliveryUnreadCount > 0 ? "#2563EB" : "transparent"} fillOpacity={0.1} />
                 {(declinedCount > 0 || serviceAlertCount > 0 || deliveryUnreadCount > 0) && (
-                  <View style={styles.notificationDot}>
+                  <View style={[styles.notificationDot, deliveryUnreadCount > 0 && { backgroundColor: "#2563EB" }]}>
                     <Text style={styles.notificationBadgeText}>
                       {deliveryUnreadCount > 0 ? deliveryUnreadCount : ""}
                     </Text>
@@ -609,6 +613,8 @@ const ManagerDashboard = () => {
         </TouchableOpacity>
       </View>
 
+
+
     </SafeAreaView>
   );
 };
@@ -725,6 +731,24 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+  },
+  brightOutline: {
+    borderColor: "#2563EB",
+    borderWidth: 2,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  viewDetailsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   previewCardHeader: {
     flexDirection: "row",

@@ -44,8 +44,6 @@ const ReportVehicleServiceScreen = () => {
     serviceStartDate: existing?.serviceStartDate ? new Date(existing.serviceStartDate) : new Date(),
     workshopName: existing?.workshopName || "",
     totalServiceCost: existing?.totalServiceCost ? String(existing.totalServiceCost) : "",
-    serviceCompletionDate: existing?.serviceCompletionDate ? new Date(existing.serviceCompletionDate) : new Date(),
-    showCompletionDate: !!existing?.serviceCompletionDate,
   });
 
   const [loading, setLoading] = useState(false);
@@ -60,8 +58,6 @@ const ReportVehicleServiceScreen = () => {
         setFormData({ ...formData, dateOfIssue: selectedDate });
       } else if (showDatePicker === "service") {
         setFormData({ ...formData, serviceStartDate: selectedDate });
-      } else if (showDatePicker === "completion") {
-        setFormData({ ...formData, serviceCompletionDate: selectedDate, showCompletionDate: true });
       }
     }
   };
@@ -118,9 +114,6 @@ const ReportVehicleServiceScreen = () => {
 
       if (formData.totalServiceCost.trim()) {
         payload.totalServiceCost = parseFloat(formData.totalServiceCost);
-      }
-      if (formData.showCompletionDate) {
-        payload.serviceCompletionDate = formData.serviceCompletionDate.toISOString();
       }
 
       let res;
@@ -314,30 +307,6 @@ const ReportVehicleServiceScreen = () => {
             </View>
           </View>
 
-          {/* Service Completion Date */}
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Service Completion Date</Text>
-            <TouchableOpacity
-              style={styles.dateInput}
-              onPress={() => setShowDatePicker("completion")}
-            >
-              <Calendar size={20} color="#2563EB" />
-              <Text style={styles.dateInputText}>
-                {formData.showCompletionDate
-                  ? formatDate(formData.serviceCompletionDate)
-                  : "Not set (tap to select)"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {showDatePicker === "completion" && (
-            <DateTimePicker
-              value={formData.serviceCompletionDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={handleDateChange}
-            />
-          )}
 
           {/* Submit Button */}
           <TouchableOpacity

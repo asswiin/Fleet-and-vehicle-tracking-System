@@ -58,12 +58,13 @@ const driverSchema = new mongoose.Schema(
     branch: {
       type: String,
       default: "",
-    }
+    },
+
   },
   { timestamps: true }
 );
 
-// Hash password before savingsss
+// Hash password before saving
 driverSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
   const salt = await bcrypt.genSalt(10);

@@ -30,7 +30,7 @@ import {
 
 const { width } = Dimensions.get("window");
 
-const FILTER_TABS = ["All", "Available", "On-trip", "In-Service"];
+const FILTER_TABS = ["All", "Available", "On-trip", "In-Service", "Sold"];
 
 const VehicleListScreen = () => {
   const router = useRouter();
@@ -100,6 +100,8 @@ const VehicleListScreen = () => {
         return { color: '#2563EB', bg: '#EFF6FF', label: 'On Trip', icon: Truck };
       case 'In-Service':
         return { color: '#D97706', bg: '#FFFBEB', label: 'In Service', icon: Settings };
+      case 'Sold':
+        return { color: '#EF4444', bg: '#FEF2F2', label: 'Sold', icon: AlertTriangle };
       default:
         return { color: '#64748B', bg: '#F1F5F9', label: displayStatus || 'Unknown', icon: Truck };
     }

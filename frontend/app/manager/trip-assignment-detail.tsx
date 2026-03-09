@@ -199,7 +199,7 @@ const TripAssignmentDetailScreen = () => {
               text: "Later",
               style: "cancel",
               onPress: () => {
-                router.push({
+                router.replace({
                   pathname: "/driver/driver-dashboard",
                   params: { userId: driverId },
                 } as any);
@@ -208,7 +208,7 @@ const TripAssignmentDetailScreen = () => {
             {
               text: "View Trip",
               onPress: () => {
-                router.push({
+                router.replace({
                   pathname: "/driver/active-trip",
                   params: { driverId: driverId },
                 } as any);

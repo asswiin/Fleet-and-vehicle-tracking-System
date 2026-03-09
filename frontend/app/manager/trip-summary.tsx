@@ -164,6 +164,7 @@ const TripSummaryScreen = () => {
           order: loc.order,
         })),
         totalWeight: totalWeight,
+        assignedBy: params.managerId as string,
       });
 
       if (!tripRes.ok) {
@@ -194,11 +195,11 @@ const TripSummaryScreen = () => {
         return;
       }
 
-      Alert.alert("Success", "Trip assigned successfully! Driver has been notified.\n\nParcels are now in 'Pending' status. When the driver accepts, status will change to 'Confirmed'.", [
+      Alert.alert("Success", "Trip assigned successfully!.", [
         {
           text: "OK",
           onPress: () => {
-            router.push({
+            router.replace({
               pathname: "manager/manager-dashboard",
               params: { userId: params.managerId as string }
             } as any);

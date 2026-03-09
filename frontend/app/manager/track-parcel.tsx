@@ -68,10 +68,10 @@ const TrackParcelScreen = () => {
         }
     };
 
-    // Poll for updates every 10 seconds
+    // Poll for updates every 3 seconds to stay in sync with simulation
     useEffect(() => {
         fetchParcelAndTracking();
-        const interval = setInterval(fetchParcelAndTracking, 10000);
+        const interval = setInterval(fetchParcelAndTracking, 3000);
         return () => clearInterval(interval);
     }, [trackingId]);
 
