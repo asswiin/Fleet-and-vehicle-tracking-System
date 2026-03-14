@@ -56,8 +56,8 @@ const LoginScreen: FC = () => {
         // Validate role matches the selected role from role-selection
         if (selectedRole && data?.role !== selectedRole) {
           Alert.alert(
-            "Access Denied",
-            `You selected "${selectedRole}" but your account is registered as "${data?.role}". Please go back and select the correct role.`
+            "Login Failed",
+            "Invalid credentials"
           );
           setLoading(false);
           return;
@@ -67,15 +67,15 @@ const LoginScreen: FC = () => {
           // Admin access: Check if selected district matches Kozhikode for this project
           if (selectedDistrict !== PROJECT_DISTRICT) {
             Alert.alert(
-              "Access Denied",
-              `This application is configured for ${PROJECT_DISTRICT} district. You selected ${selectedDistrict}. Please contact the administrator for ${selectedDistrict} district.`
+              "Login Failed",
+              "Invalid credentials"
             );
             setLoading(false);
             return;
           }
-          router.replace({ 
+          router.replace({
             pathname: "/admin/admin-dashboard" as any,
-            params: { 
+            params: {
               role: selectedRole,
               district: selectedDistrict,
             },
@@ -84,8 +84,8 @@ const LoginScreen: FC = () => {
           // Manager access: Check district AND branch
           if (selectedDistrict !== PROJECT_DISTRICT || selectedBranch.toLowerCase() !== PROJECT_BRANCH.toLowerCase()) {
             Alert.alert(
-              "Access Denied",
-              `This application is configured for ${PROJECT_DISTRICT} district, ${PROJECT_BRANCH} branch. You selected ${selectedDistrict} district, ${selectedBranch} branch. Please contact the administrator for your location.`
+              "Login Failed",
+              "Invalid credentials"
             );
             setLoading(false);
             return;
@@ -93,29 +93,29 @@ const LoginScreen: FC = () => {
           router.replace({
             pathname: "/manager/manager-dashboard" as any,
             // Pass Name AND ID
-            params: { 
-              userName: data.name, 
+            params: {
+              userName: data.name,
               userId: userId,
               role: selectedRole,
               district: selectedDistrict,
               branch: selectedBranch,
             },
           });
-        } 
+        }
         else if (data?.role === "driver") {
           // Driver access: Check district AND branch
           if (selectedDistrict !== PROJECT_DISTRICT || selectedBranch.toLowerCase() !== PROJECT_BRANCH.toLowerCase()) {
             Alert.alert(
-              "Access Denied",
-              `This application is configured for ${PROJECT_DISTRICT} district, ${PROJECT_BRANCH} branch. You selected ${selectedDistrict} district, ${selectedBranch} branch. Please contact the administrator for your location.`
+              "Login Failed",
+              "Invalid credentials"
             );
             setLoading(false);
             return;
           }
           router.replace({
-            pathname: "/driver/driver-dashboard" as any, 
-            params: { 
-              userName: data.name, 
+            pathname: "/driver/driver-dashboard" as any,
+            params: {
+              userName: data.name,
               userId: userId,
               role: selectedRole,
               district: selectedDistrict,

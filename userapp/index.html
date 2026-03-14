@@ -532,7 +532,8 @@
                             <div class="journey-dot"></div>
                             <div class="journey-content">
                                 <p class="detail-label">Current Status</p>
-                                <p class="detail-value">{{ currentLocation?.address || 'On the move...' }}</p>
+                                <p class="detail-value">{{ (!currentLocation?.address || currentLocation?.address ===
+                                    'Simulated Route') ? 'On the move...' : currentLocation?.address }}</p>
                             </div>
                         </div>
 
@@ -731,14 +732,12 @@
                             routePath.setLatLngs(lastRouteCoords);
                             routePath.setStyle({ dashArray: null, color: '#2563eb' });
 
-                            // Only update route details from OSRM if we don't have synced sim data
-                            if (!rawDistance.value) {
-                                routeDetails.value = {
-                                    distance: (route.distance / 1000).toFixed(1),
-                                    duration: Math.ceil(route.duration / 60),
-                                    name: route.legs?.[0]?.summary || 'Main Road'
-                                };
-                            }
+                            // Update route details from OSRM for accurate stop-specific information
+                            routeDetails.value = {
+                                distance: (route.distance / 1000).toFixed(1),
+                                duration: Math.ceil(route.duration / 60),
+                                name: route.legs?.[0]?.summary || 'Main Road'
+                            };
                         }
                     } catch (e) {
                         console.warn('Route fetch skipped:', e.message);
@@ -826,8 +825,8 @@
 
                         if (!currentLat || !currentLon) return;
 
-                        // Check if truck actually moved (>50m) to avoid unnecessary updates
-                        const moved = !lastTruckLat || haversine(lastTruckLat, lastTruckLon, currentLat, currentLon) > 50;
+                        // Check if truck actually moved (>15m) to avoid unnecessary updates
+                        const moved = !lastTruckLat || haversine(lastTruckLat, lastTruckLon, currentLat, currentLon) > 15;
 
                         // Update truck marker position (always smooth)
                         truckMarker.setLatLng([currentLat, currentLon]);
@@ -843,7 +842,12 @@
                         if (ongoing?.totalDistance) rawDistance.value = ongoing.totalDistance;
                         if (ongoing?.totalDuration) rawDuration.value = ongoing.totalDuration;
 
-                        // Update ETA from synced simulation data
+                        /* 
+                           Disabled arithmetic ETA calculation.
+                           It was using trip-wide progress which is incorrect for multi-stop trips.
+                           We now rely on OSRM (recalcRoutes) which provides exact stop-specific distance/duration.
+                        */
+                        /*
                         if (rawDistance.value > 0) {
                             const progress = tripProgress.value / 100;
                             routeDetails.value = {
@@ -852,6 +856,7 @@
                                 name: routeDetails.value?.name || 'Main Route'
                             };
                         }
+                        */
 
                         // Truck tooltip
                         if (ongoing?.lastKnownLocation?.address && ongoing.lastKnownLocation.address !== 'Simulated Route') {
@@ -1020,11 +1025,11 @@
                     // Start initial load immediately
                     initialLoad();
 
-                    // Fast poll for location only (every 3s)
-                    pollInterval = backgroundTimer.setInterval(pollLocation, 3000);
+                    // Snappy poll for location (every 1s)
+                    pollInterval = backgroundTimer.setInterval(pollLocation, 1000);
 
-                    // Slow poll for OSRM route recalculation (every 15s)
-                    routeInterval = backgroundTimer.setInterval(recalculateRoutes, 15000);
+                    // Dynamic poll for OSRM route recalculation (every 3.5s)
+                    routeInterval = backgroundTimer.setInterval(recalculateRoutes, 3500);
                 });
 
                 onUnmounted(() => {

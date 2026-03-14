@@ -44,11 +44,16 @@ const ExpensesScreen = () => {
 
     const [formData, setFormData] = useState({
         tripId: "",
-        category: "Fuel",
-        amount: "",
-        description: "",
         reportedBy: params.userName || "Manager",
         reporterRole: "Manager",
+    });
+
+    const [amounts, setAmounts] = useState<{ [key: string]: string }>({
+        Fuel: "",
+        Toll: "",
+        Maintenance: "",
+        Food: "",
+        Other: "",
     });
 
     const fetchExpenses = useCallback(async (silent = false) => {
@@ -70,7 +75,9 @@ const ExpensesScreen = () => {
         try {
             const res = await api.getAllTrips();
             if (res.ok && Array.isArray(res.data)) {
-                const completed = res.data.filter((t: any) => t.status === "completed");
+                const completed = res.data.filter(
+                    (t: any) => t.status?.toLowerCase() === "completed"
+                );
                 setTrips(completed);
             }
         } catch (e) {
@@ -92,35 +99,54 @@ const ExpensesScreen = () => {
     };
 
     const handleAddExpense = async () => {
-        if (!formData.tripId || !formData.amount) {
-            Alert.alert("Error", "Please select a trip and enter amount");
+        if (!formData.tripId) {
+            Alert.alert("Error", "Please select a trip");
             return;
         }
 
-        try {
-            const res = await api.createExpense({
-                ...formData,
-                amount: parseFloat(formData.amount),
-            });
+        const payload: any = {
+            ...formData,
+            fuel: parseFloat(amounts.Fuel) || 0,
+            toll: parseFloat(amounts.Toll) || 0,
+            maintenance: parseFloat(amounts.Maintenance) || 0,
+            food: parseFloat(amounts.Food) || 0,
+            other: parseFloat(amounts.Other) || 0,
+        };
 
+        const total = payload.fuel + payload.toll + payload.maintenance + payload.food + payload.other;
+        if (total === 0) {
+            Alert.alert("Error", "Please enter at least one amount");
+            return;
+        }
+
+        payload.totalAmount = total;
+
+        setLoading(true);
+        try {
+            const res = await api.createExpense(payload);
             if (res.ok) {
-                Alert.alert("Success", "Expense added successfully");
+                Alert.alert("Success", "Expenses saved successfully");
                 setModalVisible(false);
+                setAmounts({
+                    Fuel: "",
+                    Toll: "",
+                    Maintenance: "",
+                    Food: "",
+                    Other: "",
+                });
                 setFormData({
+                    ...formData,
                     tripId: "",
-                    category: "Fuel",
-                    amount: "",
-                    description: "",
-                    reportedBy: params.userName || "Manager",
-                    reporterRole: "Manager",
                 });
                 fetchExpenses(true);
             } else {
-                Alert.alert("Error", res.error || "Failed to add expense");
+                Alert.alert("Error", res.error || "Failed to save expenses");
             }
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "Failed to add expense");
+            Alert.alert("Error", "Failed to save expenses");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -178,21 +204,32 @@ const ExpensesScreen = () => {
                             <ActivityIndicator size="large" color="#2563EB" />
                             <Text style={styles.loadingText}>Loading expenses...</Text>
                         </View>
-                    ) : expenses.length === 0 ? (
+                    ) : expenses.filter(e => e.tripId?.status === "completed").length === 0 ? (
                         <View style={styles.centerContainer}>
                             <DollarSign size={48} color="#CBD5E1" />
-                            <Text style={styles.emptyTitle}>No Expenses Yet</Text>
-                            <Text style={styles.emptySubtitle}>Tap the + button to add an expense.</Text>
+                            <Text style={styles.emptyTitle}>No Completed Trip Expenses</Text>
+                            <Text style={styles.emptySubtitle}>Only expenses from completed trips are shown here.</Text>
                         </View>
                     ) : (
-                        expenses.map((expense) => (
+                        expenses
+                            .filter((e) => e.tripId?.status === "completed")
+                            .map((expense) => (
                             <View key={expense._id} style={styles.expenseCard}>
                                 <View style={styles.expenseMain}>
                                     <View style={styles.expenseHeader}>
                                         <View style={styles.categoryBadge}>
-                                            <Text style={styles.categoryText}>{expense.category}</Text>
+                                            <Text style={styles.categoryText}>Consolidated</Text>
                                         </View>
-                                        <Text style={styles.expenseAmount}>₹{expense.amount.toLocaleString()}</Text>
+                                        <Text style={styles.expenseAmount}>₹{expense.totalAmount.toLocaleString()}</Text>
+                                    </View>
+
+                                    {/* Breakdown Grid */}
+                                    <View style={styles.breakdownGrid}>
+                                        {expense.fuel > 0 && <Text style={styles.breakdownText}>Fuel: ₹{expense.fuel}</Text>}
+                                        {expense.toll > 0 && <Text style={styles.breakdownText}>Toll: ₹{expense.toll}</Text>}
+                                        {expense.maintenance > 0 && <Text style={styles.breakdownText}>Maint: ₹{expense.maintenance}</Text>}
+                                        {expense.food > 0 && <Text style={styles.breakdownText}>Food: ₹{expense.food}</Text>}
+                                        {expense.other > 0 && <Text style={styles.breakdownText}>Other: ₹{expense.other}</Text>}
                                     </View>
 
                                     <View style={styles.expenseDetails}>
@@ -206,9 +243,6 @@ const ExpensesScreen = () => {
                                         </View>
                                     </View>
 
-                                    {expense.description ? (
-                                        <Text style={styles.expenseDesc}>{expense.description}</Text>
-                                    ) : null}
 
                                     <View style={styles.expenseFooter}>
                                         <Text style={styles.reporterText}>By {expense.reportedBy}</Text>
@@ -268,47 +302,22 @@ const ExpensesScreen = () => {
                                     )}
                                 </View>
 
-                                <Text style={styles.label}>Category *</Text>
-                                <View style={styles.categoryContainer}>
+                                <Text style={styles.label}>Expenses (₹)</Text>
+                                <View style={styles.expenseGrid}>
                                     {CATEGORIES.map((cat) => (
-                                        <TouchableOpacity
-                                            key={cat}
-                                            style={[
-                                                styles.catOption,
-                                                formData.category === cat && styles.catOptionActive,
-                                            ]}
-                                            onPress={() => setFormData({ ...formData, category: cat })}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.catOptionText,
-                                                    formData.category === cat && styles.catOptionTextActive,
-                                                ]}
-                                            >
-                                                {cat}
-                                            </Text>
-                                        </TouchableOpacity>
+                                        <View key={cat} style={styles.expenseColumn}>
+                                            <Text style={styles.columnLabel}>{cat}</Text>
+                                            <TextInput
+                                                style={styles.columnInput}
+                                                placeholder="0.00"
+                                                keyboardType="numeric"
+                                                value={amounts[cat]}
+                                                onChangeText={(text) => setAmounts({ ...amounts, [cat]: text })}
+                                            />
+                                        </View>
                                     ))}
                                 </View>
 
-                                <Text style={styles.label}>Amount (₹) *</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Enter amount"
-                                    keyboardType="numeric"
-                                    value={formData.amount}
-                                    onChangeText={(text) => setFormData({ ...formData, amount: text })}
-                                />
-
-                                <Text style={styles.label}>Description</Text>
-                                <TextInput
-                                    style={[styles.input, styles.textArea]}
-                                    placeholder="Add notes..."
-                                    multiline
-                                    numberOfLines={3}
-                                    value={formData.description}
-                                    onChangeText={(text) => setFormData({ ...formData, description: text })}
-                                />
 
                                 <TouchableOpacity style={styles.submitBtn} onPress={handleAddExpense}>
                                     <Text style={styles.submitBtnText}>Save Expense</Text>
@@ -405,15 +414,6 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#64748B",
     },
-    expenseDesc: {
-        fontSize: 14,
-        color: "#475569",
-        backgroundColor: "#F8FAFC",
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 12,
-        lineHeight: 20,
-    },
     expenseFooter: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -421,6 +421,22 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: "#F1F5F9",
         paddingTop: 12,
+    },
+    breakdownGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+        marginTop: 4,
+        marginBottom: 12,
+    },
+    breakdownText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#64748B",
+        backgroundColor: "#F1F5F9",
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
     },
     reporterText: {
         fontSize: 12,
@@ -470,7 +486,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#0F172A",
     },
-    textArea: { minHeight: 80, textAlignVertical: "top" },
     tripSelector: { marginBottom: 4 },
     tripOption: {
         paddingHorizontal: 16,
@@ -488,25 +503,33 @@ const styles = StyleSheet.create({
     tripOptionText: { fontSize: 13, fontWeight: "700", color: "#64748B" },
     tripOptionTextActive: { color: "#fff" },
     noTripsText: { fontSize: 13, color: "#94A3B8", fontStyle: "italic" },
-    categoryContainer: {
+    expenseGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 8,
+        gap: 12,
+        marginTop: 4,
     },
-    catOption: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 8,
-        backgroundColor: "#F1F5F9",
+    expenseColumn: {
+        width: "47%",
+        backgroundColor: "#F8FAFC",
         borderWidth: 1,
         borderColor: "#E2E8F0",
+        borderRadius: 12,
+        padding: 10,
     },
-    catOptionActive: {
-        backgroundColor: "#0F172A",
-        borderColor: "#0F172A",
+    columnLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        color: "#64748B",
+        textTransform: "uppercase",
+        marginBottom: 4,
     },
-    catOptionText: { fontSize: 12, fontWeight: "700", color: "#64748B" },
-    catOptionTextActive: { color: "#fff" },
+    columnInput: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#0F172A",
+        padding: 0,
+    },
     submitBtn: {
         backgroundColor: "#2563EB",
         paddingVertical: 16,

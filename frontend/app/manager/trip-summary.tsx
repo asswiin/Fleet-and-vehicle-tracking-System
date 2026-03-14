@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   StatusBar,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -253,8 +254,10 @@ const TripSummaryScreen = () => {
         {vehicle && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Truck size={20} color="#2563EB" />
-              <Text style={styles.sectionTitle}>Vehicle</Text>
+              <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
+                <Truck size={20} color="#2563EB" />
+              </View>
+              <Text style={styles.sectionTitle}>Fleet Vehicle</Text>
             </View>
             <View style={styles.card}>
               <View style={styles.cardRow}>
@@ -279,8 +282,10 @@ const TripSummaryScreen = () => {
         {driver && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <User size={20} color="#2563EB" />
-              <Text style={styles.sectionTitle}>Driver</Text>
+              <View style={[styles.iconCircle, { backgroundColor: "#F1F5F9" }]}>
+                <User size={20} color="#334155" />
+              </View>
+              <Text style={styles.sectionTitle}>Assigned Driver</Text>
             </View>
             <View style={styles.card}>
               <View style={styles.cardRow}>
@@ -305,8 +310,10 @@ const TripSummaryScreen = () => {
         {deliveryLocations.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <MapPin size={20} color="#2563EB" />
-              <Text style={styles.sectionTitle}>Delivery Route ({parcels.length} stops)</Text>
+              <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}>
+                <MapPin size={20} color="#10B981" />
+              </View>
+              <Text style={styles.sectionTitle}>Delivery Timeline ({parcels.length} stops)</Text>
             </View>
             <View style={styles.card}>
               {/* Starting Point */}
@@ -366,8 +373,10 @@ const TripSummaryScreen = () => {
         {/* Parcels Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Package size={20} color="#2563EB" />
-            <Text style={styles.sectionTitle}>Parcels ({parcels.length})</Text>
+            <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
+              <Package size={20} color="#D97706" />
+            </View>
+            <Text style={styles.sectionTitle}>Consignment Inventory ({parcels.length})</Text>
           </View>
           <View style={styles.parcelsList}>
             {parcels.map((parcel, index) => {
@@ -464,118 +473,103 @@ const TripSummaryScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  content: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 100 },
-  section: { marginBottom: 20 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.5,
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 120,
+  },
+  section: {
+    marginBottom: 24,
+  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "900",
     color: "#0F172A",
-    marginLeft: 8,
+    letterSpacing: -0.3,
   },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#F1F5F9",
   },
   cardRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   label: {
     fontSize: 13,
     color: "#64748B",
-    fontWeight: "500",
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   value: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#334155",
   },
   valueHighlight: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "900",
     color: "#2563EB",
+    letterSpacing: -0.5,
   },
   divider: {
     height: 1,
-    backgroundColor: "#E2E8F0",
-  },
-  parcelsList: {
-    gap: 10,
-  },
-  parcelItem: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  parcelContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  parcelNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#DBEAFE",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  parcelNumberText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-  parcelId: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#0F172A",
-  },
-  parcelRecipient: {
-    fontSize: 12,
-    color: "#2563EB",
-    marginTop: 2,
-    fontWeight: "500",
-  },
-  parcelWeight: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 2,
-  },
-  locationBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  locationBadgeText: {
-    fontSize: 11,
-    color: "#10B981",
-    fontWeight: "500",
-    marginLeft: 4,
+    backgroundColor: "#F1F5F9",
   },
   routeItemLeft: {
     flexDirection: "row",
@@ -583,103 +577,209 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   routeOrderBadge: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    elevation: 2,
   },
   routeOrderText: {
-    fontSize: 11,
-    fontWeight: "bold",
+    fontSize: 13,
+    fontWeight: "900",
     color: "#fff",
   },
   routeLabel: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "800",
     color: "#0F172A",
   },
   routeRecipient: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#64748B",
+    fontWeight: "600",
+    marginTop: 2,
   },
   routeDestination: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ECFDF5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
   },
   routeDestinationText: {
     fontSize: 11,
     color: "#059669",
-    fontWeight: "600",
-    maxWidth: 80,
+    fontWeight: "800",
   },
   routeAddress: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#64748B",
     flex: 1,
     textAlign: "right",
+    fontWeight: "600",
+  },
+  parcelsList: {
+    gap: 12,
+  },
+  parcelItem: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+  },
+  parcelContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  parcelNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  parcelNumberText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  parcelId: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.3,
+  },
+  parcelRecipient: {
+    fontSize: 13,
+    color: "#2563EB",
+    marginTop: 4,
+    fontWeight: "700",
+  },
+  parcelWeight: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+    fontWeight: "600",
+  },
+  locationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  locationBadgeText: {
+    fontSize: 11,
+    color: "#10B981",
+    fontWeight: "800",
+    marginLeft: 6,
   },
   confirmationBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F0FDF4",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     borderWidth: 1,
     borderColor: "#DCFCE7",
-    marginTop: 10,
+    marginTop: 8,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
   confirmationText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#059669",
-    fontWeight: "600",
-    marginLeft: 12,
+    fontWeight: "800",
+    marginLeft: 14,
   },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+  },
   footer: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 44 : 24,
+    backgroundColor: "rgba(255, 255, 255, 0.98)",
     flexDirection: "row",
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 25,
   },
   cancelButton: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    paddingVertical: 14,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    paddingVertical: 18,
+    borderRadius: 20,
     alignItems: "center",
+    backgroundColor: "#fff",
   },
   cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#374151",
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#475569",
+    letterSpacing: 0.5,
   },
   assignButton: {
-    flex: 1,
+    flex: 2,
     backgroundColor: "#10B981",
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   assignButtonDisabled: {
-    opacity: 0.6,
+    backgroundColor: "#CBD5E1",
+    shadowOpacity: 0,
+    elevation: 0,
+    borderColor: "transparent",
   },
   assignButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "900",
     color: "#fff",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
 });
 

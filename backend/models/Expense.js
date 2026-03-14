@@ -7,18 +7,12 @@ const expenseSchema = new mongoose.Schema(
             ref: "Trip",
             required: true,
         },
-        category: {
-            type: String,
-            required: true,
-            enum: ["Fuel", "Toll", "Maintenance", "Food", "Other"],
-        },
-        amount: {
-            type: Number,
-            required: true,
-        },
-        description: {
-            type: String,
-        },
+        fuel: { type: Number, default: 0 },
+        toll: { type: Number, default: 0 },
+        maintenance: { type: Number, default: 0 },
+        food: { type: Number, default: 0 },
+        other: { type: Number, default: 0 },
+        totalAmount: { type: Number, required: true },
         date: {
             type: Date,
             default: Date.now,

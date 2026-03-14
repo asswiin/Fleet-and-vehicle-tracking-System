@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     RefreshControl,
     Image,
+    Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -21,13 +22,19 @@ import {
     Briefcase,
     ChevronDown,
     LayoutGrid,
+    CalendarDays,
+    Settings2,
+    X,
+    TrendingUp,
+    TrendingDown,
+    Activity,
+    Wallet,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
 
 const { width } = Dimensions.get("window");
 
-type TimeFilter = "This Month" | "Last Month" | "YTD";
-type ChartFilter = "Daily" | "Weekly" | "Monthly";
+type TimeFilter = "This Month" | "Last Month" | "YTD" | "Custom";
 
 const HubOverview = () => {
     const router = useRouter();
@@ -37,17 +44,23 @@ const HubOverview = () => {
 
     const [parcels, setParcels] = useState<any[]>([]);
     const [services, setServices] = useState<any[]>([]);
+    const [tripExpenses, setTripExpenses] = useState<any[]>([]);
+    const [showPicker, setShowPicker] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [parcelsRes, servicesRes] = await Promise.all([
-                api.getParcels(),
+            const [historyRes, servicesRes, tripExpensesRes] = await Promise.all([
+                api.getAllHistory(), // Use delivered history for revenue
                 api.getAllVehicleServices(),
+                api.getExpenses(),
             ]);
 
-            if (parcelsRes.ok) setParcels(parcelsRes.data || []);
+            if (historyRes.ok) setParcels(historyRes.data || []);
             if (servicesRes.ok) setServices(servicesRes.data || []);
+            if (tripExpensesRes.ok) setTripExpenses(tripExpensesRes.data || []);
         } catch (error) {
             console.error("Error fetching hub data:", error);
         } finally {
@@ -76,7 +89,7 @@ const HubOverview = () => {
 
         if (timeFilter === "This Month") {
             filteredParcels = parcels.filter((p) => {
-                const d = new Date(p.createdAt || p.date);
+                const d = new Date(p.reachedTime);
                 return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
             });
             filteredServices = services.filter((s) => {
@@ -87,7 +100,7 @@ const HubOverview = () => {
             const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
             const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
             filteredParcels = parcels.filter((p) => {
-                const d = new Date(p.createdAt || p.date);
+                const d = new Date(p.reachedTime);
                 return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
             });
             filteredServices = services.filter((s) => {
@@ -96,42 +109,85 @@ const HubOverview = () => {
             });
         } else if (timeFilter === "YTD") {
             filteredParcels = parcels.filter((p) => {
-                const d = new Date(p.createdAt || p.date);
+                const d = new Date(p.reachedTime);
                 return d.getFullYear() === currentYear;
             });
             filteredServices = services.filter((s) => {
                 const d = new Date(s.createdAt || s.dateOfIssue);
                 return d.getFullYear() === currentYear;
             });
+        } else if (timeFilter === "Custom") {
+            filteredParcels = parcels.filter((p) => {
+                const d = new Date(p.reachedTime);
+                return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+            });
+            filteredServices = services.filter((s) => {
+                const d = new Date(s.createdAt || s.dateOfIssue);
+                return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+            });
         }
 
-        const totalRevenue = filteredParcels.reduce(
-            (acc, p) => acc + (Number(p.paymentAmount) || 0),
+        const currentRevenue = filteredParcels.reduce(
+            (acc, p) => acc + (Number(p.parcelDetails?.amount) || 0),
             0
         );
-        const totalExpenses = filteredServices.reduce(
+        const currentServices = filteredServices.reduce(
             (acc, s) => acc + (Number(s.totalServiceCost) || 0),
             0
         );
 
+        let currentTripExpenses = 0;
+        if (timeFilter === "Custom") {
+            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
+                const d = new Date(exp.date || exp.createdAt);
+                if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) {
+                    return acc + (Number(exp.totalAmount) || 0);
+                }
+                return acc;
+            }, 0);
+        } else if (timeFilter === "This Month") {
+            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
+                const d = new Date(exp.date || exp.createdAt);
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    return acc + (Number(exp.totalAmount) || 0);
+                }
+                return acc;
+            }, 0);
+        } else if (timeFilter === "Last Month") {
+            const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
+                const d = new Date(exp.date || exp.createdAt);
+                if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) {
+                    return acc + (Number(exp.totalAmount) || 0);
+                }
+                return acc;
+            }, 0);
+        } else {
+            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
+                const d = new Date(exp.date || exp.createdAt);
+                if (d.getFullYear() === currentYear) return acc + (Number(exp.totalAmount) || 0);
+                return acc;
+            }, 0);
+        }
+
+        const totalExpenses = currentServices + currentTripExpenses;
+
         return {
-            revenue: totalRevenue,
+            revenue: currentRevenue,
             expenses: totalExpenses,
-            profit: totalRevenue - totalExpenses,
+            profit: currentRevenue - totalExpenses,
         };
-    }, [parcels, services, timeFilter]);
+    }, [parcels, services, tripExpenses, timeFilter, selectedMonth, selectedYear]);
 
-    // Chart Data generation - Month-wise (Last 6 months)
+    // Chart Data Generation (Last 6 Months)
     const chartData = useMemo(() => {
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const now = new Date();
-
-        // Create an array for the last 6 months including current
         const lastSixMonths = [];
+        const now = new Date();
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             lastSixMonths.push({
-                month: months[d.getMonth()],
+                month: d.toLocaleString("default", { month: "short" }),
                 monthIdx: d.getMonth(),
                 year: d.getFullYear(),
             });
@@ -139,7 +195,7 @@ const HubOverview = () => {
 
         return lastSixMonths.map((m) => {
             const monthParcels = parcels.filter((p) => {
-                const d = new Date(p.createdAt || p.date);
+                const d = new Date(p.reachedTime);
                 return d.getMonth() === m.monthIdx && d.getFullYear() === m.year;
             });
             const monthServices = services.filter((s) => {
@@ -147,409 +203,666 @@ const HubOverview = () => {
                 return d.getMonth() === m.monthIdx && d.getFullYear() === m.year;
             });
 
-            const income = monthParcels.reduce((acc, p) => acc + (Number(p.paymentAmount) || 0), 0);
-            const expenses = monthServices.reduce((acc, s) => acc + (Number(s.totalServiceCost) || 0), 0);
+            const income = monthParcels.reduce((acc, p) => acc + (Number(p.parcelDetails?.amount) || 0), 0);
+            const servExpenses = monthServices.reduce((acc, s) => acc + (Number(s.totalServiceCost) || 0), 0);
+            const tripExp = tripExpenses.reduce((acc, exp) => {
+                const d = new Date(exp.date || exp.createdAt);
+                if (d.getMonth() === m.monthIdx && d.getFullYear() === m.year) {
+                    return acc + (Number(exp.totalAmount) || 0);
+                }
+                return acc;
+            }, 0);
 
             return {
                 label: `${m.month}`,
                 income,
-                expenses,
+                expenses: servExpenses + tripExp,
             };
         });
-    }, [parcels, services]);
+    }, [parcels, services, tripExpenses]);
 
     const maxChartValue = Math.max(
         ...chartData.map((d) => Math.max(d.income, d.expenses)),
         1000 // min scale
     );
 
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+                <ActivityIndicator size="large" color="#6366F1" />
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
-            {/* Header */}
+            {/* Professional Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                    <ChevronLeft size={24} color="#1E293B" />
-                </TouchableOpacity>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity 
+                        style={styles.backButton} 
+                        onPress={() => router.back()}
+                    >
+                        <ChevronLeft size={24} color="#1E293B" />
+                    </TouchableOpacity>
 
-                <View style={styles.userInfo}>
-                    <Text style={styles.headerTitle}>Hub Overview</Text>
+                    <Text style={styles.headerTitle}>Financial Analytics</Text>
+
+                    <TouchableOpacity style={styles.notificationButton}>
+                        <Bell size={22} color="#1E293B" />
+                        <View style={styles.notificationBadge} />
+                    </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.iconButton}>
-                    <Bell size={24} color="#1E293B" />
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-                {/* Time Filters */}
-                <View style={styles.filterRow}>
+                {/* Date Selection Strip */}
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={styles.filterStrip}
+                >
                     <TouchableOpacity
-                        style={[styles.filterBtn, timeFilter === "This Month" && styles.filterBtnActive]}
+                        style={[styles.filterChip, timeFilter === "This Month" && styles.filterChipActive]}
                         onPress={() => setTimeFilter("This Month")}
                     >
-                        <Text style={[styles.filterText, timeFilter === "This Month" && styles.filterTextActive]}>
+                        <Text style={[styles.filterChipText, timeFilter === "This Month" && styles.filterChipTextActive]}>
                             This Month
                         </Text>
-                        <ChevronDown size={16} color={timeFilter === "This Month" ? "#fff" : "#64748B"} style={{ marginLeft: 4 }} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.smallFilterBtn, timeFilter === "Last Month" && styles.filterBtnActive]}
+                        style={[styles.filterChip, timeFilter === "Last Month" && styles.filterChipActive]}
                         onPress={() => setTimeFilter("Last Month")}
                     >
-                        <Text style={[styles.filterText, timeFilter === "Last Month" && styles.filterTextActive]}>
+                        <Text style={[styles.filterChipText, timeFilter === "Last Month" && styles.filterChipTextActive]}>
                             Last Month
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.smallFilterBtn, timeFilter === "YTD" && styles.filterBtnActive]}
+                        style={[styles.filterChip, timeFilter === "YTD" && styles.filterChipActive]}
                         onPress={() => setTimeFilter("YTD")}
                     >
-                        <Text style={[styles.filterText, timeFilter === "YTD" && styles.filterTextActive]}>
+                        <Text style={[styles.filterChipText, timeFilter === "YTD" && styles.filterChipTextActive]}>
                             YTD
                         </Text>
                     </TouchableOpacity>
-                </View>
 
-                {/* Stats Cards */}
-                <View style={styles.statsGrid}>
-                    <View style={styles.statsCard}>
-                        <View style={[styles.cardIcon, { backgroundColor: '#E0F2FE' }]}>
-                            <DollarSign size={20} color="#0EA5E9" />
+                    <TouchableOpacity
+                        style={[styles.filterChip, styles.customChip, timeFilter === "Custom" && styles.filterChipActive]}
+                        onPress={() => setShowPicker(true)}
+                    >
+                        <CalendarDays size={16} color={timeFilter === "Custom" ? "#fff" : "#6366F1"} />
+                        <Text style={[styles.filterChipText, timeFilter === "Custom" && styles.filterChipTextActive, { marginLeft: 6 }]}>
+                            {timeFilter === "Custom" 
+                                ? `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][selectedMonth]} ${selectedYear}`
+                                : "Custom"
+                            }
+                        </Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
+
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Main Balance Card */}
+                <View style={styles.mainBalanceCard}>
+                    <View style={styles.balanceHeader}>
+                        <View>
+                            <Text style={styles.balanceLabel}>Net Monthly Profit</Text>
+                            <Text style={styles.balanceValue}>₹{filteredStats.profit.toLocaleString('en-IN')}</Text>
                         </View>
-                        <Text style={styles.cardLabel}>Total Revenue</Text>
-                        <Text style={styles.cardValue}>₹{filteredStats.revenue.toLocaleString('en-IN')}</Text>
-                        <View style={styles.trendRow}>
-                            {/* Static trend for visual appeal matching the requested design */}
-                            <Text style={styles.trendText}>--</Text>
+                        <View style={styles.balanceIconContainer}>
+                            <TrendingUp size={24} color="#10B981" />
                         </View>
                     </View>
-
-                    <View style={styles.statsCard}>
-                        <View style={[styles.cardIcon, { backgroundColor: '#F3E8FF' }]}>
-                            <Briefcase size={20} color="#A855F7" />
+                    
+                    <View style={styles.balanceDivider} />
+                    
+                    <View style={styles.balanceStatsStrip}>
+                        <View style={styles.miniStat}>
+                            <Text style={styles.miniStatLabel}>Income</Text>
+                            <Text style={[styles.miniStatValue, { color: '#10B981' }]}>+₹{filteredStats.revenue.toLocaleString('en-IN')}</Text>
                         </View>
-                        <Text style={styles.cardLabel}>Net Profit</Text>
-                        <Text style={styles.cardValue}>₹{filteredStats.profit.toLocaleString('en-IN')}</Text>
-                        <View style={styles.trendRow}>
-                            <Text style={styles.trendText}>--</Text>
+                        <View style={styles.verticalDivider} />
+                        <View style={styles.miniStat}>
+                            <Text style={styles.miniStatLabel}>Expenses</Text>
+                            <Text style={[styles.miniStatValue, { color: '#EF4444' }]}>-₹{filteredStats.expenses.toLocaleString('en-IN')}</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Profit & Loss Chart Section */}
-                <View style={styles.chartSection}>
-                    <View style={styles.chartHeader}>
-                        <Text style={styles.chartTitle}>Profit & Loss</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.seeReport}>See Report</Text>
+                {/* Secondary Metrics */}
+                <View style={styles.metricsGrid}>
+                    <View style={styles.metricCard}>
+                        <View style={[styles.metricIcon, { backgroundColor: '#EEF2FF' }]}>
+                            <Wallet size={18} color="#6366F1" />
+                        </View>
+                        <Text style={styles.metricLabel}>Cash Flow</Text>
+                        <Text style={styles.metricValue}>Stable</Text>
+                    </View>
+                    <View style={styles.metricCard}>
+                        <View style={[styles.metricIcon, { backgroundColor: '#ECFDF5' }]}>
+                            <Activity size={18} color="#10B981" />
+                        </View>
+                        <Text style={styles.metricLabel}>Efficiency</Text>
+                        <Text style={styles.metricValue}>+12.5%</Text>
+                    </View>
+                </View>
+
+                {/* Chart Section */}
+                <View style={styles.glassCard}>
+                    <View style={styles.cardHeader}>
+                        <View>
+                            <Text style={styles.cardTitle}>Earnings Analysis</Text>
+                            <Text style={styles.cardSubtitle}>Last 6 Months Performance</Text>
+                        </View>
+                        <TouchableOpacity style={styles.exportBtn}>
+                            <ArrowUpRight size={18} color="#6366F1" />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Bar Chart */}
                     <View style={styles.chartContainer}>
                         <View style={styles.yAxis}>
-                            <View style={styles.gridLine} />
-                            <View style={styles.gridLine} />
-                            <View style={styles.gridLine} />
-                            <View style={styles.gridLine} />
+                            {[1, 2, 3, 4].map((_, i) => (
+                                <View key={i} style={styles.gridLine} />
+                            ))}
                         </View>
 
                         <View style={styles.barsArea}>
                             {chartData.map((data, idx) => (
                                 <View key={idx} style={styles.barGroup}>
                                     <View style={styles.barStack}>
-                                        {/* Expenses bar (Light Blue) */}
                                         <View style={[
                                             styles.bar,
                                             styles.expenseBar,
-                                            { height: (data.expenses / maxChartValue) * 120 }
+                                            { height: (data.expenses / maxChartValue) * 140 }
                                         ]} />
-                                        {/* Income bar (Blue) */}
                                         <View style={[
                                             styles.bar,
                                             styles.incomeBar,
-                                            { height: (data.income / maxChartValue) * 120 }
+                                            { height: (data.income / maxChartValue) * 140 }
                                         ]} />
                                     </View>
-                                    <Text style={[styles.dayLabel, idx === 5 && styles.activeDay]}>{data.label}</Text>
+                                    <View style={[styles.monthIndicator, idx === 5 && styles.activeMonthIndicator]}>
+                                        <Text style={[styles.monthLabel, idx === 5 && styles.activeMonthLabel]}>{data.label}</Text>
+                                    </View>
                                 </View>
                             ))}
                         </View>
                     </View>
 
-                    {/* Legend */}
-                    <View style={styles.legend}>
+                    <View style={styles.chartLegend}>
                         <View style={styles.legendItem}>
-                            <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />
-                            <Text style={styles.legendText}>Income</Text>
+                            <View style={[styles.legendDot, { backgroundColor: '#6366F1' }]} />
+                            <Text style={styles.legendText}>Gross Revenue</Text>
                         </View>
                         <View style={styles.legendItem}>
-                            <View style={[styles.dot, { backgroundColor: '#BFDBFE' }]} />
-                            <Text style={styles.legendText}>Expenses</Text>
+                            <View style={[styles.legendDot, { backgroundColor: '#E2E8F0' }]} />
+                            <Text style={styles.legendText}>Operating Costs</Text>
                         </View>
                     </View>
                 </View>
 
-                <View style={{ height: 40 }} />
+                <View style={{ height: 100 }} />
             </ScrollView>
+
+            <Modal
+                visible={showPicker}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowPicker(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <View style={styles.modalTitleRow}>
+                                <Settings2 size={20} color="#6366F1" />
+                                <Text style={styles.modalTitle}>Select Period</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowPicker(false)}>
+                                <X size={24} color="#64748B" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.pickerLabel}>Month</Text>
+                        <View style={styles.pickerGrid}>
+                            {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => (
+                                <TouchableOpacity
+                                    key={m}
+                                    style={[styles.pickerItem, selectedMonth === i && styles.pickerItemActive]}
+                                    onPress={() => setSelectedMonth(i)}
+                                >
+                                    <Text style={[styles.pickerItemText, selectedMonth === i && styles.pickerItemTextActive]}>{m}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <Text style={styles.pickerLabel}>Year</Text>
+                        <View style={styles.pickerGrid}>
+                            {[2024, 2025, 2026].map((y) => (
+                                <TouchableOpacity
+                                    key={y}
+                                    style={[styles.pickerItem, selectedYear === y && styles.pickerItemActive]}
+                                    onPress={() => setSelectedYear(y)}
+                                >
+                                    <Text style={[styles.pickerItemText, selectedYear === y && styles.pickerItemTextActive]}>{y}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.applyBtn}
+                            onPress={() => {
+                                setTimeFilter("Custom");
+                                setShowPicker(false);
+                            }}
+                        >
+                            <Text style={styles.applyBtnText}>Apply Filter</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F8FAFC" },
+    container: { flex: 1, backgroundColor: "#F1F5F9" },
     header: {
+        backgroundColor: "#fff",
+        paddingTop: 60,
+        paddingBottom: 20,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 20,
+        elevation: 10,
+        zIndex: 10,
+    },
+    headerTop: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
-        backgroundColor: "#F8FAFC",
+        paddingHorizontal: 24,
+        marginBottom: 24,
     },
     backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    userInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    profilePic: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        padding: 8,
+        backgroundColor: "#F8FAFC",
+        borderRadius: 14,
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: "700",
+        fontWeight: "800",
         color: "#0F172A",
+        letterSpacing: -0.5,
     },
-    iconButton: {
-        width: 40,
-        height: 40,
-        justifyContent: "center",
-        alignItems: "center",
+    notificationButton: {
+        padding: 8,
+        backgroundColor: "#F8FAFC",
+        borderRadius: 14,
+        position: 'relative',
     },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-    filterRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 24,
+    notificationBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#fff',
     },
-    filterBtn: {
+    filterStrip: {
+        paddingHorizontal: 24,
+        gap: 10,
+    },
+    filterChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 16,
+        backgroundColor: "#F8FAFC",
+        borderWidth: 1,
+        borderColor: "#E2E8F0",
+    },
+    filterChipActive: {
+        backgroundColor: "#0F172A",
+        borderColor: "#0F172A",
+    },
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: "#64748B",
+    },
+    filterChipTextActive: {
+        color: "#fff",
+    },
+    customChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#2563EB',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        shadowColor: "#2563EB",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        borderColor: '#E0E7FF',
+        backgroundColor: '#EEF2FF',
     },
-    smallFilterBtn: {
-        backgroundColor: '#E2E8F0',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
+    scrollContent: { 
+        paddingHorizontal: 24, 
+        paddingTop: 24, 
     },
-    filterBtnActive: {
-        backgroundColor: '#2563EB',
+    mainBalanceCard: {
+        backgroundColor: "#6366F1",
+        borderRadius: 32,
+        padding: 24,
+        marginBottom: 20,
+        shadowColor: "#6366F1",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 12,
     },
-    filterText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748B',
-    },
-    filterTextActive: {
-        color: '#fff',
-    },
-    statsGrid: {
+    balanceHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        gap: 16,
-        marginBottom: 32,
+        alignItems: 'flex-start',
+        marginBottom: 24,
     },
-    statsCard: {
+    balanceLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: "rgba(255,255,255,0.7)",
+        marginBottom: 4,
+    },
+    balanceValue: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: "#fff",
+        letterSpacing: -1,
+    },
+    balanceIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    balanceDivider: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        marginBottom: 20,
+    },
+    balanceStatsStrip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    miniStat: {
+        flex: 1,
+    },
+    miniStatLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: 'rgba(255,255,255,0.6)',
+        marginBottom: 2,
+    },
+    miniStatValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#fff',
+    },
+    verticalDivider: {
+        width: 1,
+        height: 30,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        marginHorizontal: 20,
+    },
+    metricsGrid: {
+        flexDirection: 'row',
+        gap: 16,
+        marginBottom: 24,
+    },
+    metricCard: {
         flex: 1,
         backgroundColor: '#fff',
         borderRadius: 24,
         padding: 20,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
-        shadowRadius: 15,
+        shadowRadius: 10,
         elevation: 2,
     },
-    cardIcon: {
-        width: 40,
-        height: 40,
+    metricIcon: {
+        width: 36,
+        height: 36,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
     },
-    cardLabel: {
-        fontSize: 14,
-        color: '#64748B',
-        marginBottom: 8,
-    },
-    cardValue: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#0F172A',
+    metricLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#94A3B8',
         marginBottom: 4,
     },
-    trendRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    trendText: {
-        fontSize: 18,
+    metricValue: {
+        fontSize: 16,
         fontWeight: '700',
-        color: '#0F172A',
+        color: '#1E293B',
     },
-    chartSection: {
-        marginBottom: 24,
-    },
-    chartHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    chartTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#0F172A',
-    },
-    seeReport: {
-        color: '#2563EB',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    switcher: {
-        flexDirection: 'row',
-        backgroundColor: '#E2E8F0',
-        padding: 4,
-        borderRadius: 14,
-        marginBottom: 24,
-    },
-    switchBtn: {
-        flex: 1,
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: 10,
-    },
-    switchBtnActive: {
+    glassCard: {
         backgroundColor: '#fff',
+        borderRadius: 32,
+        padding: 24,
+        marginBottom: 24,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowRadius: 15,
         elevation: 2,
     },
-    switchText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748B',
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 32,
     },
-    switchTextActive: {
-        color: '#2563EB',
+    cardTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1E293B',
+        marginBottom: 4,
+    },
+    cardSubtitle: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#94A3B8',
+    },
+    exportBtn: {
+        padding: 8,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 10,
     },
     chartContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 24,
-        padding: 24,
-        height: 240,
+        height: 200,
         position: 'relative',
         justifyContent: 'flex-end',
+    },
+    yAxis: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 40,
+        justifyContent: 'space-between',
+    },
+    gridLine: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
     },
     barsArea: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
         flex: 1,
-        zIndex: 2,
+        paddingHorizontal: 4,
     },
     barGroup: {
         alignItems: 'center',
-        flex: 1,
+        width: 40,
     },
     barStack: {
         alignItems: 'center',
         justifyContent: 'flex-end',
-        width: 20,
         height: 150,
+        width: '100%',
     },
     bar: {
         width: 14,
-        borderRadius: 4,
+        borderRadius: 6,
     },
     incomeBar: {
-        backgroundColor: '#2563EB',
+        backgroundColor: "#6366F1",
         zIndex: 2,
     },
     expenseBar: {
-        backgroundColor: '#BFDBFE',
+        backgroundColor: "#F1F5F9",
         position: 'absolute',
         bottom: 20,
         zIndex: 1,
     },
-    dayLabel: {
-        fontSize: 10,
-        color: '#94A3B8',
+    monthIndicator: {
         marginTop: 12,
-        fontWeight: '600',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
     },
-    activeDay: {
-        color: '#2563EB',
+    activeMonthIndicator: {
+        backgroundColor: '#EEF2FF',
     },
-    yAxis: {
-        position: 'absolute',
-        top: 24,
-        left: 24,
-        right: 24,
-        bottom: 60,
-        justifyContent: 'space-between',
+    monthLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#94A3B8',
     },
-    gridLine: {
-        height: 1,
-        backgroundColor: '#F1F5F9',
-        width: '100%',
+    activeMonthLabel: {
+        color: '#6366F1',
     },
-    legend: {
+    chartLegend: {
         flexDirection: 'row',
         justifyContent: 'center',
         gap: 20,
-        marginTop: 16,
+        marginTop: 24,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
     },
     legendItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
     },
-    dot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+    legendDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
     },
     legendText: {
         fontSize: 12,
+        fontWeight: '600',
         color: '#64748B',
-        fontWeight: '500',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(15, 23, 42, 0.4)",
+        justifyContent: "flex-end",
+    },
+    modalContent: {
+        backgroundColor: "#fff",
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
+        padding: 32,
+        paddingBottom: 48,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 20,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 32,
+    },
+    modalTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#0F172A",
+        letterSpacing: -0.5,
+    },
+    pickerLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 16,
+    },
+    pickerGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: 28,
+    },
+    pickerItem: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 14,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        minWidth: '22%',
+        alignItems: 'center',
+    },
+    pickerItemActive: {
+        backgroundColor: '#6366F1',
+        borderColor: '#6366F1',
+    },
+    pickerItemText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#64748B',
+    },
+    pickerItemTextActive: {
+        color: '#fff',
+    },
+    applyBtn: {
+        backgroundColor: '#0F172A',
+        borderRadius: 20,
+        paddingVertical: 18,
+        alignItems: 'center',
+        shadowColor: "#0F172A",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 15,
+        elevation: 8,
+    },
+    applyBtnText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '800',
+        letterSpacing: 0.5,
     },
 });
 

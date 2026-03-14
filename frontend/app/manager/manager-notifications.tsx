@@ -92,6 +92,8 @@ const ManagerNotificationsScreen = () => {
 
   const renderNotificationItem = ({ item }: { item: Notification }) => {
     const isDeclined = item.type === "driver_declined";
+    const isAccepted = item.type === "driver_accepted";
+    const isStarted = item.type === "journey_started";
     const isDelivered = item.type === "parcel_delivered";
     const canReassign = isDeclined && item.status === "pending";
 
@@ -101,7 +103,9 @@ const ManagerNotificationsScreen = () => {
           styles.notificationCard,
           !item.read ? styles.unreadCard : styles.readCard,
           canReassign && !item.read && styles.actionableCard,
-          isDelivered && (item.read ? styles.deliveredReadCard : styles.deliveredCard)
+          isDelivered && (item.read ? styles.deliveredReadCard : styles.deliveredCard),
+          isAccepted && (item.read ? styles.acceptedReadCard : styles.acceptedCard),
+          isStarted && (item.read ? styles.startedReadCard : styles.startedCard)
         ]}
         onPress={() => {
           if (canReassign) {
@@ -116,6 +120,12 @@ const ManagerNotificationsScreen = () => {
                 notificationId: item._id
               }
             } as any);
+          } else if (isStarted) {
+            if (!item.read) markAsRead(item._id);
+            router.push({
+              pathname: "/manager/track-trip",
+              params: { tripId: item.tripId }
+            } as any);
           } else if (!item.read) {
             markAsRead(item._id);
           }
@@ -126,6 +136,14 @@ const ManagerNotificationsScreen = () => {
             {isDeclined ? (
               <View style={styles.declinedBadge}>
                 <Text style={styles.declinedBadgeText}>DRIVER DECLINED</Text>
+              </View>
+            ) : isAccepted ? (
+              <View style={styles.acceptedBadge}>
+                <Text style={styles.acceptedBadgeText}>DRIVER ACCEPTED</Text>
+              </View>
+            ) : isStarted ? (
+              <View style={styles.startedBadge}>
+                <Text style={styles.startedBadgeText}>JOURNEY STARTED</Text>
               </View>
             ) : isDelivered ? (
               <View style={styles.deliveredBadge}>
@@ -373,6 +391,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
     borderColor: "#CBD5E1",
   },
+  acceptedCard: {
+    borderColor: "#10B981",
+    backgroundColor: "#ECFDF5",
+  },
+  acceptedReadCard: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#CBD5E1",
+  },
+  startedCard: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
+  },
+  startedReadCard: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#CBD5E1",
+  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -405,6 +439,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: "#059669",
+  },
+  acceptedBadge: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  acceptedBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#059669",
+  },
+  startedBadge: {
+    backgroundColor: "#DBEAFE",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  startedBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#2563EB",
   },
   infoBadge: {
     backgroundColor: "#EFF6FF",

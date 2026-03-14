@@ -9,11 +9,23 @@ import {
   SafeAreaView,
   Image,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import React from "react";
-import { ChevronLeft, Search, ChevronRight, User, UserX, Truck } from "lucide-react-native";
+import { 
+  ChevronLeft, 
+  Search, 
+  ChevronRight, 
+  User, 
+  UserX, 
+  Plus,
+  MapPin,
+  Mail,
+  Filter,
+  Users,
+} from "lucide-react-native";
 import { api } from "../../utils/api";
 import type { User as UserType } from "../../utils/api";
 
@@ -26,21 +38,14 @@ const ManagersListScreen: React.FC = () => {
   const [resignedManagers, setResignedManagers] = useState<UserType[]>([]);
 
   // UI State
-  const [selectedTab, setSelectedTab] = useState<"Active" | "Resigned" | "Drivers" | "Vehicles">("Active");
+  const [selectedTab, setSelectedTab] = useState<"Active" | "Resigned">("Active");
   const [searchText, setSearchText] = useState("");
-
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
 
   // Fetch Data
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, driversRes, vehiclesRes] = await Promise.all([
-        api.getUsers(),
-        api.getDrivers(),
-        api.getVehicles()
-      ]);
+      const usersRes = await api.getUsers();
 
       if (usersRes.ok && usersRes.data) {
         const allManagers = usersRes.data.filter((user: UserType) => user.role === "manager");
@@ -49,17 +54,8 @@ const ManagersListScreen: React.FC = () => {
         setActiveManagers(active);
         setResignedManagers(resigned);
       }
-
-      if (driversRes.ok && driversRes.data) {
-        const list = Array.isArray(driversRes.data) ? driversRes.data : (driversRes.data as any).data;
-        setDrivers(list || []);
-      }
-
-      if (vehiclesRes.ok && vehiclesRes.data) {
-        setVehicles(vehiclesRes.data || []);
-      }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching managers:", error);
     } finally {
       setLoading(false);
     }
@@ -71,13 +67,8 @@ const ManagersListScreen: React.FC = () => {
     }, [])
   );
 
-  // Filter based on Search Text AND Selected Tab
-  const getDisplayData = () => {
-    let sourceList: any[] = [];
-    if (selectedTab === "Active") sourceList = activeManagers;
-    else if (selectedTab === "Resigned") sourceList = resignedManagers;
-    else if (selectedTab === "Drivers") sourceList = drivers;
-    else if (selectedTab === "Vehicles") sourceList = vehicles;
+  const displayData = useMemo(() => {
+    let sourceList = selectedTab === "Active" ? activeManagers : resignedManagers;
 
     if (!searchText) return sourceList;
 
@@ -86,11 +77,9 @@ const ManagersListScreen: React.FC = () => {
       (m) =>
         (m.name?.toLowerCase().includes(term)) ||
         (m.email?.toLowerCase().includes(term)) ||
-        (m.regNumber?.toLowerCase().includes(term)) ||
-        (m.model?.toLowerCase().includes(term)) ||
-        (m.mobile?.toLowerCase().includes(term))
+        (m.place?.toLowerCase().includes(term))
     );
-  };
+  }, [selectedTab, activeManagers, resignedManagers, searchText]);
 
   const handleManagerClick = (manager: UserType) => {
     router.push({
@@ -99,325 +88,351 @@ const ManagersListScreen: React.FC = () => {
     });
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: UserType }) => {
     const isResigned = selectedTab === "Resigned" || item.status === "Resigned";
-    const isVehicle = !!item.regNumber;
-    const isDriver = !!item.license && !item.regNumber;
-
     const profilePhoto = item.profilePhoto;
 
     return (
       <TouchableOpacity
-        style={[styles.card, isResigned && styles.cardResigned]}
-        onPress={() => {
-          if (isVehicle) {
-            router.push({
-              pathname: "/admin/vehicle-details",
-              params: { vehicle: JSON.stringify(item), userRole: "admin" }
-            } as any);
-          } else if (isDriver) {
-            router.push({
-              pathname: "/admin/drivers-details",
-              params: { driver: encodeURIComponent(JSON.stringify(item)), viewerRole: "admin" }
-            } as any);
-          } else {
-            handleManagerClick(item);
-          }
-        }}
+        style={[styles.managerCard, isResigned && styles.resignedCard]}
+        onPress={() => handleManagerClick(item)}
+        activeOpacity={0.7}
       >
-        <View style={styles.cardLeft}>
-          {profilePhoto ? (
-            <Image
-              source={{ uri: api.getImageUrl(profilePhoto) || undefined }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <View style={[styles.avatar, isResigned && styles.avatarResigned]}>
-              {isResigned ? (
-                <UserX size={24} color="#EF4444" />
-              ) : isVehicle ? (
-                <Truck size={24} color="#4F46E5" />
-              ) : (
-                <Text style={styles.avatarText}>
-                  {item.name ? item.name.charAt(0).toUpperCase() : (item.regNumber ? "V" : "U")}
-                </Text>
-              )}
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.name, isResigned && styles.textResigned]} numberOfLines={1}>
-              {item.name || item.regNumber}
-            </Text>
-            <Text style={styles.email} numberOfLines={1}>
-              {item.email || item.model || item.mobile}
-            </Text>
-            {item.place && (
-              <Text style={styles.location} numberOfLines={1}>
-                {item.place}
-              </Text>
-            )}
-            {isResigned && (
-              <View style={styles.resignedBadge}>
-                <Text style={styles.resignedBadgeText}>Resigned</Text>
+        <View style={styles.cardContent}>
+          <View style={styles.avatarContainer}>
+            {profilePhoto ? (
+              <Image
+                source={{ uri: api.getImageUrl(profilePhoto) || undefined }}
+                style={styles.avatarImg}
+              />
+            ) : (
+              <View style={[styles.avatarPlaceholder, isResigned && styles.resignedAvatar]}>
+                {isResigned ? (
+                  <UserX size={24} color="#EF4444" />
+                ) : (
+                  <Text style={styles.initialText}>
+                    {item.name ? item.name.charAt(0).toUpperCase() : "U"}
+                  </Text>
+                )}
               </View>
             )}
-            {(isDriver || isVehicle) && (
-              <View style={[styles.typeBadge, { backgroundColor: isDriver ? "#E0F2FE" : "#F3E8FF" }]}>
-                <Text style={[styles.typeBadgeText, { color: isDriver ? "#0EA5E9" : "#A855F7" }]}>
-                  {isDriver ? "Driver" : "Vehicle"}
+            {!isResigned && <View style={styles.onlineStatus} />}
+          </View>
+
+          <View style={styles.infoContainer}>
+            <View style={styles.nameRow}>
+              <Text style={[styles.managerName, isResigned && styles.resignedName]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              {isResigned && (
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>Inactive</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.detailsRow}>
+              <Mail size={12} color="#94A3B8" />
+              <Text style={styles.managerEmail} numberOfLines={1}>
+                {item.email}
+              </Text>
+            </View>
+
+            {item.place && (
+              <View style={styles.detailsRow}>
+                <MapPin size={12} color="#94A3B8" />
+                <Text style={styles.managerLocation} numberOfLines={1}>
+                  {item.place}
                 </Text>
               </View>
             )}
           </View>
+
+          <View style={styles.arrowContainer}>
+            <ChevronRight size={18} color="#CBD5E1" />
+          </View>
         </View>
-        <ChevronRight size={20} color="#CBD5E1" />
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Header */}
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <SafeAreaView style={styles.safeArea}>
+        
+        {/* Modern Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <ChevronLeft size={28} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Managers Directory</Text>
-          <View style={{ width: 28 }} />
-        </View>
-
-        {/* Tab Navigation Bar */}
-        <View style={styles.tabContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10 }}>
-            {[
-              { id: "Active", label: "Managers" },
-              { id: "Resigned", label: "Resigned" },
-              { id: "Drivers", label: "Drivers" },
-              { id: "Vehicles", label: "Vehicles" }
-            ].map((tab) => (
-              <TouchableOpacity
-                key={tab.id}
-                style={[styles.tabButton, selectedTab === tab.id && styles.activeTab]}
-                onPress={() => setSelectedTab(tab.id as any)}
-              >
-                <Text style={[styles.tabText, selectedTab === tab.id && styles.activeTabText]}>
-                  {tab.label}
-                </Text>
-                {selectedTab === tab.id && <View style={styles.activeIndicator} />}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Search size={20} color="#94A3B8" style={{ marginRight: 10 }} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={`Search ${selectedTab === "Active" ? "active" : "resigned"} managers...`}
-            placeholderTextColor="#94A3B8"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-        </View>
-
-        {/* List */}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#0EA5E9" />
+          <View style={styles.headerTop}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+              <ChevronLeft size={24} color="#1E293B" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Managers Directory</Text>
+            <TouchableOpacity 
+              style={styles.iconBtn}
+              onPress={() => router.push("/admin/add-manager")}
+            >
+              <Plus size={24} color="#6366F1" />
+            </TouchableOpacity>
           </View>
-        ) : (
-          <FlatList
-            data={getDisplayData()}
-            keyExtractor={(item) => item._id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <View style={styles.center}>
-                {selectedTab === "Active" ? (
-                  <User size={48} color="#CBD5E1" />
-                ) : (
-                  <UserX size={48} color="#CBD5E1" />
-                )}
-                <Text style={styles.emptyText}>
-                  No {selectedTab.toLowerCase()} managers found
-                </Text>
-              </View>
-            }
-          />
-        )}
-      </View>
-      {/* FAB - Add Manager Button */}
+
+          {/* Search Section */}
+          <View style={styles.searchSection}>
+            <View style={styles.searchWrapper}>
+              <Search size={18} color="#94A3B8" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={`Search ${selectedTab.toLowerCase()} managers...`}
+                placeholderTextColor="#94A3B8"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+            </View>
+            <TouchableOpacity style={styles.filterBtn}>
+              <Filter size={18} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabsWrapper}>
+            <View style={styles.tabBar}>
+              {[
+                { id: "Active", label: "Active", count: activeManagers.length },
+                { id: "Resigned", label: "Resigned", count: resignedManagers.length }
+              ].map((tab) => (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[styles.tabItem, selectedTab === tab.id && styles.activeTabItem]}
+                  onPress={() => setSelectedTab(tab.id as any)}
+                >
+                  <View style={styles.tabContent}>
+                    <Text style={[styles.tabLabel, selectedTab === tab.id && styles.activeTabLabel]}>
+                      {tab.label}
+                    </Text>
+                    <View style={[styles.countBadge, selectedTab === tab.id && styles.activeCountBadge]}>
+                      <Text style={[styles.countText, selectedTab === tab.id && styles.activeCountText]}>
+                        {tab.count}
+                      </Text>
+                    </View>
+                  </View>
+                  {selectedTab === tab.id && <View style={styles.tabIndicator} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Content List */}
+        <View style={styles.content}>
+          {loading ? (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#6366F1" />
+              <Text style={styles.loaderText}>Syncing Directory...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={displayData}
+              keyExtractor={(item) => item._id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Search size={32} color="#CBD5E1" />
+                  </View>
+                  <Text style={styles.emptyTitle}>No Managers Found</Text>
+                  <Text style={styles.emptySub}>
+                    Try adjusting your search for {selectedTab.toLowerCase()} managers.
+                  </Text>
+                </View>
+              }
+            />
+          )}
+        </View>
+      </SafeAreaView>
+
+      {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => router.push("/admin/add-manager")}
+        activeOpacity={0.8}
       >
-        <Text style={styles.fabPlus}>+</Text>
+        <Plus size={24} color="#fff" />
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  safeArea: { flex: 1 },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
     backgroundColor: "#fff",
-    marginTop: 30,
-  },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  backBtn: { padding: 4 },
-
-  /* Tab Navigation Styles */
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  activeTab: {
-    // Background color can be changed if needed
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  activeTabText: {
-    color: "#0EA5E9",
-    fontWeight: "700",
-  },
-  activeIndicator: {
-    position: "absolute",
-    bottom: 0,
-    height: 3,
-    width: "60%",
-    backgroundColor: "#0EA5E9",
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
-
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 20,
-    paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  searchInput: { flex: 1, height: "100%", color: "#0F172A", fontSize: 15 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 20 },
-
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    paddingBottom: 0,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.03,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  headerTitle: { fontSize: 20, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchSection: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 20,
+  },
+  searchWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    height: 48,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: "#1E293B", fontWeight: "500" },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "#EEF2FF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabsWrapper: { paddingBottom: 0 },
+  tabBar: { flexDirection: 'row', paddingHorizontal: 20, gap: 32 },
+  tabItem: { paddingVertical: 12, position: 'relative' },
+  tabContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tabLabel: { fontSize: 14, fontWeight: "700", color: "#94A3B8" },
+  activeTabLabel: { color: "#6366F1" },
+  countBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  activeCountBadge: { backgroundColor: '#EEF2FF' },
+  countText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  activeCountText: { color: '#6366F1' },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "#6366F1",
+    borderRadius: 3,
+  },
+  content: { flex: 1 },
+  listContainer: { padding: 20, paddingBottom: 100 },
+  managerCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 10,
     elevation: 2,
   },
-  cardResigned: {
-    backgroundColor: "#F1F5F9", // Slightly greyed out for resigned
-    opacity: 0.9,
+  resignedCard: {
+    backgroundColor: "#F8FAFC",
+    borderColor: "#E2E8F0",
+    opacity: 0.8,
   },
-  cardLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#E0F2FE",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-  },
-  avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-    borderWidth: 1,
-    borderColor: "#E5E7EB"
-  },
-  avatarResigned: {
-    backgroundColor: "#FEE2E2", // Light red bg
-  },
-  avatarText: { fontSize: 20, fontWeight: "700", color: "#0EA5E9" },
-  name: { fontSize: 16, fontWeight: "600", color: "#1E293B" },
-  textResigned: {
-    color: "#64748B",
-    textDecorationLine: "line-through",
-  },
-  email: { fontSize: 13, color: "#64748B", marginTop: 2 },
-  location: { fontSize: 12, color: "#94A3B8", marginTop: 2, marginRight: 10 },
-
-  resignedBadge: {
-    marginTop: 4,
-    backgroundColor: "#FEE2E2",
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  resignedBadgeText: {
-    fontSize: 10,
-    color: "#EF4444",
-    fontWeight: "700",
-  },
-  typeBadge: {
-    marginTop: 4,
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-  },
-
-  center: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 50 },
-  emptyText: { color: "#94A3B8", fontSize: 16, marginTop: 10 },
-
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
+  cardContent: { flexDirection: "row", alignItems: "center" },
+  avatarContainer: { position: 'relative', marginRight: 16 },
+  avatarImg: { width: 56, height: 56, borderRadius: 18, backgroundColor: "#F1F5F9" },
+  avatarPlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: "#0EA5E9",
+    borderRadius: 18,
+    backgroundColor: "#EEF2FF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#0EA5E9",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  fabPlus: { color: "#fff", fontSize: 28, fontWeight: "700", lineHeight: 30 },
+  resignedAvatar: { backgroundColor: "#F1F5F9" },
+  initialText: { fontSize: 20, fontWeight: "800", color: "#6366F1" },
+  onlineStatus: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#10B981",
+    borderWidth: 3,
+    borderColor: "#fff",
+  },
+  infoContainer: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  managerName: { fontSize: 16, fontWeight: "800", color: "#1E293B" },
+  resignedName: { color: "#64748B", textDecorationLine: "line-through" },
+  statusBadge: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  statusBadgeText: { fontSize: 10, fontWeight: "700", color: "#94A3B8" },
+  detailsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  managerEmail: { fontSize: 12, color: "#94A3B8", fontWeight: "600" },
+  managerLocation: { fontSize: 12, color: "#94A3B8", fontWeight: "600" },
+  arrowContainer: { marginLeft: 10 },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loaderText: { marginTop: 12, fontSize: 14, color: "#94A3B8", fontWeight: "600" },
+  emptyContainer: { flex: 1, alignItems: "center", paddingTop: 100 },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: "800", color: "#1E293B", marginBottom: 8 },
+  emptySub: { fontSize: 14, color: "#94A3B8", textAlign: "center", paddingHorizontal: 40, lineHeight: 20 },
+  fab: {
+    position: "absolute",
+    bottom: 30,
+    right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#6366F1",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+  },
 });
 
 export default ManagersListScreen;
-

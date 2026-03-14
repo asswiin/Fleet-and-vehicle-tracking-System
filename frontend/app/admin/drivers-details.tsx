@@ -159,6 +159,7 @@ const DriverDetailsScreen = () => {
   };
 
   const getStatusConfig = () => {
+    if (driver?.status === "Resigned") return { label: "Resigned", bg: "#FEF2F2", text: "#EF4444" };
     if (driver?.driverStatus === "On-trip") return { label: "On Trip", bg: "#E0F2FE", text: "#0369A1" };
     if (driver?.isAvailable) return { label: "Available", bg: "#DCFCE7", text: "#15803D" };
     return { label: "Offline", bg: "#F3E8FF", text: "#7E22CE" };
@@ -209,8 +210,15 @@ const DriverDetailsScreen = () => {
               <View style={[styles.profileStatusDot, { backgroundColor: statusConfig.text }]} />
             </View>
             <Text style={styles.profileName}>{driver?.name || "Driver Name"}</Text>
-            <View style={[styles.heroStatusBadge, { backgroundColor: statusConfig.bg }]}>
-              <Text style={[styles.heroStatusText, { color: statusConfig.text }]}>{statusConfig.label}</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={[styles.heroStatusBadge, { backgroundColor: statusConfig.bg }]}>
+                <Text style={[styles.heroStatusText, { color: statusConfig.text }]}>{statusConfig.label}</Text>
+              </View>
+              {driver?.status === "Resigned" && (
+                <View style={[styles.heroStatusBadge, { backgroundColor: "#FEE2E2" }]}>
+                  <Text style={[styles.heroStatusText, { color: "#EF4444" }]}>Resigned</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -341,6 +349,57 @@ const DriverDetailsScreen = () => {
 
       {/* Primary Action Button */}
       <View style={styles.footerAction}>
+        {viewerRole === 'manager' && driver?.status !== 'Resigned' && (
+          <TouchableOpacity
+            style={[styles.mainActionButton, { backgroundColor: '#FEF2F2', marginBottom: 12, borderWidth: 1, borderColor: '#FEE2E2', shadowOpacity: 0 }]}
+            onPress={() => {
+              import("react-native").then(({ Alert }) => {
+                Alert.alert(
+                  "Mark as Resigned",
+                  "Are you sure you want to mark this driver as resigned? This will take them offline and they will no longer be available for trips.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    { 
+                      text: "Confirm Resignation", 
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          setLoading(true);
+                          const res = await api.updateDriver(driver!._id, { 
+                            status: "Resigned",
+                            isAvailable: false,
+                            driverStatus: "offline"
+                          });
+                          if (res.ok) {
+                            Alert.alert("Success", "Driver has been marked as resigned.");
+                            fetchDriverDetails();
+                          } else {
+                            Alert.alert("Error", res.error || "Failed to update driver status");
+                          }
+                        } catch (err) {
+                          Alert.alert("Error", "An unexpected error occurred.");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }
+                  ]
+                );
+              });
+            }}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <>
+                <UserIcon size={20} color="#EF4444" style={{ marginRight: 8 }} />
+                <Text style={[styles.mainActionButtonText, { color: '#EF4444' }]}>Mark as Resigned</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.mainActionButton}
           onPress={() => {

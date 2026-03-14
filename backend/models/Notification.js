@@ -40,7 +40,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["trip_assignment", "trip_update", "trip_cancellation", "driver_declined", "reassign_driver", "parcel_delivered"],
+      enum: ["trip_assignment", "trip_update", "trip_cancellation", "driver_declined", "driver_accepted", "journey_started", "reassign_driver", "parcel_delivered"],
       default: "trip_assignment",
     },
     status: {

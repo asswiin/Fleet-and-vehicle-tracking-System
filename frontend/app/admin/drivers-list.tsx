@@ -32,7 +32,7 @@ import { api, Driver } from "../../utils/api";
 
 const { width } = Dimensions.get("window");
 
-const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Pending"];
+const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Accepted", "Pending", "Resigned"];
 
 const DriversListScreen = () => {
   const router = useRouter();
@@ -79,13 +79,17 @@ const DriversListScreen = () => {
       let statusMatch = true;
       if (selectedTab !== "All") {
         if (selectedTab === "Available") {
-          statusMatch = driver.isAvailable === true && driver.driverStatus !== "On-trip";
+          statusMatch = driver.isAvailable === true && !["On-trip", "Accepted", "pending"].includes(driver.driverStatus || "");
         } else if (selectedTab === "Offline") {
-          statusMatch = driver.isAvailable === false && driver.driverStatus !== "On-trip";
+          statusMatch = driver.isAvailable === false && !["On-trip", "Accepted", "pending"].includes(driver.driverStatus || "");
         } else if (selectedTab === "On-trip") {
           statusMatch = driver.driverStatus === "On-trip";
+        } else if (selectedTab === "Accepted") {
+          statusMatch = driver.driverStatus === "Accepted";
         } else if (selectedTab === "Pending") {
           statusMatch = driver.driverStatus === "pending";
+        } else if (selectedTab === "Resigned") {
+          statusMatch = driver.status === "Resigned";
         }
       }
       return matchesSearch && statusMatch;
@@ -104,11 +108,17 @@ const DriversListScreen = () => {
     if (driver.driverStatus === "On-trip") {
       return { color: '#2563EB', bg: '#EFF6FF', label: 'On Trip', icon: Truck };
     }
-    if (driver.isAvailable) {
-      return { color: '#059669', bg: '#F0FDF4', label: 'Available', icon: CheckCircle2 };
+    if (driver.driverStatus === "Accepted") {
+      return { color: '#059669', bg: '#F0FDF4', label: 'Accepted', icon: CheckCircle2 };
     }
     if (driver.driverStatus === "pending") {
       return { color: '#D97706', bg: '#FFFBEB', label: 'Pending', icon: Clock };
+    }
+    if (driver.status === "Resigned") {
+      return { color: '#EF4444', bg: '#FEF2F2', label: 'Resigned', icon: XCircle };
+    }
+    if (driver.isAvailable) {
+      return { color: '#10B981', bg: '#ECFDF5', label: 'Available', icon: CheckCircle2 };
     }
     return { color: '#64748B', bg: '#F1F5F9', label: 'Offline', icon: XCircle };
   };
@@ -126,52 +136,48 @@ const DriversListScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.driverCard}
+        style={styles.driverHorizontalCard}
         onPress={() => {
           router.push({
             pathname: "/admin/drivers-details",
             params: { driver: encodeURIComponent(JSON.stringify(item)), viewerRole: userRole },
           } as any);
         }}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <View style={styles.cardTop}>
-          <View style={styles.profileContainer}>
+        <View style={styles.cardLeft}>
+          <View style={styles.avatarContainer}>
             {item.profilePhoto ? (
               <Image
                 source={{ uri: api.getImageUrl(item.profilePhoto)! }}
-                style={styles.profileImage}
+                style={styles.avatar}
               />
             ) : (
-              <View style={styles.profilePlaceholder}>
-                <User size={24} color="#94A3B8" />
+              <View style={styles.avatarPlaceholder}>
+                <User size={20} color="#94A3B8" />
               </View>
             )}
             <View style={[styles.statusDot, { backgroundColor: config.color }]} />
           </View>
+        </View>
 
-          <View style={styles.headerInfo}>
+        <View style={styles.cardRight}>
+          <View style={styles.cardHeaderRow}>
             <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
-            <View style={[styles.statusPill, { backgroundColor: config.bg }]}>
-              <StatusIcon size={12} color={config.color} />
-              <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
+            <View style={[styles.statusTag, { backgroundColor: config.bg }]}>
+              <StatusIcon size={8} color={config.color} />
+              <Text style={[styles.statusTagText, { color: config.color }]}>{config.label}</Text>
             </View>
           </View>
 
-          <ArrowRight size={18} color="#CBD5E1" />
-        </View>
-
-        <View style={styles.cardDivider} />
-
-        <View style={styles.cardBottom}>
-          <View style={styles.infoRow}>
+          <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <Phone size={14} color="#64748B" />
-              <Text style={styles.infoText}>{item.mobile}</Text>
+              <Phone size={12} color="#64748B" />
+              <Text style={styles.infoText} numberOfLines={1}>{item.mobile}</Text>
             </View>
             <View style={styles.infoItem}>
-              <MapPin size={14} color="#64748B" />
-              <Text style={styles.infoText}>{item.address?.city || "Unknown"}</Text>
+              <MapPin size={12} color="#64748B" />
+              <Text style={styles.infoText} numberOfLines={1}>{item.address?.city || "Mukkam"}</Text>
             </View>
           </View>
         </View>
@@ -246,6 +252,7 @@ const DriversListScreen = () => {
             data={filteredDrivers}
             keyExtractor={(item) => item._id}
             renderItem={renderItem}
+            numColumns={1}
             contentContainerStyle={styles.list}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
@@ -363,89 +370,85 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   list: {
-    padding: 20,
-    gap: 16,
+    padding: 16,
+    gap: 12,
   },
-  driverCard: {
+  driverHorizontalCard: {
+    flexDirection: "row",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
+    shadowRadius: 10,
+    elevation: 2,
   },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
+  cardLeft: {
+    marginRight: 16,
   },
-  profileContainer: {
+  avatarContainer: {
     position: "relative",
   },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#F1F5F9",
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#F8FAFC",
   },
-  profilePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#F1F5F9",
+  avatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#F8FAFC",
     justifyContent: "center",
     alignItems: "center",
   },
   statusDot: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: 2,
+    right: 2,
     width: 14,
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
-  headerInfo: {
+  cardRight: {
     flex: 1,
-    marginLeft: 14,
+    gap: 6,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   nameText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#0F172A",
-    marginBottom: 4,
+    flex: 1,
   },
-  statusPill: {
+  statusTag: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
     gap: 4,
   },
-  statusLabel: {
-    fontSize: 11,
-    fontWeight: "700",
+  statusTagText: {
+    fontSize: 10,
+    fontWeight: "800",
     textTransform: "uppercase",
   },
-  cardDivider: {
-    height: 1,
-    backgroundColor: "#F1F5F9",
-    marginVertical: 14,
-  },
-  cardBottom: {
+  infoGrid: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  infoRow: {
-    flexDirection: "row",
-    gap: 16,
+    flexWrap: "wrap",
+    gap: 12,
   },
   infoItem: {
     flexDirection: "row",

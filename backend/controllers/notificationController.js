@@ -242,8 +242,7 @@ exports.updateNotificationStatus = async (req, res) => {
     await notification.save();
 
     if (status === "accepted") {
-      // Update statuses in parallel
-      await Promise.all([
+      const updatePromises = [
         // Update the Trip status
         Trip.findOneAndUpdate(
           { tripId: notification.tripId },
@@ -270,7 +269,27 @@ exports.updateNotificationStatus = async (req, res) => {
             assignedVehicle: notification.vehicleId ? notification.vehicleId._id : null,
           }
         )
-      ]);
+      ];
+
+      // Create manager notification for acceptance
+      if (notification.assignedBy) {
+        const managerNotification = new Notification({
+          managerId: notification.assignedBy,
+          recipientType: "manager",
+          vehicleId: notification.vehicleId._id,
+          parcelIds: notification.parcelIds.map(p => p._id),
+          tripId: notification.tripId,
+          message: `Driver ${notification.driverId.name} accepted trip ${notification.tripId}.`,
+          type: "driver_accepted",
+          status: "accepted",
+          deliveryLocations: notification.deliveryLocations,
+          startLocation: notification.startLocation,
+          assignedBy: notification.assignedBy,
+        });
+        updatePromises.push(managerNotification.save());
+      }
+
+      await Promise.all(updatePromises);
     } else if (status === "declined") {
       // Update statuses in parallel
       const updatePromises = [

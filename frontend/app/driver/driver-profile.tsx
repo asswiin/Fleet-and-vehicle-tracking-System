@@ -9,25 +9,32 @@ import {
   ActivityIndicator,
   StatusBar,
   Image,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import { api, Driver } from "../../utils/api";
-import { 
-  ChevronLeft, 
-  Edit2, 
-  Phone, 
-  Mail, 
-  CreditCard, 
-  MapPin, 
+import {
+  ChevronLeft,
+  Edit2,
+  Phone,
+  Mail,
+  CreditCard,
+  MapPin,
   User,
-  Calendar
+  Calendar,
+  LogOut
 } from "lucide-react-native";
 
 const DriverProfileScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ driverId: string }>();
-  
+  const params = useLocalSearchParams<{
+    driverId: string,
+    role?: string,
+    district?: string,
+    branch?: string
+  }>();
+
   const [driver, setDriver] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -68,6 +75,24 @@ const DriverProfileScreen = () => {
     return [house, street, city, district, state].filter(Boolean).join(", ");
   };
 
+  const handleLogout = () => {
+    Alert.alert("Sign Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: () => router.replace({
+          pathname: "/shared/login",
+          params: {
+            role: params.role || "driver",
+            district: params.district || "",
+            branch: params.branch || "",
+          }
+        } as any)
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -79,7 +104,7 @@ const DriverProfileScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -118,7 +143,7 @@ const DriverProfileScreen = () => {
         {/* Details Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
-          
+
           <View style={styles.row}>
             <View style={styles.iconBox}><Phone size={20} color="#64748B" /></View>
             <View>
@@ -145,7 +170,7 @@ const DriverProfileScreen = () => {
             </View>
           </View>
 
-           <View style={styles.row}>
+          <View style={styles.row}>
             <View style={styles.iconBox}><User size={20} color="#64748B" /></View>
             <View>
               <Text style={styles.label}>Gender</Text>
@@ -158,7 +183,7 @@ const DriverProfileScreen = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Legal & Address</Text>
-          
+
           <View style={styles.row}>
             <View style={styles.iconBox}><CreditCard size={20} color="#64748B" /></View>
             <View>
@@ -176,6 +201,13 @@ const DriverProfileScreen = () => {
           </View>
         </View>
 
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <LogOut size={20} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -192,9 +224,9 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   editBtn: { flexDirection: "row", alignItems: "center", padding: 4 },
   editText: { marginLeft: 4, color: "#2563EB", fontWeight: "600" },
-  
+
   content: { padding: 20 },
-  
+
   profileCard: {
     backgroundColor: "#fff", borderRadius: 16, padding: 24, alignItems: "center", marginBottom: 20,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
@@ -231,6 +263,12 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 12, color: "#94A3B8", marginBottom: 2, fontWeight: "600", textTransform: "uppercase" },
   value: { fontSize: 15, color: "#1E293B", fontWeight: "500" },
+  logoutButton: {
+    backgroundColor: "#EF4444", flexDirection: "row", justifyContent: "center", alignItems: "center",
+    paddingVertical: 16, borderRadius: 12, marginTop: 10,
+    shadowColor: "#EF4444", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4
+  },
+  logoutText: { color: "#fff", fontSize: 16, fontWeight: "700" }
 });
 
 export default DriverProfileScreen;

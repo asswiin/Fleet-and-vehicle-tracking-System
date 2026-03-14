@@ -23,6 +23,9 @@ import {
     Info,
     Truck,
     FileText,
+    Weight,
+    Tag,
+    ShoppingBag,
 } from "lucide-react-native";
 import { api, type DeliveredParcel, type Trip } from "../../utils/api";
 
@@ -238,28 +241,40 @@ const DeliveredParcelDetailsScreen = () => {
                 )}
 
                 {/* MOVE PARCEL & SENDER/RECEIVER DETAILS TO LAST */}
-                <Text style={styles.sectionLabel}>Parcel Details</Text>
+                <Text style={styles.sectionLabel}>Parcel Information</Text>
                 <View style={styles.infoSection}>
                     <View style={styles.infoRow}>
-                        <Hash size={18} color="#64748B" />
+                        <Hash size={18} color="#2563EB" />
                         <View style={styles.infoTextContainer}>
                             <Text style={styles.infoLabelText}>Tracking ID</Text>
-                            <Text style={styles.infoValueText}>{history.trackId}</Text>
+                            <Text style={[styles.infoValueText, { color: "#2563EB" }]}>{history.trackId}</Text>
                         </View>
                     </View>
+
+                    <View style={styles.divider} />
+
                     <View style={styles.infoRow}>
-                        <FileText size={18} color="#64748B" />
+                        <Tag size={18} color="#64748B" />
                         <View style={styles.infoTextContainer}>
-                            <Text style={styles.infoLabelText}>Type & Weight</Text>
-                            <Text style={styles.infoValueText}>
-                                {history.parcelDetails?.type || "Standard"} • {history.parcelDetails?.weight || 0}kg
-                            </Text>
+                            <Text style={styles.infoLabelText}>Parcel Type</Text>
+                            <Text style={styles.infoValueText}>{history.parcelDetails?.type || "Standard"}</Text>
                         </View>
                     </View>
+
+                    <View style={styles.infoRow}>
+                        <Weight size={18} color="#64748B" />
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabelText}>Parcel Weight</Text>
+                            <Text style={styles.infoValueText}>{history.parcelDetails?.weight || 0} kg</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
                     <View style={styles.infoRow}>
                         <MapPin size={18} color="#64748B" />
                         <View style={styles.infoTextContainer}>
-                            <Text style={styles.infoLabelText}>Delivery Address</Text>
+                            <Text style={styles.infoLabelText}>Final Delivery Destination</Text>
                             <Text style={styles.infoValueText}>
                                 {history.deliveryLocation?.locationName || history.recipient?.address || "No address provided"}
                             </Text>
@@ -303,79 +318,107 @@ const DeliveredParcelDetailsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F8FAFC" },
+    container: { flex: 1, backgroundColor: "#F1F5F9" },
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 16,
         backgroundColor: "#fff",
         borderBottomWidth: 1,
         borderBottomColor: "#E2E8F0",
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
     },
-    backButton: { padding: 4 },
-    title: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+    backButton: {
+        padding: 8,
+        borderRadius: 12,
+        backgroundColor: "#F8FAFC",
+    },
+    title: { fontSize: 20, fontWeight: "800", color: "#1E293B" },
     scrollContent: { padding: 16 },
     centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 100 },
-    loadingText: { marginTop: 12, color: "#64748B", fontSize: 14 },
+    loadingText: { marginTop: 12, color: "#64748B", fontSize: 14, fontWeight: "500" },
     errorText: { marginTop: 12, color: "#EF4444", fontSize: 16, fontWeight: "600" },
     statusCard: {
         backgroundColor: "#fff",
-        borderRadius: 16,
+        borderRadius: 24,
         padding: 24,
         alignItems: "center",
         marginBottom: 24,
         borderWidth: 1,
         borderColor: "#E2E8F0",
+        shadowColor: "#059669",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 5,
     },
     statusIconBg: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: "#ECFDF5",
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: "#D1FAE5",
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 16,
     },
-    statusTitle: { fontSize: 20, fontWeight: "800", color: "#065F46", marginBottom: 4 },
-    statusSubtitle: { fontSize: 14, color: "#6B7280", textAlign: "center" },
-    sectionLabel: { fontSize: 13, fontWeight: "800", color: "#94A3B8", textTransform: "uppercase", marginBottom: 8, marginLeft: 4 },
+    statusTitle: { fontSize: 22, fontWeight: "900", color: "#065F46", marginBottom: 6 },
+    statusSubtitle: { fontSize: 15, color: "#6B7280", textAlign: "center", lineHeight: 22, paddingHorizontal: 10 },
+    sectionLabel: {
+        fontSize: 14,
+        fontWeight: "900",
+        color: "#64748B",
+        textTransform: "uppercase",
+        marginBottom: 12,
+        marginLeft: 4,
+        letterSpacing: 1,
+    },
     infoSection: {
         backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: 20,
+        padding: 20,
         marginBottom: 24,
         borderWidth: 1,
-        borderColor: "#F1F5F9",
+        borderColor: "#E2E8F0",
         gap: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+    infoRow: { flexDirection: "row", alignItems: "center", gap: 14 },
     infoTextContainer: { flex: 1 },
-    infoLabelText: { fontSize: 12, color: "#94A3B8", fontWeight: "600" },
-    infoValueText: { fontSize: 15, color: "#1E293B", fontWeight: "700", marginTop: 2 },
-    infoSubText: { fontSize: 13, color: "#64748B", marginTop: 2 },
-    timelineItem: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-    timelinePoint: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#2563EB", marginTop: 4 },
+    infoLabelText: { fontSize: 12, color: "#94A3B8", fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+    infoValueText: { fontSize: 16, color: "#1E293B", fontWeight: "800", marginTop: 2 },
+    infoSubText: { fontSize: 14, color: "#64748B", marginTop: 2, fontWeight: "500" },
+    timelineItem: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+    timelinePoint: { width: 14, height: 14, borderRadius: 7, backgroundColor: "#3B82F6", marginTop: 4, borderWidth: 3, borderColor: "#DBEAFE" },
     timelineContent: { flex: 1 },
-    timelineLabel: { fontSize: 12, color: "#94A3B8", fontWeight: "600" },
-    timelineValue: { fontSize: 14, color: "#1E293B", fontWeight: "700", marginTop: 2 },
-    timelineConnector: { width: 2, height: 20, backgroundColor: "#E2E8F0", marginLeft: 5 },
-    notesText: { fontSize: 14, color: "#475569", lineHeight: 20 },
+    timelineLabel: { fontSize: 12, color: "#94A3B8", fontWeight: "700", textTransform: "uppercase" },
+    timelineValue: { fontSize: 15, color: "#1E293B", fontWeight: "800", marginTop: 2 },
+    timelineConnector: { width: 2, height: 24, backgroundColor: "#E2E8F0", marginLeft: 6 },
+    notesText: { fontSize: 15, color: "#475569", lineHeight: 24, fontStyle: "italic" },
     addressRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
-        marginTop: 6,
-        backgroundColor: "#F8FAFC",
-        padding: 8,
-        borderRadius: 8,
+        gap: 8,
+        marginTop: 10,
+        backgroundColor: "#F1F5F9",
+        padding: 12,
+        borderRadius: 12,
     },
     addressText: {
-        fontSize: 13,
-        color: "#475569",
+        fontSize: 14,
+        color: "#334155",
         flex: 1,
-        lineHeight: 18,
+        lineHeight: 20,
+        fontWeight: "500",
     },
     divider: {
         height: 1,

@@ -19,13 +19,24 @@ import {
   MapPin,
   Package,
   QrCode,
-  Smartphone
+  Smartphone,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react-native";
 import { api } from "../../utils/api";
+
+const PARCEL_TYPES = [
+  "Clothes",
+  "Shoes and accessories",
+  "Books",
+  "Electronic items",
+  "Spare parts"
+];
 
 const AddParcelScreen = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
 
   const [form, setForm] = useState({
     senderName: "",
@@ -379,32 +390,65 @@ const AddParcelScreen = () => {
           </View>
 
           <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={[styles.inputGroupLast, { flex: 1, marginRight: 12 }]}>
-                <Text style={styles.label}>WEIGHT (KG)</Text>
-                <View style={styles.suffixInputWrapper}>
-                  <TextInput
-                    style={styles.suffixInput}
-                    placeholder="0.0"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="numeric"
-                    value={form.weight}
-                    onChangeText={(t) => setForm({ ...form, weight: t })}
-                  />
-                  <Text style={styles.suffixText}>kg</Text>
-                </View>
-              </View>
-
-              <View style={[styles.inputGroupLast, { flex: 1 }]}>
-                <Text style={styles.label}>TYPE OF PARCEL</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>WEIGHT (KG)</Text>
+              <View style={styles.suffixInputWrapper}>
                 <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Document"
+                  style={styles.suffixInput}
+                  placeholder="0.0"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  value={form.weight}
+                  onChangeText={(t) => setForm({ ...form, weight: t })}
+                />
+                <Text style={styles.suffixText}>kg</Text>
+              </View>
+            </View>
+
+            <View style={styles.inputGroupLast}>
+              <Text style={styles.label}>TYPE OF PARCEL</Text>
+              <View style={styles.dropdownInputWrapper}>
+                <TextInput
+                  style={styles.dropdownInput}
+                  placeholder="e.g. Clothes or type manually..."
                   placeholderTextColor="#94A3B8"
                   value={form.parcelType}
                   onChangeText={(t) => setForm({ ...form, parcelType: t })}
+                  onFocus={() => setShowTypeDropdown(true)}
                 />
+                <TouchableOpacity
+                  onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+                  style={styles.arrowBtn}
+                >
+                  {showTypeDropdown ? (
+                    <ChevronUp size={20} color="#64748B" />
+                  ) : (
+                    <ChevronDown size={20} color="#64748B" />
+                  )}
+                </TouchableOpacity>
               </View>
+
+              {showTypeDropdown && (
+                <View style={styles.dropdownMenu}>
+                  {PARCEL_TYPES.map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setForm({ ...form, parcelType: type });
+                        setShowTypeDropdown(false);
+                      }}
+                    >
+                      <Text style={[
+                        styles.dropdownItemText,
+                        form.parcelType === type && styles.dropdownItemTextSelected
+                      ]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             <View style={styles.inputGroupLast}>
@@ -502,7 +546,60 @@ const styles = StyleSheet.create({
     shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 4, marginTop: 10
   },
-  submitText: { color: "#fff", fontSize: 16, fontWeight: "700" }
+  submitText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  // Type Options
+  typeOptionTextSelected: {
+    color: "#2563EB",
+    fontWeight: "600",
+  },
+  // Dropdown Styles
+  dropdownInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingRight: 12,
+  },
+  dropdownInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#1E293B",
+  },
+  arrowBtn: {
+    padding: 4,
+  },
+  dropdownMenu: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 1000,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: "#475569",
+  },
+  dropdownItemTextSelected: {
+    color: "#2563EB",
+    fontWeight: "600",
+  },
 });
 
 export default AddParcelScreen;

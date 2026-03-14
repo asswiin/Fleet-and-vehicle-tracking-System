@@ -138,7 +138,7 @@ const SelectingParcelScreen = () => {
             <Text style={styles.parcelName}>
               {item.trackingId || "Parcel"}
             </Text>
-            
+
             {/* Destination */}
             <View style={styles.parcelDetailsRow}>
               <View style={[styles.detailItem, styles.destinationItem]}>
@@ -149,16 +149,16 @@ const SelectingParcelScreen = () => {
                 </Text>
               </View>
             </View>
-            
+
             {/* Weight and Type */}
             <View style={styles.parcelDetailsRow}>
               <View style={[styles.detailItem, styles.weightItem]}>
-                <Package size={15} color="#16A34A" style={{ marginRight: 4 }} />
+                <Weight size={15} color="#2563EB" style={{ marginRight: 4 }} />
                 <Text style={styles.weightLabel}>Weight</Text>
                 <Text style={styles.weightText}>{item.weight || "---"} kg</Text>
               </View>
               <View style={[styles.detailItem, styles.typeItem]}>
-                <Box size={15} color="#D97706" style={{ marginRight: 4 }} />
+                <Layers size={15} color="#7C3AED" style={{ marginRight: 4 }} />
                 <Text style={styles.typeLabel}>Type</Text>
                 <Text style={styles.typeText}>{item.type || "---"}</Text>
               </View>
@@ -444,21 +444,21 @@ const styles = StyleSheet.create({
   parcelDetailsRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
   detailItem: { flexDirection: "row", alignItems: "center", flex: 1 },
   detailText: { fontSize: 12, color: "#64748B" },
-  
+
   // Color-coded destination styles
   destinationItem: { backgroundColor: "#FEF2F2", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   destinationLabel: { fontSize: 11, fontWeight: "600", color: "#DC2626", marginRight: 4 },
   destinationText: { fontSize: 12, fontWeight: "700", color: "#991B1B", flex: 1 },
-  
+
   // Color-coded weight styles
-  weightItem: { backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, marginRight: 6, borderWidth: 1, borderColor: "#86EFAC" },
-  weightLabel: { fontSize: 11, fontWeight: "700", color: "#16A34A", marginRight: 4 },
-  weightText: { fontSize: 13, fontWeight: "800", color: "#15803D" },
-  
+  weightItem: { backgroundColor: "#EFF6FF", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, marginRight: 6, borderWidth: 1, borderColor: "#BFDBFE" },
+  weightLabel: { fontSize: 11, fontWeight: "700", color: "#2563EB", marginRight: 4 },
+  weightText: { fontSize: 13, fontWeight: "800", color: "#1E40AF" },
+
   // Color-coded type styles
-  typeItem: { backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: "#FCD34D" },
-  typeLabel: { fontSize: 11, fontWeight: "700", color: "#D97706", marginRight: 4 },
-  typeText: { fontSize: 13, fontWeight: "800", color: "#B45309" },
+  typeItem: { backgroundColor: "#F5F3FF", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: "#DDD6FE" },
+  typeLabel: { fontSize: 11, fontWeight: "700", color: "#7C3AED", marginRight: 4 },
+  typeText: { fontSize: 13, fontWeight: "800", color: "#5B21B6" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyState: { justifyContent: "center", alignItems: "center", paddingVertical: 60 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginTop: 12 },
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   },
   nextButtonDisabled: { opacity: 0.5, backgroundColor: "#94A3B8" },
   nextButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  
+
   // Modal Styles
   modalContainer: { flex: 1, backgroundColor: "#F8FAFC" },
   modalHeader: {

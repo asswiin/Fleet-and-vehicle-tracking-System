@@ -51,6 +51,7 @@ const ActiveTripPage = () => {
   const [startingJourney, setStartingJourney] = useState(false);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deliveryLoading, setDeliveryLoading] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
 
   // Route State
@@ -388,6 +389,7 @@ const ActiveTripPage = () => {
           style: "default",
           onPress: async () => {
             try {
+              setDeliveryLoading(parcelId);
               const response = await api.updateDeliveryStatus(
                 activeTrip._id,
                 parcelId,
@@ -414,9 +416,8 @@ const ActiveTripPage = () => {
               } else {
                 Alert.alert("Error", response.error || "Failed to update status");
               }
-            } catch (err) {
-              console.error("Error updating delivery status:", err);
-              Alert.alert("Error", "Something went wrong");
+            } finally {
+              setDeliveryLoading(null);
             }
           },
         },
@@ -605,9 +606,9 @@ const ActiveTripPage = () => {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24} color="#1E293B" />
+          <ArrowLeft size={22} color="#1E293B" strokeWidth={2.5} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Trip Details</Text>
+        <Text style={styles.headerTitle}>Active Trip</Text>
         <View
           style={[
             styles.statusBadge,
@@ -615,63 +616,34 @@ const ActiveTripPage = () => {
           ]}
         >
           <Text style={styles.statusText}>
-            {activeTrip.status?.toUpperCase()}
+            {activeTrip.status?.toUpperCase() || "PENDING"}
           </Text>
         </View>
       </View>
 
 
 
-      {/* Trip Progress Stats */}
-      {ongoingTrip && (
-        <View style={styles.routeStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {rawDistance.toFixed(1)}
-            </Text>
-            <Text style={styles.statLabel}>KM LEFT</Text>
-          </View>
-          <View style={styles.vDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {formatDuration(rawDuration * 60)}
-            </Text>
-            <Text style={styles.statLabel}>TIME LEFT</Text>
-          </View>
-          <View style={styles.vDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{ongoingTrip.progress || 0}%</Text>
-            <Text style={styles.statLabel}>PROGRESS</Text>
-          </View>
-        </View>
-      )}
-
       {/* Destination Reached Banner */}
       {(() => {
         if (!isInProgress || !liveLocation) return null;
-        const reachedDest = (activeTrip.deliveryDestinations || []).find(d => {
+        const reachedIdx = destinations.findIndex(d => {
           if (d.deliveryStatus === 'delivered') return false;
-          const dist = Math.sqrt(
-            Math.pow(liveLocation.latitude - d.latitude, 2) +
-            Math.pow(liveLocation.longitude - d.longitude, 2)
-          );
+          const dist = Math.sqrt(Math.pow(liveLocation.latitude - d.latitude, 2) + Math.pow(liveLocation.longitude - d.longitude, 2));
           return dist < 0.002;
         });
-
-        if (reachedDest) {
-          return (
-            <View style={styles.destReachedBanner}>
-              <View style={styles.bannerIconContainer}>
-                <CheckCircle size={24} color="#fff" />
-              </View>
-              <View style={styles.bannerTextContainer}>
-                <Text style={styles.destReachedTitle}>Reached {reachedDest.locationName}!</Text>
-                <Text style={styles.destReachedText}>Please confirm delivery for the parcel</Text>
-              </View>
+        if (reachedIdx === -1) return null;
+        const reached = destinations[reachedIdx];
+        return (
+          <View style={styles.destReachedBanner}>
+            <View style={styles.bannerIconContainer}>
+              <CheckCircle size={28} color="#fff" strokeWidth={2.5} />
             </View>
-          );
-        }
-        return null;
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.destReachedTitle}>Arrived!</Text>
+              <Text style={styles.destReachedText}>You've reached {reached.locationName}. Finalize parcel handover.</Text>
+            </View>
+          </View>
+        );
       })()}
 
       <ScrollView
@@ -682,18 +654,19 @@ const ActiveTripPage = () => {
         {/* Map Section */}
         {isMapAvailable && mapRegion && (
           <View style={styles.mapSection}>
-            {/* Map Header with Google Maps Button */}
             <View style={styles.mapHeader}>
               <View style={styles.mapTitleRow}>
-                <MapIcon size={18} color="#1E293B" />
-                <Text style={styles.mapTitle}>Route Map</Text>
+                <View style={[styles.iconCircle, { backgroundColor: "#EEF2FF", width: 32, height: 32, marginRight: 8 }]}>
+                  <MapPin size={16} color="#4F46E5" />
+                </View>
+                <Text style={styles.mapTitle}>Live Navigation</Text>
               </View>
               <TouchableOpacity
                 style={styles.googleMapsBtn}
                 onPress={openGoogleMaps}
               >
-                <MapIcon size={16} color="#fff" />
-                <Text style={styles.googleMapsBtnText}>Google Maps</Text>
+                <Navigation size={14} color="#fff" />
+                <Text style={styles.googleMapsBtnText}>Open Maps</Text>
               </TouchableOpacity>
             </View>
 
@@ -705,7 +678,7 @@ const ActiveTripPage = () => {
                 showsUserLocation={true}
                 showsMyLocationButton={true}
               >
-                {/* Start Location Marker */}
+                {/* Start Marker */}
                 {activeTrip.startLocation?.latitude && activeTrip.startLocation?.longitude && (
                   <Marker
                     key={`start-marker-${activeTrip._id}`}
@@ -713,16 +686,14 @@ const ActiveTripPage = () => {
                       latitude: activeTrip.startLocation.latitude,
                       longitude: activeTrip.startLocation.longitude,
                     }}
-                    title="Starting Point"
-                    description={activeTrip.startLocation.address || "Trip starts here"}
                   >
                     <View style={styles.startMarker}>
-                      <Navigation size={14} color="#fff" />
+                      <Navigation size={14} color="#fff" fill="#fff" />
                     </View>
                   </Marker>
                 )}
 
-                {/* Delivery Destination Markers */}
+                {/* Delivery Markers */}
                 {destinations.map((dest, index) => (
                   <Marker
                     key={`dest-marker-${dest.parcelId || index}-${index}`}
@@ -730,8 +701,6 @@ const ActiveTripPage = () => {
                       latitude: dest.latitude,
                       longitude: dest.longitude,
                     }}
-                    title={`Stop ${dest.order}: ${dest.locationName}`}
-                    description={`Delivery ${index + 1}`}
                   >
                     <View style={[
                       styles.deliveryMarker,
@@ -742,55 +711,34 @@ const ActiveTripPage = () => {
                   </Marker>
                 ))}
 
-                {/* Driver Current Location Marker */}
-                {driverLocation && (
-                  <Marker
-                    key={`driver-marker-${activeTrip._id}`}
-                    coordinate={{
-                      latitude: driverLocation.coords.latitude,
-                      longitude: driverLocation.coords.longitude,
-                    }}
-                    title="Your Location"
-                  >
-                    <View style={styles.driverMarker}>
-                      <Truck size={20} color="#fff" />
-                    </View>
-                  </Marker>
-                )}
-
-                {/* Simulated/Live Vehicle Location Marker */}
+                {/* Driver/Live Markers */}
                 {liveLocation && (
-                  <Marker
-                    key={`live-marker-${activeTrip._id}`}
-                    coordinate={liveLocation}
-                    title="Vehicle Location"
-                  >
+                  <Marker coordinate={liveLocation}>
                     <View style={styles.liveMarker}>
-                      <Truck size={20} color="#fff" />
+                      <Truck size={18} color="#fff" />
                     </View>
                   </Marker>
                 )}
 
-                {/* Actual Route Polyline from OSRM */}
+                {/* Route Polyline */}
                 {routeCoordinates.length > 1 && (
                   <Polyline
-                    key={`route-polyline-${activeTrip._id}-${routeCoordinates.length}`}
                     coordinates={routeCoordinates}
                     strokeColor="#2563EB"
                     strokeWidth={4}
-                    lineDashPattern={[0]}
+                    lineCap="round"
+                    lineJoin="round"
                   />
                 )}
               </MapView>
 
-              {/* Stats Overlay exactly like in track-trip.tsx */}
+              {/* Stats Overlay */}
               <View style={styles.routeStats}>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>
                     {(() => {
-                      const progress = ongoingTrip?.progress || 0;
-                      const remaining = rawDistance * (1 - progress / 100);
-                      return remaining.toFixed(1);
+                      const prog = ongoingTrip?.progress || 0;
+                      return (rawDistance * (1 - prog / 100)).toFixed(1);
                     })()}
                   </Text>
                   <Text style={styles.statLabel}>KM LEFT</Text>
@@ -799,81 +747,71 @@ const ActiveTripPage = () => {
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>
                     {(() => {
-                      const progress = ongoingTrip?.progress || 0;
-                      const remainingMin = Math.max(0, Math.floor(rawDuration * (1 - progress / 100)));
-                      return remainingMin >= 60
-                        ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m`
-                        : `${remainingMin}m`;
+                      const prog = ongoingTrip?.progress || 0;
+                      const remMin = Math.max(0, Math.floor(rawDuration * (1 - prog / 100)));
+                      return remMin >= 60 ? `${Math.floor(remMin / 60)}h ${remMin % 60}m` : `${remMin}m`;
                     })()}
                   </Text>
-                  <Text style={styles.statLabel}>EST. LEFT</Text>
+                  <Text style={styles.statLabel}>EST. TIME</Text>
                 </View>
                 <View style={styles.vDivider} />
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{destinations.filter(d => d.deliveryStatus !== 'delivered').length}</Text>
+                  <Text style={styles.statValue}>
+                    {destinations.filter(d => d.deliveryStatus !== 'delivered').length}
+                  </Text>
                   <Text style={styles.statLabel}>STOPS</Text>
                 </View>
               </View>
 
-              {/* Routing Loader Moved outside MapView */}
               {isRouting && (
                 <View style={styles.routingLoader}>
                   <ActivityIndicator size="small" color="#2563EB" />
-                  <Text style={styles.routingText}>Calculating route...</Text>
+                  <Text style={styles.routingText}>Refining route...</Text>
                 </View>
               )}
             </View>
-
-
           </View>
         )}
 
-        {/* Trip ID Card */}
+        {/* Trip Summary Card */}
         <View style={styles.tripIdCard}>
-          <View style={styles.tripIdRow}>
-            <Text style={styles.tripIdLabel}>Trip ID</Text>
-            <Text style={styles.tripIdValue}>{activeTrip.tripId}</Text>
-          </View>
-          <View style={styles.tripIdRow}>
-            <Clock size={16} color="#64748B" />
-            <Text style={styles.tripIdDate}>
-              Assigned: {formatDate(activeTrip.assignedAt)}
-            </Text>
-          </View>
-          {activeTrip.startedAt && (
-            <View style={styles.tripIdRow}>
-              <Play size={16} color="#10B981" />
-              <Text style={[styles.tripIdDate, { color: "#10B981" }]}>
-                Started: {formatDate(activeTrip.startedAt)}
-              </Text>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.iconCircle, { backgroundColor: "#F1F5F9" }]}>
+              <Package size={20} color="#334155" />
             </View>
-          )}
+            <View>
+              <Text style={styles.tripIdLabel}>TRIP RECAP</Text>
+              <Text style={styles.tripIdValue}>#{activeTrip.tripId}</Text>
+            </View>
+          </View>
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>ASSIGNED</Text>
+              <Text style={styles.detailValue}>{formatDate(activeTrip.assignedAt).split(',')[0]}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>LOAD</Text>
+              <Text style={styles.detailValue}>{activeTrip.totalWeight || 0} kg</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Vehicle Details */}
+        {/* Vehicle Section */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
               <Truck size={20} color="#2563EB" />
             </View>
-            <Text style={styles.sectionTitle}>Vehicle Details</Text>
+            <Text style={styles.sectionTitle}>Fleet Information</Text>
           </View>
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Reg Number</Text>
+              <Text style={styles.detailLabel}>REGISTRATION</Text>
               <Text style={styles.detailValue}>{vehicle?.regNumber || "N/A"}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Model</Text>
+              <Text style={styles.detailLabel}>VEHICLE MODEL</Text>
               <Text style={styles.detailValue}>{vehicle?.model || "N/A"}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Type</Text>
-              <Text style={styles.detailValue}>{vehicle?.type || "N/A"}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Capacity</Text>
-              <Text style={styles.detailValue}>{vehicle?.capacity || "N/A"} kg</Text>
             </View>
           </View>
         </View>
@@ -884,37 +822,18 @@ const ActiveTripPage = () => {
             <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
               <Package size={20} color="#D97706" />
             </View>
-            <Text style={styles.sectionTitle}>
-              Parcels ({parcels.length})
-            </Text>
-            <View style={styles.weightBadge}>
-              <Weight size={14} color="#fff" />
-              <Text style={styles.weightText}>
-                {activeTrip.totalWeight || 0} kg
-              </Text>
-            </View>
+            <Text style={styles.sectionTitle}>Parcel Inventory ({parcels.length})</Text>
           </View>
 
-          {parcels.map((parcel, index) => (
+          {parcels.map((parcel) => (
             <View key={parcel._id} style={styles.parcelCard}>
               <View style={styles.parcelHeader}>
-                <View>
-                  <Text style={styles.parcelTrackingId}>
-                    {parcel.trackingId}
-                  </Text>
-                  <View
-                    style={[
-                      styles.parcelStatusBadge,
-                      {
-                        backgroundColor:
-                          parcel.status === "In Transit"
-                            ? "#10B981"
-                            : parcel.status === "Delivered"
-                              ? "#3B82F6"
-                              : "#F59E0B",
-                      },
-                    ]}
-                  >
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <Text style={styles.parcelTrackingId}>{parcel.trackingId}</Text>
+                  <View style={[
+                    styles.parcelStatusBadge,
+                    { backgroundColor: parcel.status === "Delivered" ? "#3B82F6" : parcel.status === "In Transit" ? "#10B981" : "#F59E0B" }
+                  ]}>
                     <Text style={styles.parcelStatusText}>{parcel.status}</Text>
                   </View>
                 </View>
@@ -924,421 +843,435 @@ const ActiveTripPage = () => {
                     style={[
                       styles.deliverBtn,
                       (() => {
-                        // Check if vehicle is near this specific parcel's destination
                         const dest = destinations.find(d => d.parcelId === parcel._id);
                         if (!dest || !liveLocation) return false;
-
-                        const dist = Math.sqrt(
-                          Math.pow(liveLocation.latitude - dest.latitude, 2) +
-                          Math.pow(liveLocation.longitude - dest.longitude, 2)
-                        );
-                        // ~100m threshold (approx 0.001 degrees)
+                        const dist = Math.sqrt(Math.pow(liveLocation.latitude - dest.latitude, 2) + Math.pow(liveLocation.longitude - dest.longitude, 2));
                         return dist < 0.002;
                       })() && styles.deliverBtnActive
                     ]}
                     onPress={() => handleDeliver(parcel._id)}
+                    disabled={deliveryLoading !== null}
                   >
-                    <CheckCircle size={18} color="#fff" />
-                    <Text style={styles.deliverBtnText}>
-                      {(() => {
-                        const dest = destinations.find(d => d.parcelId === parcel._id);
-                        if (!dest || !liveLocation) return "Mark as Delivered";
-
-                        const dist = Math.sqrt(
-                          Math.pow(liveLocation.latitude - dest.latitude, 2) +
-                          Math.pow(liveLocation.longitude - dest.longitude, 2)
-                        );
-                        return dist < 0.002 ? "Confirm Delivery" : "Mark as Delivered";
-                      })()}
-                    </Text>
+                    {deliveryLoading === parcel._id ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <CheckCircle size={18} color="#fff" strokeWidth={2.5} />
+                    )}
+                    <Text style={styles.deliverBtnText}>Deliver</Text>
                   </TouchableOpacity>
                 )}
               </View>
+
               <View style={styles.parcelDetails}>
                 <View style={styles.parcelRow}>
-                  <User size={14} color="#64748B" />
-                  <Text style={styles.parcelDetailText}>
-                    {parcel.recipient?.name || "Unknown"}
-                  </Text>
+                  <View style={{ width: 24, alignItems: "center" }}>
+                    <User size={14} color="#94A3B8" />
+                  </View>
+                  <Text style={styles.parcelDetailText}>{parcel.recipient?.name || "Anonymous"}</Text>
                 </View>
                 <View style={styles.parcelRow}>
-                  <MapPin size={14} color="#64748B" />
-                  <Text style={styles.parcelDetailText} numberOfLines={2}>
-                    {parcel.recipient?.address || "No address"}
-                  </Text>
+                  <View style={{ width: 24, alignItems: "center" }}>
+                    <MapPin size={14} color="#94A3B8" />
+                  </View>
+                  <Text style={styles.parcelDetailText} numberOfLines={1}>{parcel.recipient?.address}</Text>
                 </View>
                 <View style={styles.parcelRow}>
-                  <Weight size={14} color="#64748B" />
-                  <Text style={styles.parcelDetailText}>
-                    {parcel.weight} kg
-                  </Text>
+                  <View style={{ width: 24, alignItems: "center" }}>
+                    <Weight size={14} color="#94A3B8" />
+                  </View>
+                  <Text style={styles.parcelDetailText}>{parcel.weight} kg • {parcel.type}</Text>
                 </View>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Delivery Destinations */}
+        {/* Route Details Section */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}>
-              <Navigation size={20} color="#16A34A" />
+              <Navigation size={20} color="#10B981" />
             </View>
-            <Text style={styles.sectionTitle}>Delivery Route</Text>
+            <Text style={styles.sectionTitle}>Delivery Timeline</Text>
           </View>
 
-          {/* Start Location */}
           {activeTrip.startLocation?.address && (
             <View style={styles.routeItem}>
-              <View style={[styles.routeMarker, { backgroundColor: "#2563EB" }]}>
-                <Text style={styles.routeMarkerText}>S</Text>
+              <View style={[styles.routeMarker, { backgroundColor: "#334155" }]}>
+                <Truck size={16} color="#fff" />
               </View>
               <View style={styles.routeDetails}>
-                <Text style={styles.routeLabel}>Start Point</Text>
-                <Text style={styles.routeAddress}>
-                  {activeTrip.startLocation.address}
-                </Text>
+                <Text style={styles.routeLabel}>Distribution Hub</Text>
+                <Text style={styles.routeAddress}>{activeTrip.startLocation.address}</Text>
               </View>
             </View>
           )}
 
-          {/* Delivery Stops */}
           {[...destinations]
             .sort((a, b) => a.order - b.order)
-            .map((dest, index) => (
-              <View key={dest.parcelId || index} style={styles.routeItem}>
-                <View
-                  style={[
-                    styles.routeMarker,
-                    {
-                      backgroundColor:
-                        dest.deliveryStatus === "delivered"
-                          ? "#10B981"
-                          : "#EF4444",
-                    },
-                  ]}
-                >
-                  <Text style={styles.routeMarkerText}>{dest.order}</Text>
+            .map((dest, idx) => (
+              <View key={dest.parcelId || idx} style={styles.routeItem}>
+                <View style={[
+                  styles.routeMarker,
+                  { backgroundColor: dest.deliveryStatus === "delivered" ? "#3B82F6" : "#E2E8F0" }
+                ]}>
+                  {dest.deliveryStatus === "delivered" ? (
+                    <CheckCircle size={16} color="#fff" strokeWidth={2.5} />
+                  ) : (
+                    <Text style={[styles.routeMarkerText, { color: "#64748B" }]}>{dest.order}</Text>
+                  )}
                 </View>
                 <View style={styles.routeDetails}>
-                  <View style={styles.routeHeader}>
-                    <Text style={styles.routeLabel}>{dest.locationName}</Text>
-                    {dest.deliveryStatus === "delivered" && (
-                      <CheckCircle size={16} color="#10B981" />
-                    )}
-                  </View>
-                  <Text style={styles.routeStatus}>
-                    Status: {dest.deliveryStatus}
+                  <Text style={[styles.routeLabel, dest.deliveryStatus === "delivered" && { color: "#94A3B8" }]}>
+                    {dest.locationName}
                   </Text>
+                  <Text style={styles.routeAddress}>Stop #{dest.order} • Delivery Point</Text>
                   {dest.deliveredAt && (
-                    <Text style={styles.routeTime}>
-                      Delivered: {formatDate(dest.deliveredAt)}
-                    </Text>
+                    <Text style={styles.routeTime}>Handed over at {formatDate(dest.deliveredAt).split(',')[1]}</Text>
                   )}
                 </View>
               </View>
             ))}
         </View>
-
-        {/* Spacer for bottom button */}
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Start Journey Button (only show if trip is accepted, not started) */}
-      {
-        activeTrip.status === "accepted" && (
-          <View style={styles.bottomButtonContainer}>
-            <TouchableOpacity
-              style={[
-                styles.startButton,
-                startingJourney && styles.startButtonDisabled,
-              ]}
-              onPress={handleStartJourney}
-              disabled={startingJourney}
-            >
-              {startingJourney ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Play size={24} color="#fff" fill="#fff" />
-                  <Text style={styles.startButtonText}>Start Journey</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        )
-      }
+      {/* Primary Actions */}
+      {activeTrip.status === "accepted" && (
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity
+            style={[styles.startButton, startingJourney && styles.startButtonDisabled]}
+            onPress={handleStartJourney}
+            disabled={startingJourney}
+          >
+            {startingJourney ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Play size={20} color="#fff" fill="#fff" />
+                <Text style={styles.startButtonText}>Start Journey</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* In Progress Banner */}
-      {
-        isInProgress && (
-          <View style={styles.inProgressBanner}>
-            <Truck size={20} color="#fff" />
-            <Text style={styles.inProgressText}>Trip in Progress</Text>
-          </View>
-        )
-      }
-    </SafeAreaView >
+
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F8FAFC", // Cleaner slate background
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 3,
   },
   backButton: {
-    padding: 8,
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 14,
     backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F172A",
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F172A", // Darker slate for premium feel
+    letterSpacing: -0.5,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statusText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#fff",
+    letterSpacing: 0.8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F8FAFC",
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     color: "#64748B",
+    fontWeight: "600",
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 32,
+    backgroundColor: "#F8FAFC",
   },
   errorTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 24,
+    fontWeight: "900",
     color: "#0F172A",
-    marginTop: 16,
+    marginTop: 20,
+    letterSpacing: -0.5,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#64748B",
     textAlign: "center",
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: 12,
+    marginBottom: 32,
+    lineHeight: 24,
   },
   alertsButton: {
     backgroundColor: "#2563EB",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingHorizontal: 36,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 8,
   },
   alertsButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "800",
     color: "#fff",
+    letterSpacing: 0.5,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
+    paddingBottom: 140, // More space for bottom button
   },
   mapSection: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   mapHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 16,
   },
   mapTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
   mapTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.3,
   },
   googleMapsBtn: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#EA4335",
-    borderRadius: 8,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#EF4444", // Brighter Google red
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   googleMapsBtnText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "800",
     color: "#fff",
   },
   mapContainer: {
-    height: 250,
-    borderRadius: 16,
+    height: 300,
+    borderRadius: 28,
     overflow: "hidden",
-    marginBottom: 16,
     backgroundColor: "#E2E8F0",
     position: "relative",
+    borderWidth: 1,
+    borderColor: "#EEF2FF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
   },
   map: {
     flex: 1,
   },
   routingLoader: {
     position: "absolute",
-    top: 10,
+    top: 20,
     alignSelf: "center",
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 18,
+    gap: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "#EEF2FF",
   },
   routingText: {
-    fontSize: 11,
+    fontSize: 13,
     color: "#2563EB",
-    fontWeight: "600",
+    fontWeight: "800",
   },
-  routeInfoCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  routeInfoRow: {
+  routeStats: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.95)", // Slightly transparent
+    borderRadius: 24,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
-  routeInfoItem: {
+  statItem: {
     flex: 1,
     alignItems: "center",
   },
-  routeInfoValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2563EB",
+  statValue: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.5,
   },
-  routeInfoLabel: {
-    fontSize: 11,
+  statLabel: {
+    fontSize: 10,
     color: "#64748B",
-    fontWeight: "500",
-    marginTop: 4,
+    fontWeight: "800",
+    marginTop: 6,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
-  routeInfoDivider: {
+  vDivider: {
     width: 1,
-    height: 40,
     backgroundColor: "#E2E8F0",
     marginHorizontal: 12,
   },
   tripIdCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 26,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
   tripIdRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 12,
+    gap: 12,
   },
   tripIdLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#64748B",
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   tripIdValue: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "900",
     color: "#2563EB",
+    letterSpacing: -0.5,
   },
   tripIdDate: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#64748B",
+    fontWeight: "600",
   },
   sectionCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 26,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 24,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 19,
+    fontWeight: "900",
     color: "#0F172A",
     flex: 1,
+    letterSpacing: -0.5,
   },
   weightBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F59E0B",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
-    gap: 4,
+    gap: 8,
   },
   weightText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "900",
     color: "#fff",
   },
   detailsGrid: {
@@ -1347,100 +1280,130 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   detailItem: {
-    width: "45%",
+    width: "47.2%",
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
   detailLabel: {
-    fontSize: 12,
-    color: "#64748B",
-    marginBottom: 4,
+    fontSize: 11,
+    color: "#94A3B8",
+    fontWeight: "800",
+    marginBottom: 6,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   detailValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0F172A",
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#334155",
   },
   parcelCard: {
     backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
   },
   parcelHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 20,
   },
   parcelTrackingId: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#2563EB",
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#0F172A",
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   parcelStatusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    alignSelf: "flex-start",
   },
   parcelStatusText: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 10,
+    fontWeight: "900",
     color: "#fff",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   deliverBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#64748B', // Muted gray until destination reached
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: '#94A3B8',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 10,
+    elevation: 4,
   },
   deliverBtnActive: {
-    backgroundColor: '#10B981', // Vibrant green when reached
-    transform: [{ scale: 1.02 }],
+    backgroundColor: '#10B981',
+    shadowColor: "#10B981",
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 8,
   },
   deliverBtnText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: "900",
     fontSize: 14,
+    letterSpacing: 0.3,
   },
   parcelDetails: {
-    gap: 8,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    paddingTop: 20,
   },
   parcelRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
+    alignItems: "center",
+    gap: 12,
   },
   parcelDetailText: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#475569",
     flex: 1,
+    fontWeight: "600",
   },
   routeItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 16,
+    marginBottom: 32,
     paddingLeft: 4,
   },
   routeMarker: {
-    width: 32,
-    height: 32,
+    width: 42,
+    height: 42,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   routeMarkerText: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "900",
     color: "#fff",
   },
   routeDetails: {
@@ -1452,111 +1415,55 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   routeLabel: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "900",
     color: "#0F172A",
+    letterSpacing: -0.3,
   },
   routeAddress: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#64748B",
-    marginTop: 4,
+    marginTop: 8,
+    lineHeight: 22,
+    fontWeight: "600",
   },
   routeStatus: {
     fontSize: 12,
-    color: "#64748B",
-    marginTop: 4,
-    textTransform: "capitalize",
+    color: "#94A3B8",
+    marginTop: 8,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   routeTime: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#10B981",
-    marginTop: 2,
-  },
-  bottomButtonContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    paddingBottom: Platform.OS === "ios" ? 32 : 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-  },
-  startButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#10B981",
-    paddingVertical: 16,
-    borderRadius: 14,
-    gap: 10,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  startButtonDisabled: {
-    backgroundColor: "#9CA3AF",
-    shadowOpacity: 0,
-  },
-  startButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  inProgressBanner: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#10B981",
-    paddingVertical: 16,
-    paddingBottom: Platform.OS === "ios" ? 32 : 16,
-    gap: 10,
-  },
-  inProgressText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  routeStats: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    flexDirection: "row",
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    marginTop: 6,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   destReachedBanner: {
     flexDirection: 'row',
     backgroundColor: '#10B981',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 24,
+    borderRadius: 28,
     alignItems: 'center',
-    gap: 12,
-    elevation: 4,
+    gap: 20,
+    elevation: 12,
     shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   bannerIconContainer: {
-    width: 44,
-    height: 44,
+    width: 60,
+    height: 60,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1565,63 +1472,91 @@ const styles = StyleSheet.create({
   },
   destReachedTitle: {
     color: '#fff',
-    fontWeight: '800',
-    fontSize: 18,
-    marginBottom: 2,
+    fontWeight: "900",
+    fontSize: 22,
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   destReachedText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 22,
   },
-  statItem: {
-    flex: 1,
+  bottomButtonContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 44 : 24,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 25,
+  },
+  startButton: {
+    flexDirection: "row",
     alignItems: "center",
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  statLabel: {
-    fontSize: 10,
-    color: "#64748B",
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  vDivider: {
-    width: 1,
-    backgroundColor: "#E2E8F0",
-    marginHorizontal: 10,
-  },
-  liveMarker: {
-    backgroundColor: "#2563EB",
-    padding: 6,
-    borderRadius: 15,
+    justifyContent: "center",
+    backgroundColor: "#10B981", // Emerald green for premium start
+    paddingVertical: 20,
+    borderRadius: 24,
+    gap: 14,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
     borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    elevation: 3
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
-  driverMarker: {
+  startButtonDisabled: {
+    backgroundColor: "#CBD5E1",
+    shadowOpacity: 0,
+    elevation: 0,
+    borderColor: "transparent",
+  },
+  startButtonText: {
+    fontSize: 19,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+
+  liveMarker: {
     backgroundColor: "#2563EB",
     padding: 8,
     borderRadius: 20,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "#fff",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  driverMarker: {
+    backgroundColor: "#F59E0B",
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   startMarker: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
     backgroundColor: "#10B981",
     justifyContent: "center",
     alignItems: "center",
@@ -1629,25 +1564,25 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    elevation: 5,
+    shadowOpacity: 0.2,
+    elevation: 4,
   },
   deliveryMarker: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#fff",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
     elevation: 5,
   },
   markerText: {
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: "900",
     color: "#fff",
   },
 });

@@ -78,8 +78,8 @@ const ManagerDashboard = () => {
 
   // Get role selection params for logout
   const selectedRole = params.role || "manager";
-  const selectedDistrict = params.district || "";
-  const selectedBranch = params.branch || "";
+  const selectedDistrict = params.district || "Kozhikode";
+  const selectedBranch = params.branch || "Mukkam";
 
   const [declinedCount, setDeclinedCount] = useState(0);
   const [hasVehicleAlerts, setHasVehicleAlerts] = useState(false);
@@ -172,10 +172,10 @@ const ManagerDashboard = () => {
 
         const listRes = await api.getManagerNotifications(userId);
         if (listRes.ok && Array.isArray(listRes.data)) {
-          const unreadDeliveries = listRes.data.filter(
-            (n: any) => !n.read && n.type === "parcel_delivered"
+          const unreadGeneral = listRes.data.filter(
+            (n: any) => !n.read && ["parcel_delivered", "driver_accepted", "driver_declined", "journey_started"].includes(n.type)
           );
-          setDeliveryUnreadCount(unreadDeliveries.length);
+          setDeliveryUnreadCount(unreadGeneral.length);
         } else {
           setDeliveryUnreadCount(0);
         }
@@ -229,7 +229,12 @@ const ManagerDashboard = () => {
     if (id && id !== "undefined" && id !== "null") {
       router.push({
         pathname: "/manager/manager-profile",
-        params: { userId: id }
+        params: {
+          userId: id,
+          role: selectedRole,
+          district: selectedDistrict,
+          branch: selectedBranch,
+        }
       } as any);
     } else {
       Alert.alert("Error", "User ID missing or invalid. Please relogin.");
@@ -288,7 +293,12 @@ const ManagerDashboard = () => {
                 onPress={() => {
                   router.push({
                     pathname: "/manager/manager-notifications",
-                    params: { managerId: userId },
+                    params: {
+                      managerId: userId,
+                      role: selectedRole,
+                      district: selectedDistrict,
+                      branch: selectedBranch,
+                    },
                   } as any);
                 }}
               >
@@ -342,7 +352,12 @@ const ManagerDashboard = () => {
               style={styles.actionItem}
               onPress={() => router.push({
                 pathname: "/manager/selecting-parcel-improved",
-                params: { managerId: userId }
+                params: {
+                  managerId: userId,
+                  role: selectedRole,
+                  district: selectedDistrict,
+                  branch: selectedBranch,
+                }
               } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
@@ -355,7 +370,13 @@ const ManagerDashboard = () => {
               style={styles.actionItem}
               onPress={() => router.push({
                 pathname: "/manager/trip-list",
-                params: { userId: userId, userName: displayName }
+                params: {
+                  userId: userId,
+                  userName: displayName,
+                  role: selectedRole,
+                  district: selectedDistrict,
+                  branch: selectedBranch,
+                }
               } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#DBEAFE" }]}>
@@ -373,7 +394,13 @@ const ManagerDashboard = () => {
               style={styles.actionItem}
               onPress={() => router.push({
                 pathname: "/manager/on-going-trip",
-                params: { userId: userId, userName: displayName }
+                params: {
+                  userId: userId,
+                  userName: displayName,
+                  role: selectedRole,
+                  district: selectedDistrict,
+                  branch: selectedBranch,
+                }
               } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#E0F2FE" }]}>
@@ -407,7 +434,12 @@ const ManagerDashboard = () => {
                 }
                 router.push({
                   pathname: "/manager/vehicle-service-history",
-                  params: { userName: displayName }
+                  params: {
+                    userName: displayName,
+                    role: selectedRole,
+                    district: selectedDistrict,
+                    branch: selectedBranch,
+                  }
                 } as any);
               }}
             >
@@ -426,7 +458,13 @@ const ManagerDashboard = () => {
               style={styles.actionItem}
               onPress={() => router.push({
                 pathname: "/manager/expenses",
-                params: { userId: userId, userName: displayName }
+                params: {
+                  userId: userId,
+                  userName: displayName,
+                  role: selectedRole,
+                  district: selectedDistrict,
+                  branch: selectedBranch,
+                }
               } as any)}
             >
               <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
@@ -573,7 +611,13 @@ const ManagerDashboard = () => {
           style={styles.navItem}
           onPress={() => router.push({
             pathname: "/manager/parcel-list",
-            params: { userId: userId, userName: displayName }
+            params: {
+              userId: userId,
+              userName: displayName,
+              role: selectedRole,
+              district: selectedDistrict,
+              branch: selectedBranch,
+            }
           } as any)}
         >
           <Package size={24} color="#9CA3AF" />
@@ -582,7 +626,15 @@ const ManagerDashboard = () => {
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => router.push({ pathname: "/admin/drivers-list", params: { userRole: "manager" } })}
+          onPress={() => router.push({
+            pathname: "/admin/drivers-list",
+            params: {
+              userRole: "manager",
+              role: selectedRole,
+              district: selectedDistrict,
+              branch: selectedBranch,
+            }
+          })}
         >
           <User size={24} color="#9CA3AF" />
           <Text style={styles.navLabel}>Drivers</Text>
@@ -590,7 +642,16 @@ const ManagerDashboard = () => {
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => router.push({ pathname: "/admin/vehicle-list", params: { userRole: "manager", userName: displayName } })}
+          onPress={() => router.push({
+            pathname: "/admin/vehicle-list",
+            params: {
+              userRole: "manager",
+              userName: displayName,
+              role: selectedRole,
+              district: selectedDistrict,
+              branch: selectedBranch,
+            }
+          })}
         >
           <View style={{ position: 'relative' }}>
             <Car size={24} color="#9CA3AF" />

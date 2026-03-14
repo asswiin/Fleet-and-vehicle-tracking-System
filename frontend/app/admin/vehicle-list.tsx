@@ -120,7 +120,7 @@ const VehicleListScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.vehicleCard}
+        style={styles.vehicleHorizontalCard}
         onPress={() => {
           router.push({
             pathname: "/admin/vehicle-details",
@@ -131,9 +131,9 @@ const VehicleListScreen = () => {
             }
           });
         }}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <View style={styles.cardTop}>
+        <View style={styles.cardLeft}>
           <View style={styles.imageContainer}>
             {item.profilePhoto ? (
               <Image
@@ -142,41 +142,36 @@ const VehicleListScreen = () => {
               />
             ) : (
               <View style={styles.imagePlaceholder}>
-                <Truck size={28} color="#94A3B8" />
+                <Truck size={24} color="#94A3B8" />
               </View>
             )}
             <View style={[styles.statusDot, { backgroundColor: config.color }]} />
           </View>
-
-          <View style={styles.headerInfo}>
-            <Text style={styles.regNoText}>{item.regNumber}</Text>
-            <View style={[styles.statusPill, { backgroundColor: config.bg }]}>
-              <StatusIcon size={12} color={config.color} />
-              <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
-            </View>
-          </View>
-
-          <ArrowRight size={18} color="#CBD5E1" />
         </View>
 
-        <View style={styles.cardDivider} />
-
-        <View style={styles.cardBottom}>
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Text style={styles.modelText}>{item.model}</Text>
-              <Text style={styles.typeText}>{item.type}</Text>
+        <View style={styles.cardRight}>
+          <View style={styles.headerRow}>
+            <Text style={styles.regNoText} numberOfLines={1}>{item.regNumber}</Text>
+            <View style={[styles.statusTag, { backgroundColor: config.bg }]}>
+              <StatusIcon size={8} color={config.color} />
+              <Text style={[styles.statusTagText, { color: config.color }]}>{config.label}</Text>
             </View>
           </View>
-          <View style={[styles.infoItem, { alignItems: 'flex-end' }]}>
+
+          <View style={styles.detailsRow}>
+            <View style={styles.modelInfo}>
+              <Text style={styles.modelText} numberOfLines={1}>{item.model}</Text>
+              <Text style={styles.typeText} numberOfLines={1}>{item.type}</Text>
+            </View>
             <View style={styles.capacityBadge}>
-              <Scale size={13} color="#6366F1" />
+              <Scale size={10} color="#6366F1" />
               <Text style={styles.capacityText}>
-                Cap: {(item.capacity || item.weight) ? `${item.capacity || item.weight}${String(item.capacity || item.weight).toLowerCase().includes('kg') ? '' : 'kg'}` : "N/A"}
+                {(item.capacity || item.weight) ? `${item.capacity || item.weight}${String(item.capacity || item.weight).toLowerCase().includes('kg') ? '' : 'kg'}` : "N/A"}
               </Text>
             </View>
           </View>
         </View>
+        <ArrowRight size={16} color="#CBD5E1" style={styles.arrowIcon} />
       </TouchableOpacity>
     );
   };
@@ -365,24 +360,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   list: {
-    padding: 20,
-    gap: 16,
+    padding: 16,
+    gap: 12,
   },
-  vehicleCard: {
+  vehicleHorizontalCard: {
+    flexDirection: "row",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
+    shadowRadius: 10,
+    elevation: 2,
   },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
+  cardLeft: {
+    marginRight: 14,
   },
   imageContainer: {
     position: "relative",
@@ -391,65 +387,63 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 12,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F8FAFC",
   },
   imagePlaceholder: {
     width: 60,
     height: 60,
     borderRadius: 12,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F8FAFC",
     justifyContent: "center",
     alignItems: "center",
   },
   statusDot: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 3,
+    bottom: -1,
+    right: -1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2.5,
     borderColor: "#FFFFFF",
   },
-  headerInfo: {
+  cardRight: {
     flex: 1,
-    marginLeft: 14,
+    gap: 8,
+    marginRight: 8,
   },
-  regNoText: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 4,
-  },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
-  },
-  statusLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: "#F1F5F9",
-    marginVertical: 14,
-  },
-  cardBottom: {
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  infoRow: {
+  regNoText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
     flex: 1,
   },
-  infoItem: {
-    justifyContent: "center",
+  statusTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  statusTagText: {
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  detailsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modelInfo: {
+    flex: 1,
+    gap: 2,
   },
   modelText: {
     fontSize: 14,
@@ -459,23 +453,25 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: 12,
     color: "#64748B",
-    marginTop: 2,
   },
   capacityBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EEF2FF",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
     borderWidth: 1,
-    borderColor: "#E0E7FF",
+    borderColor: "#E0F2FE",
   },
   capacityText: {
-    fontSize: 12,
-    color: "#4338CA",
+    fontSize: 11,
+    color: "#0369A1",
     fontWeight: "700",
+  },
+  arrowIcon: {
+    opacity: 0.5,
   },
   center: {
     flex: 1,

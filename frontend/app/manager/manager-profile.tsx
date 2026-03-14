@@ -26,7 +26,12 @@ import {
 
 const ManagerProfileScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ userId: string }>();
+  const params = useLocalSearchParams<{
+    userId: string,
+    role?: string,
+    district?: string,
+    branch?: string
+  }>();
 
   const [manager, setManager] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +78,18 @@ const ManagerProfileScreen = () => {
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log Out", style: "destructive", onPress: () => router.replace("login" as any) },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: () => router.replace({
+          pathname: "/shared/login",
+          params: {
+            role: params.role || "manager",
+            district: params.district || "",
+            branch: params.branch || "",
+          }
+        } as any)
+      },
     ]);
   };
 

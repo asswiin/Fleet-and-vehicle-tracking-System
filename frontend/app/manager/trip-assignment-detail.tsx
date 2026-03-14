@@ -15,6 +15,7 @@ import {
   Dimensions,
   Linking,
   Image,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -193,7 +194,7 @@ const TripAssignmentDetailScreen = () => {
       if (response.ok) {
         Alert.alert(
           "Trip Accepted! ✓",
-          `You have accepted this trip.\n\nVehicle: ${notification.vehicleId?.regNumber}\nParcels: ${notification.parcelIds?.length || 0}\n\n✅ Your status is now "Accepted"\n✅ Vehicle status: "Trip Confirmed"\n✅ Parcels status: "Confirmed"\n\nWould you like to view trip details and start the journey?`,
+          `You have accepted this trip.\n\nVehicle: ${notification.vehicleId?.regNumber}\nParcels: ${notification.parcelIds?.length || 0}\n\nWould you like to view trip details and start the journey?`,
           [
             {
               text: "Later",
@@ -403,249 +404,200 @@ const TripAssignmentDetailScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#667eea" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Gradient Header */}
-      <View style={styles.gradientHeader}>
-        <SafeAreaView>
-          <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color="#fff" />
-            </TouchableOpacity>
-
-            <View style={styles.priorityBadge}>
-              <Clock size={14} color="#fff" />
-              <Text style={styles.priorityText}>
-                {notification.status === "pending" ? "NEW TRIP" : notification.status.toUpperCase()}
-              </Text>
-            </View>
-
-            <TouchableOpacity style={styles.helpButton}>
-              <HelpCircle size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-
-        <Text style={styles.headerTitle}>Trip Assignment</Text>
-        <Text style={styles.tripIdHeader}>ID: #{notification.tripId}</Text>
+      {/* Modern Professional Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ArrowLeft size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>Trip Assignment</Text>
+          <Text style={styles.tripIdHeader}>TRIP ID: #{notification.tripId}</Text>
+        </View>
+        <View style={[styles.statusBadge, notification.status === "pending" ? { backgroundColor: "#2563EB" } : { backgroundColor: "#64748B" }]}>
+          <Text style={styles.statusBadgeText}>
+            {notification.status === "pending" ? "NEW TRIP" : notification.status.toUpperCase()}
+          </Text>
+        </View>
       </View>
 
-      {/* Content Card */}
-      <View style={styles.contentCard}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
-          {/* Map Section */}
-          <View style={styles.mapSection}>
-            <View style={styles.mapHeader}>
-              <View style={styles.mapTitleRow}>
-                <Route size={18} color="#2563EB" />
-                <View>
-                  <Text style={styles.mapTitle}>Delivery Route</Text>
-                  {routeDistance !== "0.0" && (
-                    <Text style={styles.routeStats}>
-                      {routeDistance} km • {routeDuration}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              {hasLocationData && (
-                <View style={styles.mapActions}>
-                  {focusedParcelId && (
-                    <TouchableOpacity
-                      style={styles.resetMapBtn}
-                      onPress={resetMapView}
-                    >
-                      <Text style={styles.resetMapText}>Show All</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    style={styles.googleMapsBtn}
-                    onPress={openGoogleMaps}
-                  >
-                    <ExternalLink size={14} color="#fff" />
-                    <Text style={styles.googleMapsBtnText}>Google Maps</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.expandMapBtn}
-                    onPress={() => setShowFullMap(!showFullMap)}
-                  >
-                    <Eye size={14} color="#2563EB" />
-                    <Text style={styles.expandMapText}>
-                      {showFullMap ? "Collapse" : "Expand"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Map Section - The Mission Control View */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
+              <Route size={20} color="#2563EB" />
             </View>
+            <Text style={styles.sectionTitle}>Optimized Route</Text>
+          </View>
 
-            <View style={[styles.mapContainer, showFullMap && styles.mapContainerExpanded]}>
-              {hasLocationData && isMapAvailable ? (
-                <MapView
-                  ref={mapRef}
-                  style={styles.map}
-                  provider={PROVIDER_DEFAULT}
-                  initialRegion={getMapRegion()}
-                  showsUserLocation={true}
-                  showsMyLocationButton={true}
-                >
-                  {/* Route Polyline */}
-                  {routeCoordinates.length > 1 && (
-                    <Polyline
-                      coordinates={routeCoordinates}
-                      strokeColor="#2563EB"
-                      strokeWidth={4}
-                      lineDashPattern={[0]}
-                    />
-                  )}
+          {hasLocationData && (
+            <View style={styles.mapActions}>
+              <TouchableOpacity
+                style={styles.googleMapsBtn}
+                onPress={openGoogleMaps}
+              >
+                <ExternalLink size={14} color="#fff" />
+                <Text style={styles.googleMapsBtnText}>Open In Google Maps</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-                  {/* Start Location Marker */}
-                  {startLocation?.latitude && startLocation?.longitude && (
+          <View style={[styles.mapContainer, showFullMap && styles.mapContainerExpanded]}>
+            {hasLocationData && isMapAvailable ? (
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                provider={PROVIDER_DEFAULT}
+                initialRegion={getMapRegion()}
+                showsUserLocation={true}
+                showsMyLocationButton={false}
+              >
+                {routeCoordinates.length > 1 && (
+                  <Polyline
+                    coordinates={routeCoordinates}
+                    strokeColor="#2563EB"
+                    strokeWidth={4}
+                  />
+                )}
+
+                {startLocation?.latitude && startLocation?.longitude && (
+                  <Marker
+                    coordinate={{
+                      latitude: startLocation.latitude,
+                      longitude: startLocation.longitude,
+                    }}
+                  >
+                    <View style={styles.startMarker}>
+                      <Navigation size={14} color="#fff" />
+                    </View>
+                  </Marker>
+                )}
+
+                {deliveryLocations.map((location: any, index: number) => {
+                  const isFocused = focusedParcelId === location.parcelId;
+                  return (
                     <Marker
+                      key={location.parcelId || index}
                       coordinate={{
-                        latitude: startLocation.latitude,
-                        longitude: startLocation.longitude,
+                        latitude: location.latitude,
+                        longitude: location.longitude,
                       }}
-                      title="Starting Point"
-                      description="Trip starts here"
                     >
-                      <View style={styles.startMarker}>
-                        <Navigation size={14} color="#fff" />
+                      <View style={[
+                        styles.deliveryMarker,
+                        { backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length] },
+                        isFocused && styles.focusedMarker
+                      ]}>
+                        <Text style={[styles.markerText, isFocused && styles.focusedMarkerText]}>
+                          {location.order || index + 1}
+                        </Text>
                       </View>
                     </Marker>
-                  )}
+                  );
+                })}
+              </MapView>
+            ) : (
+              <View style={styles.mapPlaceholder}>
+                <Package size={48} color="#CBD5E1" />
+                <Text style={styles.noLocationText}>Route visualization loading...</Text>
+              </View>
+            )}
 
-                  {/* Delivery Location Markers */}
-                  {deliveryLocations.map((location: any, index: number) => {
-                    const parcel = notification.parcelIds?.find(p => p._id === location.parcelId);
-                    const isFocused = focusedParcelId === location.parcelId;
-                    return (
-                      <Marker
-                        key={location.parcelId || index}
-                        coordinate={{
-                          latitude: location.latitude,
-                          longitude: location.longitude,
-                        }}
-                        title={`Stop ${location.order || index + 1}`}
-                        description={parcel?.recipient?.name || `Delivery ${index + 1}`}
-                      >
-                        <View style={[
-                          styles.deliveryMarker,
-                          { backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length] },
-                          isFocused && styles.focusedMarker
-                        ]}>
-                          <Text style={[styles.markerText, isFocused && styles.focusedMarkerText]}>
-                            {location.order || index + 1}
-                          </Text>
-                        </View>
-                      </Marker>
-                    );
-                  })}
-                </MapView>
-              ) : (
-                <View style={styles.mapPlaceholder}>
-                  <View style={styles.mapRoute}>
-                    <View style={styles.startPoint} />
-                    <View style={styles.routeLine} />
-                    <View style={styles.endPoint} />
-                  </View>
-                  <Text style={styles.noLocationText}>
-                    {hasLocationData ? "Map not available" : "Route will be shown here"}
-                  </Text>
-                </View>
-              )}
-
-              {isRouting && (
-                <View style={styles.routingLoader}>
-                  <ActivityIndicator size="small" color="#2563EB" />
-                  <Text style={styles.routingText}>Calculating path...</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Route Info Card - Distance & Time */}
             {hasLocationData && routeDistance !== "0.0" && (
-              <View style={styles.routeInfoCard}>
-                <View style={styles.routeInfoRow}>
-                  <View style={styles.routeInfoItem}>
-                    <Text style={styles.routeInfoValue}>{routeDistance} km</Text>
-                    <Text style={styles.routeInfoLabel}>Total Distance</Text>
-                  </View>
-                  <View style={styles.routeInfoDivider} />
-                  <View style={styles.routeInfoItem}>
-                    <Text style={styles.routeInfoValue}>~{routeDuration}</Text>
-                    <Text style={styles.routeInfoLabel}>Est. Time</Text>
-                  </View>
+              <View style={styles.routeStatsOverlay}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{routeDistance} km</Text>
+                  <Text style={styles.statLabel}>DISTANCE</Text>
                 </View>
-                <View style={styles.routeInfoFooter}>
-                  <Text style={styles.routeInfoStops}>
-                    📍 {deliveryLocations.length} Stop{deliveryLocations.length !== 1 ? 's' : ''}
-                  </Text>
+                <View style={styles.vDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{routeDuration}</Text>
+                  <Text style={styles.statLabel}>EST. TIME</Text>
+                </View>
+                <View style={styles.vDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{deliveryLocations.length}</Text>
+                  <Text style={styles.statLabel}>STOPS</Text>
                 </View>
               </View>
             )}
 
-            {/* Map Legend */}
-            {hasLocationData && (
-              <View style={styles.mapLegend}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
-                  <Text style={styles.legendText}>Start</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: "#2563EB" }]} />
-                  <Text style={styles.legendText}>Stops ({deliveryLocations.length})</Text>
-                </View>
+            {isRouting && (
+              <View style={styles.routingLoader}>
+                <ActivityIndicator size="small" color="#2563EB" />
+                <Text style={styles.routingText}>Routing...</Text>
               </View>
             )}
           </View>
+        </View>
 
-          {/* Vehicle Required */}
-          <View style={styles.detailRow}>
-            <View style={styles.vehicleImageContainer}>
-              {notification.vehicleId?.profilePhoto ? (
-                <Image source={{ uri: notification.vehicleId.profilePhoto }} style={styles.vehicleImage} />
-              ) : (
-                <View style={[styles.detailIcon, { backgroundColor: "#F3E8FF" }]}>
-                  <Truck size={20} color="#9333EA" />
-                </View>
-              )}
+        {/* Assigned Assets */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.iconCircle, { backgroundColor: "#F1F5F9" }]}>
+              <Truck size={20} color="#334155" />
             </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>ASSIGNED VEHICLE</Text>
-              <Text style={styles.detailValue}>
-                {notification.vehicleId?.regNumber || "Vehicle"}
-              </Text>
-              <Text style={styles.detailSubtext}>
-                {notification.vehicleId?.model} • {notification.vehicleId?.type}
-              </Text>
-            </View>
+            <Text style={styles.sectionTitle}>Assigned Logistics</Text>
           </View>
 
-          <View style={styles.divider} />
-
-          {/* Parcels Section */}
-          <TouchableOpacity
-            style={styles.parcelSectionHeader}
-            onPress={() => setExpandedParcels(!expandedParcels)}
-          >
+          <View style={styles.card}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIcon, { backgroundColor: "#FEF3C7" }]}>
+              <View style={styles.vehicleImageContainer}>
+                {notification.vehicleId?.profilePhoto ? (
+                  <Image source={{ uri: notification.vehicleId.profilePhoto }} style={styles.vehicleImage} />
+                ) : (
+                  <View style={styles.fallbackVehicleIcon}>
+                    <Truck size={24} color="#64748B" />
+                  </View>
+                )}
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>VEHICLE REGISTRATION</Text>
+                <Text style={styles.detailValue}>
+                  {notification.vehicleId?.regNumber || "N/A"}
+                </Text>
+                <Text style={styles.detailSubtext}>
+                  {notification.vehicleId?.model} • {notification.vehicleId?.type}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.detailRow}>
+              <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7", marginRight: 12, width: 44, height: 44 }]}>
                 <Package size={20} color="#D97706" />
               </View>
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>PARCELS TO DELIVER</Text>
+                <Text style={styles.detailLabel}>CARGO SUMMARY</Text>
                 <Text style={styles.detailValue}>
-                  {notification.parcelIds?.length || 0} Parcel(s) • {totalWeight.toFixed(1)}kg
+                  {notification.parcelIds?.length || 0} Parcels Total
+                </Text>
+                <Text style={styles.detailSubtext}>
+                  Cumulative Weight: {totalWeight.toFixed(1)} kg
                 </Text>
               </View>
-              {expandedParcels ? (
-                <ChevronUp size={20} color="#64748B" />
-              ) : (
-                <ChevronDown size={20} color="#64748B" />
-              )}
             </View>
-          </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Parcel Inventory Timeline */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.iconCircle, { backgroundColor: "#F1F5F9" }]}>
+              <Package size={20} color="#2563EB" />
+            </View>
+            <Text style={styles.sectionTitle}>Delivery Sequence</Text>
+            <TouchableOpacity
+              onPress={() => setExpandedParcels(!expandedParcels)}
+              style={styles.expandToggle}
+            >
+              {expandedParcels ? <ChevronUp size={20} color="#64748B" /> : <ChevronDown size={20} color="#64748B" />}
+            </TouchableOpacity>
+          </View>
 
           {expandedParcels && notification.parcelIds?.map((parcel, index) => {
             const parcelLocation = getParcelLocation(parcel._id);
@@ -660,746 +612,520 @@ const TripAssignmentDetailScreen = () => {
                   isFocused && styles.parcelCardFocused
                 ]}
                 onPress={() => parcelLocation && focusOnParcel(parcel._id)}
-                activeOpacity={parcelLocation ? 0.7 : 1}
+                activeOpacity={0.8}
               >
-                <View style={styles.parcelHeader}>
-                  <View style={[styles.parcelNumber, { backgroundColor: markerColor }]}>
+                <View style={styles.parcelMainInfo}>
+                  <View style={[styles.parcelNumberBadge, { backgroundColor: markerColor }]}>
                     <Text style={styles.parcelNumberText}>{index + 1}</Text>
                   </View>
-                  <View style={styles.parcelInfo}>
-                    <Text style={styles.parcelTracking}>{parcel.trackingId}</Text>
-                    <Text style={styles.parcelWeight}>{parcel.weight} kg</Text>
+                  <View style={styles.parcelTextContainer}>
+                    <Text style={styles.parcelTrackingId}>{parcel.trackingId}</Text>
+                    <Text style={styles.parcelWeightText}>{parcel.weight}kg • {parcel.recipient?.name}</Text>
                   </View>
+                  {parcelLocation && <MapPin size={18} color="#10B981" />}
                 </View>
 
-                <View style={styles.recipientSection}>
-                  <View style={styles.recipientRow}>
-                    <MapPin size={14} color="#64748B" />
-                    <Text style={styles.recipientName}>
-                      {parcel.recipient?.name || "Unknown Recipient"}
+                {parcelLocation && (
+                  <View style={styles.parcelLocationDetail}>
+                    <Text style={styles.locationTitle}>DESTINATION</Text>
+                    <Text style={styles.locationName} numberOfLines={1}>
+                      {parcelLocation.locationName || "Location details provided"}
                     </Text>
-                  </View>
-                  {parcel.recipient?.address && (
-                    <Text style={styles.recipientAddress}>{parcel.recipient.address}</Text>
-                  )}
-                </View>
-
-                {parcelLocation ? (
-                  <View style={[styles.locationCard, isFocused && styles.locationCardFocused]}>
-                    <View style={styles.locationCardHeader}>
-                      <View style={[styles.locationMarkerDot, { backgroundColor: markerColor }]} />
-                      <Text style={styles.locationCardTitle}>📍 Delivery Destination</Text>
-                      <View style={styles.stopBadge}>
-                        <Text style={styles.stopBadgeText}>Stop #{parcelLocation.order || index + 1}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.locationCardBody}>
-                      {parcelLocation.locationName && (
-                        <View style={styles.destinationNameRow}>
-                          <MapPin size={16} color="#2563EB" />
-                          <Text style={styles.destinationNameText}>
-                            {parcelLocation.locationName}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.coordsRow}>
-                        <Navigation size={12} color="#059669" />
-                        <Text style={styles.coordsText}>
-                          {parcelLocation.latitude.toFixed(5)}, {parcelLocation.longitude.toFixed(5)}
-                        </Text>
-                      </View>
-                      <Text style={styles.tapHint}>
-                        {isFocused ? "✓ Showing on map" : "Tap to view on map"}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.noLocationCard}>
-                    <MapPin size={14} color="#DC2626" />
-                    <Text style={styles.noLocationText2}>No location assigned</Text>
                   </View>
                 )}
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-      </View>
-
-      {/* Bottom Buttons */}
-      {!isAlreadyProcessed ? (
-        <View style={styles.bottomButtons}>
-          <TouchableOpacity
-            style={styles.acceptButton}
-            onPress={handleAccept}
-            disabled={processing}
-          >
-            {processing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <CheckCircle size={20} color="#fff" />
-                <Text style={styles.acceptButtonText}>ACCEPT & START</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.declineButton}
-            onPress={handleDecline}
-            disabled={processing}
-          >
-            <X size={20} color="#64748B" />
-            <Text style={styles.declineButtonText}>DECLINE</Text>
-          </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.bottomButtons}>
+      </ScrollView>
+
+      {/* Premium Action Footer */}
+      <View style={styles.footer}>
+        {!isAlreadyProcessed ? (
+          <>
+            <TouchableOpacity
+              style={styles.declineButton}
+              onPress={handleDecline}
+              disabled={processing}
+            >
+              <X size={20} color="#EF4444" />
+              <Text style={styles.declineButtonText}>Decline</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.acceptButton}
+              onPress={handleAccept}
+              disabled={processing}
+            >
+              {processing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <CheckCircle size={20} color="#fff" />
+                  <Text style={styles.acceptButtonText}>ACCEPT & START</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </>
+        ) : (
           <View style={[
-            styles.statusBanner,
+            styles.processedBanner,
             notification.status === "accepted" ? styles.acceptedBanner : styles.declinedBanner
           ]}>
-            <Text style={styles.statusBannerText}>
-              Trip {notification.status === "accepted" ? "Accepted ✓" : "Declined"}
+            <Text style={styles.processedText}>
+              MISSION {notification.status === "accepted" ? "ACCEPTED ✓" : "DECLINED"}
             </Text>
           </View>
-        </View>
-      )}
-    </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    marginRight: 16,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.5,
+  },
+  tripIdHeader: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "800",
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F8FAFC",
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 14,
     color: "#64748B",
+    fontWeight: "600",
   },
   errorText: {
     fontSize: 16,
-    color: "#64748B",
-  },
-
-  // Gradient Header
-  gradientHeader: {
-    paddingBottom: 60,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    backgroundColor: "#667eea",
-  },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  backButton: {
-    padding: 8,
-  },
-  priorityBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  priorityText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  helpButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginTop: 8,
-  },
-  tripIdHeader: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    textAlign: "center",
-    marginTop: 8,
-  },
-
-  // Content Card
-  contentCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    marginTop: -40,
-    marginHorizontal: 16,
-    borderRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    overflow: "hidden",
+    color: "#EF4444",
+    fontWeight: "600",
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 20,
+    padding: 20,
+    paddingBottom: 120,
   },
-
-  // Map Section
-  mapSection: {
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
-  mapHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-  mapTitleRow: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.3,
+  },
+  mapActions: {
+    marginBottom: 12,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  mapTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  routeStats: {
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 1,
-  },
-  expandMapBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 8,
-    gap: 4,
-  },
-  expandMapText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2563EB",
+    justifyContent: "flex-end",
   },
   googleMapsBtn: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     backgroundColor: "#EA4335",
-    borderRadius: 8,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+    shadowColor: "#EA4335",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   googleMapsBtnText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#fff",
   },
   mapContainer: {
-    height: 160,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 16,
+    height: 180,
+    borderRadius: 24,
     overflow: "hidden",
-    position: "relative",
+    borderWidth: 1,
+    borderColor: "#EEF2FF",
+    backgroundColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 4,
   },
   mapContainerExpanded: {
-    height: height * 0.35,
+    height: height * 0.4,
   },
   map: {
     flex: 1,
+  },
+  startMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  deliveryMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  markerText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  focusedMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    borderWidth: 4,
+    borderColor: "#FCD34D",
+  },
+  focusedMarkerText: {
+    fontSize: 14,
   },
   mapPlaceholder: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  mapRoute: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "60%",
-  },
-  startPoint: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#10B981",
-  },
-  routeLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: "#2563EB",
-    marginHorizontal: 8,
-    borderStyle: "dashed",
-  },
-  endPoint: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#EF4444",
+    gap: 12,
   },
   noLocationText: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#94A3B8",
-    marginTop: 10,
+    fontWeight: "600",
   },
-  startMarker: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#10B981",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  deliveryMarker: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  markerText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  routeInfoCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 12,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  routeInfoRow: {
+  routeStatsOverlay: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    right: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  routeInfoItem: {
+  statItem: {
     flex: 1,
     alignItems: "center",
   },
-  routeInfoValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2563EB",
+  statValue: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#0F172A",
   },
-  routeInfoLabel: {
-    fontSize: 11,
+  statLabel: {
+    fontSize: 9,
+    fontWeight: "800",
     color: "#64748B",
-    fontWeight: "500",
-    marginTop: 4,
+    marginTop: 2,
+    letterSpacing: 0.5,
   },
-  routeInfoDivider: {
+  vDivider: {
     width: 1,
-    height: 40,
     backgroundColor: "#E2E8F0",
-    marginHorizontal: 12,
-  },
-  routeInfoFooter: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  routeInfoStops: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#475569",
-    textAlign: "center",
-  },
-  mapLegend: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginTop: 8,
-    paddingVertical: 6,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    fontSize: 11,
-    color: "#64748B",
-    fontWeight: "500",
+    marginHorizontal: 8,
   },
   routingLoader: {
     position: "absolute",
-    top: 10,
+    top: 12,
     alignSelf: "center",
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "#fff",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
+    borderRadius: 12,
+    gap: 8,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     elevation: 2,
   },
   routingText: {
     fontSize: 11,
+    fontWeight: "700",
     color: "#2563EB",
-    fontWeight: "600",
   },
-
-  // Detail Rows
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
   detailRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 12,
+    alignItems: "center",
+    paddingVertical: 4,
   },
-  detailIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  vehicleImageContainer: {
+    marginRight: 16,
+  },
+  vehicleImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+  },
+  fallbackVehicleIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
   },
   detailContent: {
     flex: 1,
   },
   detailLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#94A3B8",
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 0.8,
   },
   detailValue: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#1E293B",
+    marginTop: 2,
   },
   detailSubtext: {
     fontSize: 13,
     color: "#64748B",
+    fontWeight: "600",
     marginTop: 2,
   },
   divider: {
     height: 1,
     backgroundColor: "#F1F5F9",
+    marginVertical: 16,
   },
-
-  // Parcel Section
-  parcelSectionHeader: {
-    marginTop: 4,
+  expandToggle: {
+    padding: 4,
   },
   parcelCard: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#F1F5F9",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  parcelHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  parcelNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-  parcelNumberText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  parcelInfo: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  parcelTracking: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  parcelWeight: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  recipientSection: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-  },
-  recipientRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  recipientName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#1E293B",
-  },
-  recipientAddress: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 4,
-    marginLeft: 18,
-    lineHeight: 16,
-  },
-  // Map Actions
-  mapActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  resetMapBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 8,
-  },
-  resetMapText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#D97706",
-  },
-  focusedBadge: {
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  focusedBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#16A34A",
-  },
-  focusedMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 3,
-    borderColor: "#FCD34D",
-  },
-  focusedMarkerText: {
-    fontSize: 14,
-  },
-
-  // Parcel Card Enhanced
   parcelCardFocused: {
     borderColor: "#2563EB",
     borderWidth: 2,
-    backgroundColor: "#EFF6FF",
   },
-
-  // Location Card
-  locationCard: {
-    backgroundColor: "#F0FDF4",
+  parcelMainInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  parcelNumberBadge: {
+    width: 32,
+    height: 32,
     borderRadius: 10,
-    padding: 10,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
-  },
-  locationCardFocused: {
-    backgroundColor: "#DCFCE7",
-    borderColor: "#16A34A",
-  },
-  locationCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  locationMarkerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
-  },
-  locationCardTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#166534",
-    flex: 1,
-  },
-  stopBadge: {
-    backgroundColor: "#16A34A",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  stopBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  locationCardBody: {
-    marginTop: 4,
-  },
-  destinationNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  destinationNameText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E40AF",
-    flex: 1,
-  },
-  coordsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  coordsText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#059669",
-    fontFamily: "monospace",
-  },
-  tapHint: {
-    fontSize: 10,
-    color: "#64748B",
-    marginTop: 4,
-    fontStyle: "italic",
-  },
-  noLocationCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 10,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-  },
-  noLocationText2: {
-    fontSize: 12,
-    color: "#DC2626",
-    fontWeight: "500",
-  },
-
-  // Bottom Buttons
-  bottomButtons: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: "#fff",
-  },
-  acceptButton: {
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2563EB",
-    paddingVertical: 18,
-    borderRadius: 16,
-    gap: 10,
-    marginBottom: 12,
+    alignItems: "center",
+    marginRight: 14,
   },
-  acceptButtonText: {
+  parcelNumberText: {
+    fontSize: 14,
+    fontWeight: "900",
     color: "#fff",
-    fontSize: 16,
+  },
+  parcelTextContainer: {
+    flex: 1,
+  },
+  parcelTrackingId: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+  parcelWeightText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  parcelLocationDetail: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  locationTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#94A3B8",
+    letterSpacing: 0.5,
+  },
+  locationName: {
+    fontSize: 14,
+    color: "#2563EB",
     fontWeight: "700",
+    marginTop: 4,
+  },
+  footer: {
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 44 : 24,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 20,
   },
   declineButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
-    paddingVertical: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    gap: 10,
+    borderWidth: 2,
+    borderColor: "#FEE2E2",
+    borderRadius: 20,
+    paddingVertical: 16,
+    gap: 8,
   },
   declineButtonText: {
-    color: "#64748B",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
+    color: "#EF4444",
   },
-
-  // Status Banner
-  statusBanner: {
-    paddingVertical: 18,
-    borderRadius: 16,
+  acceptButton: {
+    flex: 2,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#10B981",
+    borderRadius: 24,
+    paddingVertical: 18,
+    gap: 12,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  acceptButtonText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: 0.8,
+  },
+  processedBanner: {
+    flex: 1,
+    paddingVertical: 18,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   acceptedBanner: {
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#DCFCE7",
   },
   declinedBanner: {
     backgroundColor: "#FEE2E2",
   },
-  statusBannerText: {
+  processedText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "900",
     color: "#0F172A",
-  },
-  vehicleImageContainer: {
-    marginRight: 12,
-  },
-  vehicleImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    letterSpacing: 1,
   },
 });
 
