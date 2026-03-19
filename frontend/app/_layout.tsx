@@ -1,4 +1,12 @@
 import { Stack } from "expo-router";
+import { LogBox } from "react-native";
+
+// Suppress specific warnings from older third-party dependencies doing deprecated React Native imports
+LogBox.ignoreLogs([
+  "ProgressBarAndroid has been extracted from react-native core",
+  "Clipboard has been extracted from react-native core",
+  "PushNotificationIOS has been extracted from react-native core",
+]);
 
 export default function RootLayout() {
   return (

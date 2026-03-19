@@ -156,12 +156,8 @@ router.put("/:id", async (req, res) => {
     const { name, mobile, email, license, gender, dob, profilePhotoBase64, licensePhotoBase64 } = req.body || {};
     let { address } = req.body || {};
 
-    // Basic validation
-    if (!name || !mobile || !email) {
-      return res.status(400).json({ message: "Name, Mobile, and Email are required" });
-    }
-
-    // Parse address when sent as string
+    // Build update object dynamically to support partial updates
+    const updateData = {};
     if (typeof address === "string") {
       try {
         address = JSON.parse(address);
@@ -170,16 +166,10 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    const updateData = {
-      name,
-      mobile,
-      email,
-    };
-
-    // Add license if provided
-    if (license) {
-      updateData.license = license;
-    }
+    if (name) updateData.name = name;
+    if (mobile) updateData.mobile = mobile;
+    if (email) updateData.email = email;
+    if (license) updateData.license = license;
 
     // Add gender if provided (validate it)
     if (gender) {
@@ -199,6 +189,17 @@ router.put("/:id", async (req, res) => {
 
     if (address) {
       updateData.address = address;
+    }
+
+    // NEW: Allow updating status fields for resignation/online status
+    if (req.body.status) {
+      updateData.status = req.body.status;
+    }
+    if (req.body.isAvailable !== undefined) {
+      updateData.isAvailable = req.body.isAvailable;
+    }
+    if (req.body.driverStatus) {
+      updateData.driverStatus = req.body.driverStatus;
     }
 
     // Store base64 images if provided (Vercel compatible)

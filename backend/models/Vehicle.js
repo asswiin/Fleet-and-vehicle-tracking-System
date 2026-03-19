@@ -44,7 +44,6 @@ const vehicleSchema = new mongoose.Schema(
 );
 
 // Index for efficient queries
-vehicleSchema.index({ regNumber: 1 });
 vehicleSchema.index({ status: 1 });
 vehicleSchema.index({ currentTripId: 1 });
 vehicleSchema.index({ createdAt: -1 });

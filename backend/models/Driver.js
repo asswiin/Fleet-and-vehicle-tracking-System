@@ -77,8 +77,6 @@ driverSchema.methods.comparePassword = async function (enteredPassword) {
 };
 
 // Index for efficient queries
-driverSchema.index({ email: 1 });
-driverSchema.index({ mobile: 1 });
 driverSchema.index({ isAvailable: 1 });
 driverSchema.index({ driverStatus: 1 });
 driverSchema.index({ district: 1 });

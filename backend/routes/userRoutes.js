@@ -86,6 +86,11 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ email: email });
 
     if (user) {
+      // 1.1 Check if user is resigned
+      if (user.status === "Resigned") {
+        return res.status(401).json({ message: "This account has been deactivated." });
+      }
+
       // User found, check password
       const isMatch = await user.comparePassword(password);
       if (isMatch) {
@@ -107,6 +112,11 @@ router.post("/login", async (req, res) => {
     const driver = await Driver.findOne({ email: email });
 
     if (driver) {
+      // 2.1 Check if driver is resigned
+      if (driver.status === "Resigned") {
+        return res.status(401).json({ message: "This account has been deactivated." });
+      }
+
       // Driver found, check password
       const isDriverMatch = await driver.comparePassword(password);
       if (isDriverMatch) {
@@ -248,35 +258,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.patch("/:id/status", async (req, res) => {
-  try {
-    const { status } = req.body; // Expecting { status: "Resigned" }
-
-    // Validate status
-    if (!["Active", "Resigned"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { status: status },
-      { new: true } // Return the updated document
-    ).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({
-      message: `User status updated to ${status}`,
-      user: user
-    });
-
-  } catch (err) {
-    console.error("Update Status Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-});
+// Route handled below in consolidated PATCH route
 
 router.put("/:id", async (req, res) => {
   try {

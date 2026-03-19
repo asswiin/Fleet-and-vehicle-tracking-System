@@ -43,7 +43,6 @@ const parcelSchema = new mongoose.Schema(
 // Index for efficient queries
 parcelSchema.index({ status: 1 });
 parcelSchema.index({ tripId: 1 });
-parcelSchema.index({ trackingId: 1 });
 parcelSchema.index({ assignedDriver: 1 });
 parcelSchema.index({ assignedVehicle: 1 });
 parcelSchema.index({ createdAt: -1 });

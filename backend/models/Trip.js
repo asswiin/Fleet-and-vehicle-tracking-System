@@ -124,7 +124,6 @@ const tripSchema = new mongoose.Schema(
 
 // Index for efficient queries
 tripSchema.index({ driverId: 1, status: 1 });
-tripSchema.index({ tripId: 1 });
 tripSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Trip", tripSchema);
