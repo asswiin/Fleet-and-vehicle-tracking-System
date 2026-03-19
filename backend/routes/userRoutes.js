@@ -335,9 +335,16 @@ router.put("/:id/profile", async (req, res) => {
 router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
+    
+    // Set resignedDate if status is being updated to 'Resigned'
+    const updateData = { status };
+    if (status === "Resigned") {
+      updateData.resignedDate = new Date();
+    }
+    
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { status: status },
+      updateData,
       { new: true }
     );
     res.json({ message: "Status updated", data: user });

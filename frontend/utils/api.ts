@@ -30,6 +30,7 @@ export interface User {
     district?: string;
     state?: string;
   };
+  resignedDate?: string;
 }
 
 export interface Vehicle {
@@ -97,6 +98,7 @@ export interface Driver {
     state?: string;
     zip?: string;
   };
+  resignedDate?: string;
   // NEW FIELDS
   profilePhoto?: string;
   licensePhoto?: string;
@@ -335,7 +337,7 @@ const localhost = debuggerHost.split(":")[0];
 
 // You can manually override this if needed
 const DEV_URL = localhost ? `http://${localhost}:5000` : "http://localhost:5000";
-const PROD_URL = "https://fleet-vehicle-backend.vercel.app";
+const PROD_URL = "https://backend-theta-jade-29.vercel.app";
 
 // Set to TRUE for production, FALSE for local testing
 const IS_PRODUCTION = true;
@@ -463,6 +465,8 @@ const api = {
   getDriver: (id: string) => apiCall(`/api/drivers/${id}`),
   createDriver: (data: any) => apiCall("/api/drivers/register", { method: "POST", body: JSON.stringify(data) }),
   updateDriver: (id: string, data: any) => apiCall(`/api/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  updateDriverStatus: (id: string, data: { status?: string; isAvailable?: boolean; driverStatus?: string }) =>
+    apiCall(`/api/drivers/${id}/status`, { method: "PATCH", body: JSON.stringify(data) }),
   punchDriver: (id: string) => {
     const now = new Date();
     return apiCall(`/api/drivers/${id}/punch`, {

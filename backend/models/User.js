@@ -66,7 +66,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-
+    // Resigned date for managers/users
+    resignedDate: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

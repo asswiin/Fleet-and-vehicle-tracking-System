@@ -150,7 +150,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT: Update Driver Profile with Base64 Image Support (Vercel Compatible)
+// // PUT: Update Driver Profile with Base64 Image Support (Vercel Compatible)
 router.put("/:id", async (req, res) => {
   try {
     const { name, mobile, email, license, gender, dob, profilePhotoBase64, licensePhotoBase64 } = req.body || {};
@@ -226,6 +226,13 @@ router.put("/:id", async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
+
+
+
+
+
+
 
 // POST: Punch Driver (Mark as Available)
 router.post("/:id/punch", async (req, res) => {
@@ -409,7 +416,35 @@ router.get("/:id/punch-history", async (req, res) => {
 
 
 
+// PATCH: Update Driver Status (For Resigning or Availability)
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { status, isAvailable, driverStatus } = req.body;
+    const updateData = {};
+    if (status) {
+      updateData.status = status;
+      if (status === "Resigned") {
+        updateData.resignedDate = new Date();
+      }
+    }
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (driverStatus) updateData.driverStatus = driverStatus;
+
+    const driver = await Driver.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true } // Skip runValidators to allow status changes without re-validating profile
+    );
+    
+    if (!driver) return res.status(404).json({ message: "Driver not found" });
+    res.json({ message: "Status updated successfully", data: driver });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 module.exports = router;
+
 
 
 

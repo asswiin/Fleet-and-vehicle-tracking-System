@@ -83,7 +83,7 @@ const AdminDashboard: React.FC = () => {
       let vehicleCount = 0;
 
       if (usersRes.ok && usersRes.data) {
-        managerList = usersRes.data.filter((user: any) => user.role === "manager");
+        managerList = usersRes.data.filter((user: any) => user.role === "manager" && user.status !== "Resigned");
         const admin = usersRes.data.find((user: any) => user.role === "admin");
         if (admin) setAdminData(admin);
         setManagers(managerList);
@@ -96,7 +96,8 @@ const AdminDashboard: React.FC = () => {
 
       if (driversRes.ok && driversRes.data) {
         const rawData = driversRes.data as any;
-        driverList = Array.isArray(rawData) ? rawData : rawData.data || [];
+        const allDrivers = Array.isArray(rawData) ? rawData : rawData.data || [];
+        driverList = allDrivers.filter((d: any) => d.status !== "Resigned");
         setDrivers(driverList);
       }
 
@@ -191,7 +192,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
+
       {/* Dynamic Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -219,7 +220,7 @@ const AdminDashboard: React.FC = () => {
         }
       >
         {/* Main Financial Card */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.mainBalanceCard}
           onPress={() => router.push({
             pathname: "/admin/hub-overview",
@@ -269,7 +270,7 @@ const AdminDashboard: React.FC = () => {
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsGrid}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => router.push({
               pathname: "/admin/add-manager",
@@ -282,7 +283,7 @@ const AdminDashboard: React.FC = () => {
             <Text style={styles.actionLabel}>Add Manager</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => router.push({
               pathname: "/shared/trip-history",
@@ -304,14 +305,14 @@ const AdminDashboard: React.FC = () => {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.cardList}>
             {loading && !refreshing ? (
               <ActivityIndicator color="#6366F1" />
             ) : managers.length > 0 ? (
               managers.slice(0, 2).map((manager) => (
-                <TouchableOpacity 
-                  key={manager._id} 
+                <TouchableOpacity
+                  key={manager._id}
                   style={styles.personItem}
                   onPress={() => handleManagerClick(manager)}
                 >
@@ -345,14 +346,14 @@ const AdminDashboard: React.FC = () => {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.cardList}>
             {loading && !refreshing ? (
               <ActivityIndicator color="#6366F1" />
             ) : drivers.length > 0 ? (
               drivers.slice(0, 3).map((driver) => (
-                <TouchableOpacity 
-                  key={driver._id} 
+                <TouchableOpacity
+                  key={driver._id}
                   style={styles.personItem}
                   onPress={() => handleDriverClick(driver)}
                 >
@@ -384,9 +385,9 @@ const AdminDashboard: React.FC = () => {
       {/* Floating Settings Menu Overlay */}
       {showSettingsMenu && (
         <View style={styles.settingsOverlay}>
-          <TouchableOpacity 
-            style={styles.overlayClose} 
-            onPress={() => setShowSettingsMenu(false)} 
+          <TouchableOpacity
+            style={styles.overlayClose}
+            onPress={() => setShowSettingsMenu(false)}
           />
           <View style={styles.settingsMenu}>
             <View style={styles.menuHeader}>
@@ -409,29 +410,29 @@ const AdminDashboard: React.FC = () => {
           <LayoutGrid size={24} color="#6366F1" />
           <View style={styles.activeDot} />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => router.push("/admin/managers-list" as any)}
         >
           <Users size={24} color="#94A3B8" />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => router.push("/admin/drivers-list" as any)}
         >
           <Contact size={24} color="#94A3B8" />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => router.push("/admin/vehicle-list" as any)}
         >
           <Car size={24} color="#94A3B8" />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setShowSettingsMenu(!showSettingsMenu)}
         >

@@ -84,31 +84,44 @@ const HubOverview = () => {
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
 
-        let filteredParcels = parcels;
+        // 1. Deduplicate parcels to fix "Inaccurate March" (Duplicate history entries)
+        // We use a Map to keep only one entry per trip-parcel combination
+        const uniqueParcels = Array.from(new Map(parcels.map(p => [`${p.tripId}-${p.trackId}`, p])).values());
+
+        let filteredParcels = uniqueParcels;
         let filteredServices = services;
+        let filteredExpenses = tripExpenses;
 
         if (timeFilter === "This Month") {
-            filteredParcels = parcels.filter((p) => {
+            filteredParcels = uniqueParcels.filter((p) => {
                 const d = new Date(p.reachedTime);
                 return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
             });
             filteredServices = services.filter((s) => {
                 const d = new Date(s.createdAt || s.dateOfIssue);
+                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            });
+            filteredExpenses = tripExpenses.filter((e) => {
+                const d = new Date(e.date || e.createdAt);
                 return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
             });
         } else if (timeFilter === "Last Month") {
             const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
             const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-            filteredParcels = parcels.filter((p) => {
+            filteredParcels = uniqueParcels.filter((p) => {
                 const d = new Date(p.reachedTime);
                 return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
             });
             filteredServices = services.filter((s) => {
                 const d = new Date(s.createdAt || s.dateOfIssue);
+                return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+            });
+            filteredExpenses = tripExpenses.filter((e) => {
+                const d = new Date(e.date || e.createdAt);
                 return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
             });
         } else if (timeFilter === "YTD") {
-            filteredParcels = parcels.filter((p) => {
+            filteredParcels = uniqueParcels.filter((p) => {
                 const d = new Date(p.reachedTime);
                 return d.getFullYear() === currentYear;
             });
@@ -116,13 +129,21 @@ const HubOverview = () => {
                 const d = new Date(s.createdAt || s.dateOfIssue);
                 return d.getFullYear() === currentYear;
             });
+            filteredExpenses = tripExpenses.filter((e) => {
+                const d = new Date(e.date || e.createdAt);
+                return d.getFullYear() === currentYear;
+            });
         } else if (timeFilter === "Custom") {
-            filteredParcels = parcels.filter((p) => {
+            filteredParcels = uniqueParcels.filter((p) => {
                 const d = new Date(p.reachedTime);
                 return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
             });
             filteredServices = services.filter((s) => {
                 const d = new Date(s.createdAt || s.dateOfIssue);
+                return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+            });
+            filteredExpenses = tripExpenses.filter((e) => {
+                const d = new Date(e.date || e.createdAt);
                 return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
             });
         }
@@ -135,48 +156,45 @@ const HubOverview = () => {
             (acc, s) => acc + (Number(s.totalServiceCost) || 0),
             0
         );
+        const currentTripExp = filteredExpenses.reduce(
+            (acc, e) => acc + (Number(e.totalAmount) || 0),
+            0
+        );
 
-        let currentTripExpenses = 0;
-        if (timeFilter === "Custom") {
-            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
-                const d = new Date(exp.date || exp.createdAt);
-                if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) {
-                    return acc + (Number(exp.totalAmount) || 0);
-                }
-                return acc;
-            }, 0);
-        } else if (timeFilter === "This Month") {
-            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
-                const d = new Date(exp.date || exp.createdAt);
-                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-                    return acc + (Number(exp.totalAmount) || 0);
-                }
-                return acc;
-            }, 0);
-        } else if (timeFilter === "Last Month") {
-            const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-            const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
-                const d = new Date(exp.date || exp.createdAt);
-                if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) {
-                    return acc + (Number(exp.totalAmount) || 0);
-                }
-                return acc;
-            }, 0);
-        } else {
-            currentTripExpenses = tripExpenses.reduce((acc, exp) => {
-                const d = new Date(exp.date || exp.createdAt);
-                if (d.getFullYear() === currentYear) return acc + (Number(exp.totalAmount) || 0);
-                return acc;
-            }, 0);
-        }
+        const totalExpenses = currentServices + currentTripExp;
 
-        const totalExpenses = currentServices + currentTripExpenses;
+        // Calculate Last Month stats specifically for comparison
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+        const lastMonthParcels = uniqueParcels.filter((p) => {
+            const d = new Date(p.reachedTime);
+            return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+        });
+        const lastMonthServices = services.filter((s) => {
+            const d = new Date(s.createdAt || s.dateOfIssue);
+            return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+        });
+        const lastMonthTripExpenses = tripExpenses.reduce((acc, exp) => {
+            const d = new Date(exp.date || exp.createdAt);
+            if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) {
+                return acc + (Number(exp.totalAmount) || 0);
+            }
+            return acc;
+        }, 0);
+
+        const lastMonthRevenue = lastMonthParcels.reduce((acc, p) => acc + (Number(p.parcelDetails?.amount) || 0), 0);
+        const lastMonthExp = lastMonthServices.reduce((acc, s) => acc + (Number(s.totalServiceCost) || 0), 0) + lastMonthTripExpenses;
 
         return {
             revenue: currentRevenue,
             expenses: totalExpenses,
             profit: currentRevenue - totalExpenses,
+            tripExpenses: currentTripExp,
+            serviceExpenses: currentServices,
+            lastMonthRevenue,
+            lastMonthExpenses: lastMonthExp,
+            lastMonthProfit: lastMonthRevenue - lastMonthExp
         };
     }, [parcels, services, tripExpenses, timeFilter, selectedMonth, selectedYear]);
 
@@ -239,8 +257,8 @@ const HubOverview = () => {
             {/* Professional Header */}
             <View style={styles.header}>
                 <View style={styles.headerTop}>
-                    <TouchableOpacity 
-                        style={styles.backButton} 
+                    <TouchableOpacity
+                        style={styles.backButton}
                         onPress={() => router.back()}
                     >
                         <ChevronLeft size={24} color="#1E293B" />
@@ -255,9 +273,9 @@ const HubOverview = () => {
                 </View>
 
                 {/* Date Selection Strip */}
-                <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.filterStrip}
                 >
                     <TouchableOpacity
@@ -293,7 +311,7 @@ const HubOverview = () => {
                     >
                         <CalendarDays size={16} color={timeFilter === "Custom" ? "#fff" : "#6366F1"} />
                         <Text style={[styles.filterChipText, timeFilter === "Custom" && styles.filterChipTextActive, { marginLeft: 6 }]}>
-                            {timeFilter === "Custom" 
+                            {timeFilter === "Custom"
                                 ? `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][selectedMonth]} ${selectedYear}`
                                 : "Custom"
                             }
@@ -318,9 +336,9 @@ const HubOverview = () => {
                             <TrendingUp size={24} color="#10B981" />
                         </View>
                     </View>
-                    
+
                     <View style={styles.balanceDivider} />
-                    
+
                     <View style={styles.balanceStatsStrip}>
                         <View style={styles.miniStat}>
                             <Text style={styles.miniStatLabel}>Income</Text>
@@ -340,15 +358,51 @@ const HubOverview = () => {
                         <View style={[styles.metricIcon, { backgroundColor: '#EEF2FF' }]}>
                             <Wallet size={18} color="#6366F1" />
                         </View>
-                        <Text style={styles.metricLabel}>Cash Flow</Text>
-                        <Text style={styles.metricValue}>Stable</Text>
+                        <Text style={styles.metricLabel}>Last Month Revenue</Text>
+                        <Text style={styles.metricValue}>₹{filteredStats.lastMonthRevenue.toLocaleString('en-IN')}</Text>
                     </View>
                     <View style={styles.metricCard}>
-                        <View style={[styles.metricIcon, { backgroundColor: '#ECFDF5' }]}>
-                            <Activity size={18} color="#10B981" />
+                        <View style={[styles.metricIcon, { backgroundColor: '#FFF7ED' }]}>
+                            <TrendingDown size={18} color="#EA580C" />
                         </View>
-                        <Text style={styles.metricLabel}>Efficiency</Text>
-                        <Text style={styles.metricValue}>+12.5%</Text>
+                        <Text style={styles.metricLabel}>Last Month Expense</Text>
+                        <Text style={styles.metricValue}>₹{filteredStats.lastMonthExpenses.toLocaleString('en-IN')}</Text>
+                    </View>
+                </View>
+
+                {/* Performance Comparison */}
+                <View style={[styles.glassCard, { marginBottom: 16 }]}>
+                    <View style={styles.cardHeader}>
+                        <View>
+                            <Text style={styles.cardTitle}>Performance Snapshot</Text>
+                            <Text style={styles.cardSubtitle}>Current vs Last Month Profit</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.comparisonTrack}>
+                        <View style={styles.compRow}>
+                            <Text style={styles.compLabel}>Current Selection</Text>
+                            <Text style={[styles.compValue, { color: filteredStats.profit >= 0 ? '#10B981' : '#EF4444' }]}>
+                                ₹{filteredStats.profit.toLocaleString('en-IN')}
+                            </Text>
+                        </View>
+                        <View style={styles.compRow}>
+                            <Text style={styles.compLabel}>Last Month</Text>
+                            <Text style={[styles.compValue, { color: filteredStats.lastMonthProfit >= 0 ? '#10B981' : '#EF4444' }]}>
+                                ₹{filteredStats.lastMonthProfit.toLocaleString('en-IN')}
+                            </Text>
+                        </View>
+
+                        <View style={styles.progressContainer}>
+                            <View style={[styles.progressBar, { width: '100%', backgroundColor: '#F1F5F9' }]} />
+                            <View style={[
+                                styles.progressBar,
+                                {
+                                    width: `${Math.min(100, (filteredStats.profit / (Math.max(filteredStats.profit, filteredStats.lastMonthProfit) || 1)) * 100)}%`,
+                                    backgroundColor: '#6366F1'
+                                }
+                            ]} />
+                        </View>
                     </View>
                 </View>
 
@@ -549,9 +603,9 @@ const styles = StyleSheet.create({
         borderColor: '#E0E7FF',
         backgroundColor: '#EEF2FF',
     },
-    scrollContent: { 
-        paddingHorizontal: 24, 
-        paddingTop: 24, 
+    scrollContent: {
+        paddingHorizontal: 24,
+        paddingTop: 24,
     },
     mainBalanceCard: {
         backgroundColor: "#6366F1",
@@ -776,6 +830,38 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         color: '#64748B',
+    },
+    comparisonTrack: {
+        marginTop: 8,
+    },
+    compRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    compLabel: {
+        fontSize: 14,
+        color: '#64748B',
+        fontWeight: '500',
+    },
+    compValue: {
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    progressContainer: {
+        height: 8,
+        position: 'relative',
+        marginTop: 8,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    progressBar: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        height: '100%',
+        borderRadius: 4,
     },
     modalOverlay: {
         flex: 1,

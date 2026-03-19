@@ -113,6 +113,7 @@ const DriverDetailsScreen = () => {
     }
   };
 
+
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') setShowDatePicker(false);
     if (date) setSelectedDate(date);
@@ -186,7 +187,7 @@ const DriverDetailsScreen = () => {
               <ChevronLeft size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.heroTitle}>Driver Profile</Text>
-            {(viewerRole === 'manager' || viewerRole === 'driver') ? (
+            {(viewerRole === 'manager' || viewerRole === 'driver') && driver?.status !== 'Resigned' ? (
               <TouchableOpacity style={styles.glassButton} onPress={handleEdit}>
                 <Edit2 size={20} color="#fff" />
               </TouchableOpacity>
@@ -216,7 +217,9 @@ const DriverDetailsScreen = () => {
               </View>
               {driver?.status === "Resigned" && (
                 <View style={[styles.heroStatusBadge, { backgroundColor: "#FEE2E2" }]}>
-                  <Text style={[styles.heroStatusText, { color: "#EF4444" }]}>Resigned</Text>
+                  <Text style={[styles.heroStatusText, { color: "#EF4444" }]}>
+                    Resigned: {driver.resignedDate ? new Date(driver.resignedDate).toLocaleDateString('en-GB') : "Recently"}
+                  </Text>
                 </View>
               )}
             </View>
@@ -344,6 +347,11 @@ const DriverDetailsScreen = () => {
         {/* Footer Info */}
         <View style={styles.pageFooter}>
           <Text style={styles.footerInfoText}>System Registered: {driver?.createdAt ? new Date(driver.createdAt).toDateString() : 'N/A'}</Text>
+          {driver?.status === "Resigned" && (
+            <Text style={[styles.footerInfoText, { color: '#EF4444', marginTop: 4, fontWeight: '700' }]}>
+              Resignation Date: {driver.resignedDate ? new Date(driver.resignedDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Recently processed'}
+            </Text>
+          )}
         </View>
       </ScrollView>
 
@@ -365,7 +373,7 @@ const DriverDetailsScreen = () => {
                       onPress: async () => {
                         try {
                           setLoading(true);
-                          const res = await api.updateDriver(driver!._id, { 
+                          const res = await api.updateDriverStatus(driver!._id, { 
                             status: "Resigned",
                             isAvailable: false,
                             driverStatus: "offline"

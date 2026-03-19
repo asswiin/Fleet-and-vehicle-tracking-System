@@ -149,7 +149,9 @@ const ManagerDetailsScreen = () => {
             <Text style={styles.role}>Logistics Manager</Text>
             <View style={[styles.statusBadge, isResigned ? styles.badgeResigned : styles.badgeActive]}>
               <Text style={[styles.statusText, isResigned ? styles.textResigned : styles.textActive]}>
-                {user.status || "Active"}
+                {isResigned && user.resignedDate
+                  ? `Resigned on ${new Date(user.resignedDate).toLocaleDateString('en-IN')}`
+                  : (user.status || "Active")}
               </Text>
             </View>
           </View>
@@ -253,7 +255,18 @@ const ManagerDetailsScreen = () => {
 
           {isResigned && (
             <View style={styles.resignedNotice}>
-              <Text style={styles.resignedNoticeText}>This manager has resigned and is inactive.</Text>
+              <Text style={styles.resignedNoticeText}>
+                This manager has resigned and is inactive.
+              </Text>
+              {user.resignedDate && (
+                <Text style={[styles.resignedNoticeText, { marginTop: 4, fontSize: 13 }]}>
+                  Date of Resignation: {new Date(user.resignedDate).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </Text>
+              )}
             </View>
           )}
 

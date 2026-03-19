@@ -29,6 +29,7 @@ const driverSchema = new mongoose.Schema(
     },
     role: { type: String, default: "driver" },
     status: { type: String, default: "Active" },
+    resignedDate: { type: Date, default: null },
 
     // This field controls the Green/Purple badge in the Admin/Manager dashboard
     isAvailable: {
