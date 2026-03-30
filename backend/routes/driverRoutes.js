@@ -9,7 +9,8 @@ const path = require("path");
 const fs = require("fs");
 const Driver = require("../models/Driver");
 const PunchRecord = require("../models/PunchRecord");
-const { sendCredentialsEmail } = require("../utils/emailService");
+const Notification = require("../models/Notification");
+const { sendCredentialsEmail, sendTerminationEmail } = require("../utils/emailService");
 
 
 // --- MULTER CONFIGURATION ---
@@ -80,6 +81,8 @@ router.post("/register", async (req, res) => {
       gender: gender.toLowerCase(),
       dob: dobDate,
       address,
+      district: address?.district || "Kozhikode",
+      branch: req.body.branch || "Mukkam",
       password: randomPassword,
       role: "driver"
     });
@@ -416,15 +419,18 @@ router.get("/:id/punch-history", async (req, res) => {
 
 
 
-// PATCH: Update Driver Status (For Resigning or Availability)
+// PATCH: Update Driver Status (For Resigning, Termination or Availability)
 router.patch("/:id/status", async (req, res) => {
   try {
-    const { status, isAvailable, driverStatus } = req.body;
+    const { status, isAvailable, driverStatus, terminationMessage } = req.body;
     const updateData = {};
     if (status) {
       updateData.status = status;
-      if (status === "Resigned") {
+      if (status === "Resigned" || status === "Terminated") {
         updateData.resignedDate = new Date();
+        // Force offline status for resigned or terminated drivers
+        updateData.isAvailable = false;
+        updateData.driverStatus = "offline";
       }
     }
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
@@ -433,10 +439,33 @@ router.patch("/:id/status", async (req, res) => {
     const driver = await Driver.findByIdAndUpdate(
       req.params.id,
       { $set: updateData },
-      { new: true } // Skip runValidators to allow status changes without re-validating profile
+      { new: true }
     );
-    
+
     if (!driver) return res.status(404).json({ message: "Driver not found" });
+
+    // Handle Termination logic: Email and Notification
+    if (status === "Terminated") {
+      try {
+        // 1. Send Email notification
+        await sendTerminationEmail(driver.email, driver.name, terminationMessage);
+
+        // 2. Create in-app Notification for the driver dashboard
+        const terminationNotif = new Notification({
+          driverId: driver._id,
+          recipientType: "driver",
+          message: terminationMessage || "NOTICE: Your service has been terminated by the management effective immediately.",
+          type: "termination",
+          status: "pending",
+          // Vehicle and trip not required for termination notice (handled by schema change)
+        });
+        await terminationNotif.save();
+      } catch (err) {
+        console.error("Secondary actions for termination failed:", err);
+        // We continue because the status update itself was successful
+      }
+    }
+
     res.json({ message: "Status updated successfully", data: driver });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });

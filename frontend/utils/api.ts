@@ -31,6 +31,8 @@ export interface User {
     state?: string;
   };
   resignedDate?: string;
+  district?: string;
+  branch?: string;
 }
 
 export interface Vehicle {
@@ -45,6 +47,8 @@ export interface Vehicle {
   pollutionDate?: string;
   taxDate?: string;
   profilePhoto?: string;
+  district?: string;
+  branch?: string;
 }
 
 interface LoginCredentials {
@@ -103,6 +107,8 @@ export interface Driver {
   profilePhoto?: string;
   licensePhoto?: string;
   createdAt?: string;
+  district?: string;
+  branch?: string;
   isAvailable?: boolean;
   currentTripId?: string;
   punchHistory?: Array<{
@@ -458,14 +464,14 @@ const api = {
   getAllVehicleServices: () => apiCall("/api/vehicle-services"),
   getServiceAlertsCount: () => apiCall("/api/vehicle-services/alerts/count"),
   markVehicleServicesAsRead: () => apiCall("/api/vehicle-services/mark-all-read", { method: "POST" }),
-  updateServiceStatus: (id: string, status: string) => apiCall(`/api/vehicle-services/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  updateServiceStatus: (id: string, status: string, userId: string, userRole: string, totalServiceCost?: number, odometerReading?: number) => apiCall(`/api/vehicle-services/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, userId, userRole, totalServiceCost, odometerReading }) }),
 
   // DRIVERS
   getDrivers: () => apiCall("/api/drivers"),
   getDriver: (id: string) => apiCall(`/api/drivers/${id}`),
   createDriver: (data: any) => apiCall("/api/drivers/register", { method: "POST", body: JSON.stringify(data) }),
   updateDriver: (id: string, data: any) => apiCall(`/api/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  updateDriverStatus: (id: string, data: { status?: string; isAvailable?: boolean; driverStatus?: string }) =>
+  updateDriverStatus: (id: string, data: { status?: string; isAvailable?: boolean; driverStatus?: string; terminationMessage?: string }) =>
     apiCall(`/api/drivers/${id}/status`, { method: "PATCH", body: JSON.stringify(data) }),
   punchDriver: (id: string) => {
     const now = new Date();

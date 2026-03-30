@@ -158,447 +158,595 @@ const AddParcelScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={28} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Register Consignment</Text>
-        <View style={{ width: 28 }} />
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-          {/* --- SENDER DETAILS --- */}
-          <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: "#DBEAFE" }]}>
-              <User size={18} color="#2563EB" />
-            </View>
-            <Text style={styles.sectionTitle}>Sender Details</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+            <ChevronLeft size={24} color="#1E293B" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerSubtitle}>LOGISTICS MANAGEMENT</Text>
+            <Text style={styles.headerTitle}>Register Consignment</Text>
           </View>
+          <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>SENDER NAME</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter sender name"
-                placeholderTextColor="#94A3B8"
-                value={form.senderName}
-                onChangeText={(t) => setForm({ ...form, senderName: t })}
-              />
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            contentContainerStyle={styles.formContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Sender Details */}
+            <View style={styles.card}>
+              <View style={styles.sectionHeaderContainer}>
+                <View style={styles.sectionIcon}>
+                  <User size={18} color="#4F46E5" />
+                </View>
+                <Text style={styles.sectionTitle}>Sender Information</Text>
+              </View>
 
-            <View style={styles.inputGroupLast}>
-              <Text style={styles.label}>PHONE NUMBER</Text>
-              <View style={[styles.input, styles.phoneInputRow]}>
-                <Text style={styles.phonePrefix}>+91</Text>
-                <View style={styles.phoneDivider} />
-                <TextInput
-                  style={styles.phoneInput}
-                  placeholder="98765 43210"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  value={form.senderPhone}
-                  onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, senderPhone: t }) }}
-                />
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>FULL NAME</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter sender name"
+                    placeholderTextColor="#94A3B8"
+                    value={form.senderName}
+                    onChangeText={(t) => setForm({ ...form, senderName: t })}
+                  />
+                  <User size={18} color="#94A3B8" style={styles.suffixIcon} />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>PHONE NUMBER</Text>
+                <View style={styles.inputWrapper}>
+                  <Text style={styles.phonePrefix}>+91</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="98765 43210"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    value={form.senderPhone}
+                    onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, senderPhone: t }) }}
+                  />
+                  <Smartphone size={18} color="#94A3B8" style={styles.suffixIcon} />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>EMAIL ADDRESS</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="name@example.com"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={form.senderEmail}
+                    onChangeText={(t) => setForm({ ...form, senderEmail: t })}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
+                  <Text style={styles.label}>HOUSE / FLAT</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. Rose Villa"
+                      placeholderTextColor="#94A3B8"
+                      value={form.senderHouse}
+                      onChangeText={(t) => setForm({ ...form, senderHouse: t })}
+                    />
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>STREET</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Street name"
+                      placeholderTextColor="#94A3B8"
+                      value={form.senderStreet}
+                      onChangeText={(t) => setForm({ ...form, senderStreet: t })}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
+                  <Text style={styles.label}>CITY / HUB</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="City"
+                      placeholderTextColor="#94A3B8"
+                      value={form.senderCity}
+                      onChangeText={(t) => setForm({ ...form, senderCity: t })}
+                    />
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>DISTRICT</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="District"
+                      placeholderTextColor="#94A3B8"
+                      value={form.senderDistrict}
+                      onChangeText={(t) => setForm({ ...form, senderDistrict: t })}
+                    />
+                  </View>
+                </View>
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>EMAIL</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="name@example.com"
-                placeholderTextColor="#94A3B8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={form.senderEmail}
-                onChangeText={(t) => setForm({ ...form, senderEmail: t })}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>HOUSE / FLAT</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Rose Villa"
-                placeholderTextColor="#94A3B8"
-                value={form.senderHouse}
-                onChangeText={(t) => setForm({ ...form, senderHouse: t })}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>STREET</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Street name"
-                placeholderTextColor="#94A3B8"
-                value={form.senderStreet}
-                onChangeText={(t) => setForm({ ...form, senderStreet: t })}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
-                <Text style={styles.label}>CITY</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="City"
-                  placeholderTextColor="#94A3B8"
-                  value={form.senderCity}
-                  onChangeText={(t) => setForm({ ...form, senderCity: t })}
-                />
+            {/* Recipient Details */}
+            <View style={styles.card}>
+              <View style={styles.sectionHeaderContainer}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#F0F9FF' }]}>
+                  <MapPin size={18} color="#0EA5E9" />
+                </View>
+                <Text style={styles.sectionTitle}>Recipient Information</Text>
               </View>
 
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>DISTRICT</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="District"
-                  placeholderTextColor="#94A3B8"
-                  value={form.senderDistrict}
-                  onChangeText={(t) => setForm({ ...form, senderDistrict: t })}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroupLast}>
-              <Text style={styles.label}>STATE</Text>
-              <View style={[styles.input, styles.readOnlyField]}>
-                <Text style={{ color: "#64748B", fontSize: 15 }}>{form.senderState}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* --- RECIPIENT DETAILS --- */}
-          <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
-              <MapPin size={18} color="#D97706" />
-            </View>
-            <Text style={styles.sectionTitle}>Recipient Details</Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>RECIPIENT NAME</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter recipient name"
-                placeholderTextColor="#94A3B8"
-                value={form.recipientName}
-                onChangeText={(t) => setForm({ ...form, recipientName: t })}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>PHONE NUMBER</Text>
-              <View style={[styles.input, styles.phoneInputRow]}>
-                <Text style={styles.phonePrefix}>+91</Text>
-                <View style={styles.phoneDivider} />
-                <TextInput
-                  style={styles.phoneInput}
-                  placeholder="98765 43210"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  value={form.recipientPhone}
-                  onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, recipientPhone: t }) }}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>EMAIL</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="recipient@example.com"
-                placeholderTextColor="#94A3B8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={form.recipientEmail}
-                onChangeText={(t) => setForm({ ...form, recipientEmail: t })}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>HOUSE / FLAT</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Rose Villa"
-                placeholderTextColor="#94A3B8"
-                value={form.recipientHouse}
-                onChangeText={(t) => setForm({ ...form, recipientHouse: t })}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>STREET</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Street name"
-                placeholderTextColor="#94A3B8"
-                value={form.recipientStreet}
-                onChangeText={(t) => setForm({ ...form, recipientStreet: t })}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
-                <Text style={styles.label}>CITY</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="City"
-                  placeholderTextColor="#94A3B8"
-                  value={form.recipientCity}
-                  onChangeText={(t) => setForm({ ...form, recipientCity: t })}
-                />
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>FULL NAME</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter recipient name"
+                    placeholderTextColor="#94A3B8"
+                    value={form.recipientName}
+                    onChangeText={(t) => setForm({ ...form, recipientName: t })}
+                  />
+                  <User size={18} color="#94A3B8" style={styles.suffixIcon} />
+                </View>
               </View>
 
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>DISTRICT</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="District"
-                  placeholderTextColor="#94A3B8"
-                  value={form.recipientDistrict}
-                  onChangeText={(t) => setForm({ ...form, recipientDistrict: t })}
-                />
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>PHONE NUMBER</Text>
+                <View style={styles.inputWrapper}>
+                  <Text style={styles.phonePrefix}>+91</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="98765 43210"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    value={form.recipientPhone}
+                    onChangeText={(t) => { if (/^\d*$/.test(t)) setForm({ ...form, recipientPhone: t }) }}
+                  />
+                  <Smartphone size={18} color="#94A3B8" style={styles.suffixIcon} />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>EMAIL ADDRESS</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="recipient@example.com"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={form.recipientEmail}
+                    onChangeText={(t) => setForm({ ...form, recipientEmail: t })}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
+                  <Text style={styles.label}>HOUSE / FLAT</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. Rose Villa"
+                      placeholderTextColor="#94A3B8"
+                      value={form.recipientHouse}
+                      onChangeText={(t) => setForm({ ...form, recipientHouse: t })}
+                    />
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>STREET</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Street name"
+                      placeholderTextColor="#94A3B8"
+                      value={form.recipientStreet}
+                      onChangeText={(t) => setForm({ ...form, recipientStreet: t })}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
+                  <Text style={styles.label}>CITY / DESTINATION</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="City"
+                      placeholderTextColor="#94A3B8"
+                      value={form.recipientCity}
+                      onChangeText={(t) => setForm({ ...form, recipientCity: t })}
+                    />
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>DISTRICT</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="District"
+                      placeholderTextColor="#94A3B8"
+                      value={form.recipientDistrict}
+                      onChangeText={(t) => setForm({ ...form, recipientDistrict: t })}
+                    />
+                  </View>
+                </View>
               </View>
             </View>
 
-            <View style={styles.inputGroupLast}>
-              <Text style={styles.label}>STATE</Text>
-              <View style={[styles.input, styles.readOnlyField]}>
-                <Text style={{ color: "#64748B", fontSize: 15 }}>{form.recipientState}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* --- SPECIFICATIONS --- */}
-          <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}>
-              <Package size={18} color="#166534" />
-            </View>
-            <Text style={styles.sectionTitle}>Specifications</Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>WEIGHT (KG)</Text>
-              <View style={styles.suffixInputWrapper}>
-                <TextInput
-                  style={styles.suffixInput}
-                  placeholder="0.0"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numeric"
-                  value={form.weight}
-                  onChangeText={(t) => setForm({ ...form, weight: t })}
-                />
-                <Text style={styles.suffixText}>kg</Text>
-              </View>
-            </View>
-
-            <View style={styles.inputGroupLast}>
-              <Text style={styles.label}>TYPE OF PARCEL</Text>
-              <View style={styles.dropdownInputWrapper}>
-                <TextInput
-                  style={styles.dropdownInput}
-                  placeholder="e.g. Clothes or type manually..."
-                  placeholderTextColor="#94A3B8"
-                  value={form.parcelType}
-                  onChangeText={(t) => setForm({ ...form, parcelType: t })}
-                  onFocus={() => setShowTypeDropdown(true)}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowTypeDropdown(!showTypeDropdown)}
-                  style={styles.arrowBtn}
-                >
-                  {showTypeDropdown ? (
-                    <ChevronUp size={20} color="#64748B" />
-                  ) : (
-                    <ChevronDown size={20} color="#64748B" />
-                  )}
-                </TouchableOpacity>
+            {/* Consignment Details */}
+            <View style={styles.card}>
+              <View style={styles.sectionHeaderContainer}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#FDF2F8' }]}>
+                  <Package size={18} color="#DB2777" />
+                </View>
+                <Text style={styles.sectionTitle}>Consignment Details</Text>
               </View>
 
-              {showTypeDropdown && (
-                <View style={styles.dropdownMenu}>
-                  {PARCEL_TYPES.map((type) => (
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
+                  <Text style={styles.label}>PARCEL WEIGHT</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="0.0"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="numeric"
+                      value={form.weight}
+                      onChangeText={(t) => setForm({ ...form, weight: t })}
+                    />
+                    <Text style={styles.weightUnit}>KG</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 1.5 }]}>
+                  <Text style={styles.label}>TYPE OF PARCEL</Text>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Select or type..."
+                      placeholderTextColor="#94A3B8"
+                      value={form.parcelType}
+                      onChangeText={(t) => setForm({ ...form, parcelType: t })}
+                      onFocus={() => setShowTypeDropdown(true)}
+                    />
                     <TouchableOpacity
-                      key={type}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setForm({ ...form, parcelType: type });
-                        setShowTypeDropdown(false);
-                      }}
+                      onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+                      activeOpacity={0.7}
                     >
-                      <Text style={[
-                        styles.dropdownItemText,
-                        form.parcelType === type && styles.dropdownItemTextSelected
-                      ]}>
-                        {type}
-                      </Text>
+                      <ChevronDown size={18} color="#94A3B8" />
                     </TouchableOpacity>
-                  ))}
+                  </View>
+
+                  {showTypeDropdown && (
+                    <View style={styles.dropdownMenu}>
+                      {PARCEL_TYPES.map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.dropdownItem,
+                            form.parcelType === type && styles.dropdownItemActive
+                          ]}
+                          onPress={() => {
+                            setForm({ ...form, parcelType: type });
+                            setShowTypeDropdown(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.dropdownItemText,
+                            form.parcelType === type && styles.dropdownItemTextActive
+                          ]}>
+                            {type}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>PAYMENT AMOUNT (₹)</Text>
+                <View style={[styles.inputWrapper, { borderColor: '#10B981' }]}>
+                  <Text style={styles.currencyPrefix}>₹</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter amount"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="numeric"
+                    value={form.paymentAmount}
+                    onChangeText={(t) => setForm({ ...form, paymentAmount: t })}
+                  />
+                  <Smartphone size={18} color="#10B981" style={styles.suffixIcon} />
+                </View>
+              </View>
+            </View>
+
+            <View style={{ height: 120 }} />
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.disabledButton]}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <QrCode size={20} color="#fff" style={{ marginRight: 10 }} />
+                  <Text style={styles.submitButtonText}>Submit Consignment & Print ID</Text>
                 </View>
               )}
-            </View>
-
-            <View style={styles.inputGroupLast}>
-              <Text style={styles.label}>PAYMENT AMOUNT (₹)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 499"
-                placeholderTextColor="#94A3B8"
-                keyboardType="numeric"
-                value={form.paymentAmount}
-                onChangeText={(t) => setForm({ ...form, paymentAmount: t })}
-              />
-            </View>
+            </TouchableOpacity>
           </View>
-
-          <View style={{ height: 20 }} />
-
-          {/* SUBMIT BUTTON */}
-          <TouchableOpacity
-            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <QrCode size={20} color="#fff" style={{ marginRight: 10 }} />
-                <Text style={styles.submitText}>Generate Tracking ID & Save</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFC"
+  },
+  container: {
+    flex: 1,
+  },
   header: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    padding: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#F1F5F9"
-  },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  backBtn: { padding: 4 },
-
-  content: { padding: 20 },
-
-  // Section Headers
-  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12, marginTop: 10 },
-  iconCircle: {
-    width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center", marginRight: 10
-  },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-
-  // Card & Inputs
-  card: {
-    backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 10,
-    borderWidth: 1, borderColor: "#E2E8F0"
-  },
-  inputGroup: { marginBottom: 16 },
-  inputGroupLast: { marginBottom: 0 },
-  label: {
-    fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 6,
-    textTransform: "uppercase", letterSpacing: 0.5
-  },
-  input: {
-    backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
-    paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: "#1E293B"
-  },
-  phoneInputRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 0 },
-  phonePrefix: { color: "#64748B", fontWeight: "700", marginRight: 8 },
-  phoneDivider: { width: 1, height: 24, backgroundColor: "#E2E8F0", marginRight: 10 },
-  phoneInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1E293B" },
-  textArea: { height: 100 },
-  readOnlyField: { backgroundColor: "#F1F5F9", borderColor: "#E2E8F0" },
-
-  row: { flexDirection: "row" },
-
-  // Suffix Input (for KG)
-  suffixInputWrapper: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC",
-    borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10, paddingHorizontal: 16,
-  },
-  suffixInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1E293B" },
-  suffixText: { color: "#94A3B8", fontSize: 14, fontWeight: "600" },
-
-  // Submit Button
-  submitBtn: {
-    backgroundColor: "#2563EB", height: 56, borderRadius: 12,
-    flexDirection: "row", justifyContent: "center", alignItems: "center",
-    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4, marginTop: 10
-  },
-  submitText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-
-  // Type Options
-  typeOptionTextSelected: {
-    color: "#2563EB",
-    fontWeight: "600",
-  },
-  // Dropdown Styles
-  dropdownInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    paddingRight: 12,
-  },
-  dropdownInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#1E293B",
-  },
-  arrowBtn: {
-    padding: 4,
-  },
-  dropdownMenu: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    marginTop: 4,
+    paddingHorizontal: 20,
+    height: 80,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#64748B",
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.5,
+  },
+  cancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  cancelText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B"
+  },
+  formContent: {
+    padding: 20,
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
     elevation: 3,
+  },
+  sectionHeaderContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#EEF2FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#334155",
+    letterSpacing: -0.2,
+  },
+  inputGroup: {
+    marginBottom: 18
+  },
+  row: {
+    flexDirection: "row"
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748B",
+    marginBottom: 8,
+    marginLeft: 4,
+    letterSpacing: 0.5,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    height: 56,
+    paddingHorizontal: 16,
+  },
+  suffixIcon: {
+    marginLeft: 10
+  },
+  phonePrefix: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#64748B",
+    marginRight: 8,
+  },
+  currencyPrefix: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#10B981",
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1E293B",
+    height: "100%",
+    fontWeight: "500",
+  },
+  inputValue: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1E293B",
+    fontWeight: "500",
+  },
+  weightUnit: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#94A3B8',
+    marginLeft: 10,
+  },
+  helperText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 6,
+    marginLeft: 4,
+    fontStyle: 'italic',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
     zIndex: 1000,
   },
   dropdownItem: {
-    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  dropdownItemActive: {
+    backgroundColor: '#EEF2FF',
   },
   dropdownItemText: {
     fontSize: 14,
-    color: "#475569",
+    color: '#475569',
+    fontWeight: '500',
   },
-  dropdownItemTextSelected: {
-    color: "#2563EB",
-    fontWeight: "600",
+  dropdownItemTextActive: {
+    color: '#4F46E5',
+    fontWeight: '700',
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  submitButton: {
+    backgroundColor: "#4F46E5",
+    height: 60,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  disabledButton: {
+    backgroundColor: "#94A3B8",
+    shadowOpacity: 0.1,
+    elevation: 0,
+  },
+  submitButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });
 

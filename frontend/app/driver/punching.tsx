@@ -34,14 +34,14 @@ type MapViewType = any;
 const OFFICE_LOCATION = {
   latitude: 11.312394,
   longitude: 75.951408,
-  name: "College Location"
+  name: "Office Location"
 };
 const WAREHOUSE_LOCATION = {
   latitude: 11.6239440,
   longitude: 76.0707980,
-  name: "Home Location"
+  name: "Office Location"
 };
-const ALLOWED_RADIUS_METERS = 500;
+const ALLOWED_RADIUS_METERS = 1000;
 // ==================================================
 
 interface PunchRecord {

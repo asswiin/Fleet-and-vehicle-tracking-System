@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, Calendar, AlertCircle } from "lucide-react-native";
 import { api } from "../../utils/api";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -29,14 +29,16 @@ const ReportVehicleServiceScreen = () => {
     existingData?: string;
     reporterName?: string;
     reporterRole?: string;
+    reporterId?: string;
+    tripId?: string;
   }>();
 
   const isEdit = params.editMode === "true";
   const existing = params.existingData ? JSON.parse(params.existingData as string) : null;
 
   const [formData, setFormData] = useState({
-    vehicleId: params.vehicleId || "",
-    registrationNumber: params.vehicleReg || "",
+    vehicleId: params.vehicleId || (existing?.vehicleId?._id || existing?.vehicleId) || "",
+    registrationNumber: params.vehicleReg || existing?.registrationNumber || "",
     dateOfIssue: existing?.dateOfIssue ? new Date(existing.dateOfIssue) : new Date(),
     issueType: existing?.issueType || "",
     issueDescription: existing?.issueDescription || "",
@@ -48,6 +50,25 @@ const ReportVehicleServiceScreen = () => {
 
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState<"issue" | "service" | "completion" | null>(null);
+
+  useEffect(() => {
+    const fetchVehicleDetails = async () => {
+      if (formData.vehicleId && !formData.registrationNumber) {
+        setLoading(true);
+        try {
+          const res = await api.getVehicle(formData.vehicleId);
+          if (res.ok && res.data) {
+            setFormData(prev => ({ ...prev, registrationNumber: res.data.regNumber }));
+          }
+        } catch (e) {
+          console.error("Failed to fetch vehicle", e);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    fetchVehicleDetails();
+  }, [formData.vehicleId]);
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === "android") {
@@ -109,7 +130,9 @@ const ReportVehicleServiceScreen = () => {
         serviceStartDate: formData.serviceStartDate.toISOString(),
         workshopName: formData.workshopName,
         reportedBy: isEdit ? existing?.reportedBy : (params.reporterName || "Unknown"),
+        reportedById: isEdit ? existing?.reportedById : (params.reporterId || null),
         reporterRole: isEdit ? existing?.reporterRole : (params.reporterRole || "Manager"),
+        tripId: isEdit ? existing?.tripId : (params.tripId || null),
       };
 
       if (formData.totalServiceCost.trim()) {
@@ -160,14 +183,14 @@ const ReportVehicleServiceScreen = () => {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Registration Number *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: "#F1F5F9", color: "#64748B" }]}
               placeholder="e.g., KL 01 AB 1234"
               placeholderTextColor="#94A3B8"
               value={formData.registrationNumber}
               onChangeText={(text) =>
                 setFormData({ ...formData, registrationNumber: text.toUpperCase() })
               }
-              editable={!params.vehicleReg}
+              editable={false}
             />
           </View>
 

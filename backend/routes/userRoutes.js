@@ -199,7 +199,9 @@ router.post("/create-manager", async (req, res) => {
       phone: phone || "",
       dob: dob || "",   // ADDED: Store the Date of Birth
       place: placeString,
-      address: addressData, // ADDED: Store the full Address object
+      address: addressData,
+      district: addressData.district, // Root level district
+      branch: addressData.branch || "Mukkam", // Root level branch, defaulting to Mukkam for this hub
       role: "manager",
     });
 
@@ -335,13 +337,13 @@ router.put("/:id/profile", async (req, res) => {
 router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
-    
+
     // Set resignedDate if status is being updated to 'Resigned'
     const updateData = { status };
     if (status === "Resigned") {
       updateData.resignedDate = new Date();
     }
-    
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       updateData,

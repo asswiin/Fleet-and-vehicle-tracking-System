@@ -37,6 +37,7 @@ const DriverDashboard = () => {
   const params = useLocalSearchParams();
   const [driverData, setDriverData] = useState<Driver | null>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
+  const [activeService, setActiveService] = useState<any>(null);
   const [notificationCount, setNotificationCount] = useState(0);
 
   const driverName = (driverData?.name || params.userName || "Driver").toString();
@@ -51,7 +52,24 @@ const DriverDashboard = () => {
     if (!driverId) return;
     try {
       const res = await api.getDriver(driverId as string);
-      if (res.ok && res.data) setDriverData(res.data);
+      if (res.ok && res.data) {
+        setDriverData(res.data);
+        
+        // Handle termination
+        if (res.data.status === "Terminated") {
+          Alert.alert(
+            "Account Terminated",
+            "Your account has been terminated by the management. You have been logged out.",
+            [{ 
+              text: "OK", 
+              onPress: () => router.replace({
+                pathname: "/shared/login",
+                params: { role: selectedRole, district: selectedDistrict, branch: selectedBranch }
+              } as any)
+            }]
+          );
+        }
+      }
     } catch (e) {
       console.error(e);
     }
@@ -73,8 +91,28 @@ const DriverDashboard = () => {
     if (!driverId) return;
     try {
       const res = await api.getActiveTrip(driverId as string);
-      if (res.ok && res.data) setActiveTrip(res.data);
-      else setActiveTrip(null);
+      if (res.ok && res.data) {
+        setActiveTrip(res.data);
+        if (res.data.vehicleId?._id) {
+          fetchActiveService(res.data.vehicleId._id);
+        }
+      } else {
+        setActiveTrip(null);
+        setActiveService(null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchActiveService = async (vehicleId: string) => {
+    try {
+      const res = await api.getVehicleServiceHistory(vehicleId);
+      if (res.ok && Array.isArray(res.data)) {
+        // Find if there's an In-Service record reported by this driver for this trip
+        const ongoing = res.data.find((s: any) => s.status === "In-Service");
+        setActiveService(ongoing || null);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -279,6 +317,25 @@ const DriverDashboard = () => {
           <TouchableOpacity
             style={styles.actionCard}
             onPress={() => {
+              // If there's an active service reported by THIS driver during THIS trip
+              const canComplete = activeService && 
+                                  activeService.reportedById === driverId && 
+                                  activeService.tripId === activeTrip?._id;
+
+              if (canComplete) {
+                router.push({
+                  pathname: "/driver/complete-service" as any,
+                  params: {
+                    serviceId: activeService._id,
+                    driverId: driverId,
+                    vehicleReg: activeTrip.vehicleId.regNumber,
+                    previousOdometer: activeService.odometerReading ? String(activeService.odometerReading) : "",
+                    role: selectedRole,
+                  }
+                });
+                return;
+              }
+
               if (activeTrip?.vehicleId) {
                 router.push({
                   pathname: "/manager/report-vehicle-service" as any,
@@ -287,6 +344,8 @@ const DriverDashboard = () => {
                     vehicleReg: activeTrip.vehicleId.regNumber,
                     reporterName: driverName,
                     reporterRole: "Driver",
+                    reporterId: driverId,
+                    tripId: activeTrip._id,
                   }
                 });
               } else {
@@ -294,11 +353,11 @@ const DriverDashboard = () => {
               }
             }}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: "#FFFBEB" }]}>
-              <Settings size={22} color="#D97706" />
+            <View style={[styles.actionIconBox, { backgroundColor: activeService ? "#ECFDF5" : "#FFFBEB" }]}>
+              <Settings size={22} color={activeService ? "#059669" : "#D97706"} />
             </View>
-            <Text style={styles.actionLabel}>Breakdown</Text>
-            <Text style={styles.actionSub}>Report Issue</Text>
+            <Text style={styles.actionLabel}>{activeService ? "Fix Done" : "Breakdown"}</Text>
+            <Text style={styles.actionSub}>{activeService ? "Complete Service" : "Report Issue"}</Text>
           </TouchableOpacity>
         </View>
 

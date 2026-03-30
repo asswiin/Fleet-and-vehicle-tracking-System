@@ -26,11 +26,13 @@ const vehicleServiceSchema = new mongoose.Schema(
       default: "In-Service",
     },
     reportedBy: { type: String, required: true }, // Name of the person who reported
+    reportedById: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
     reporterRole: {
       type: String,
       enum: ["Driver", "Manager"],
       required: true,
     },
+    tripId: { type: mongoose.Schema.Types.ObjectId, ref: "Trip", default: null },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true }

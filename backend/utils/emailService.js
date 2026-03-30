@@ -15,7 +15,7 @@ const sendCredentialsEmail = async (email, name, password, role = "Staff Member"
     });
 
     const mailOptions = {
-      from: '"Logistics Admin" <no-reply@logistics.com>',
+      from: '"Sree Gokulam" <no-reply@sreeegokulam.com>',
       to: email,
       subject: `Your ${role === 'driver' ? 'Driver' : 'Manager'} Account Credentials`,
       html: `
@@ -56,7 +56,7 @@ const sendTrackingEmail = async (email, recipientName, trackingId) => {
     const trackingLink = `${frontendUrl}/?trackingId=${trackingId}`;
 
     const mailOptions = {
-      from: '"Logistics Tracking" <no-reply@logistics.com>',
+      from: '"Sree Gokulam" <no-reply@sreeegokulam.com>',
       to: email,
       subject: `Your Parcel ${trackingId} is Out for Delivery!`,
       html: `
@@ -78,7 +78,7 @@ const sendTrackingEmail = async (email, recipientName, trackingId) => {
             </p>
           </div>
           <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="font-size: 12px; color: #94a3b8; margin: 0;">&copy; 2026 Fleet & Vehicle Tracking System. All rights reserved.</p>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0;">&copy; 2026 Sree Gokulam. All rights reserved.</p>
           </div>
         </div>
       `,
@@ -105,7 +105,7 @@ const sendDeliverySuccessEmail = async (email, recipientName, trackingId) => {
     });
 
     const mailOptions = {
-      from: '"Logistics Tracking" <no-reply@logistics.com>',
+      from: '"Sree Gokulam" <no-reply@sreeegokulam.com>',
       to: email,
       subject: `Parcel Delivered: ${trackingId}`,
       html: `
@@ -120,7 +120,7 @@ const sendDeliverySuccessEmail = async (email, recipientName, trackingId) => {
             </p>
           </div>
           <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="font-size: 12px; color: #94a3b8; margin: 0;">&copy; 2026 Fleet & Vehicle Tracking System. All rights reserved.</p>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0;">&copy; 2026 Sree Gokulam. All rights reserved.</p>
           </div>
         </div>
       `,
@@ -133,4 +133,58 @@ const sendDeliverySuccessEmail = async (email, recipientName, trackingId) => {
   }
 };
 
-module.exports = { sendCredentialsEmail, sendTrackingEmail, sendDeliverySuccessEmail };
+const sendTerminationEmail = async (email, name, message) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "aswinhareesh1991@gmail.com",
+        pass: "jydr zizx dvyv ntye",
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+
+    const mailOptions = {
+      from: '"Sree Gokulam" <no-reply@sreeegokulam.com>',
+      to: email,
+      subject: `Account Processed: Service Termination`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #fee2e2; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #ef4444; padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">Notice of Termination</h1>
+          </div>
+          <div style="padding: 30px; background-color: white;">
+            <p style="font-size: 16px; color: #111827;">Dear <strong>${name}</strong>,</p>
+            <p style="font-size: 16px; color: #4b5563; line-height: 1.6;">
+              Please be informed that your service with us has been terminated effective immediately.
+            </p>
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0; font-weight: 600; color: #991b1b;">Message from Management:</p>
+              <p style="margin: 5px 0 0; color: #b91c1c;">${message || "No additional information provided."}</p>
+            </div>
+            <p style="font-size: 14px; color: #6b7280; line-height: 1.5;">
+              You will no longer be able to access the driver dashboard or the trip logs. If you have any questions regarding this decision, please contact the main office.
+            </p>
+          </div>
+          <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #fee2e2;">
+            <p style="font-size: 12px; color: #9ca3af; margin: 0;">&copy; 2026 Sree Gokulam. Confidential Communication.</p>
+          </div>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Termination email successfully sent to ${email}`);
+  } catch (error) {
+    console.error("Termination email sending failed:", error);
+  }
+};
+
+module.exports = { 
+  sendCredentialsEmail, 
+  sendTrackingEmail, 
+  sendDeliverySuccessEmail,
+  sendTerminationEmail 
+};

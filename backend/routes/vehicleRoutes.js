@@ -23,7 +23,9 @@ router.post("/register", async (req, res) => {
       taxExpiry: taxDate,
       status: "Active",
       vehiclePhotos: vehiclePhotos || [],
-      profilePhoto: profilePhoto || ""
+      profilePhoto: profilePhoto || "",
+      branch: req.body.branch || "Mukkam",
+      district: req.body.district || "Kozhikode"
     });
 
     await newVehicle.save();
@@ -60,35 +62,32 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 4. UPDATE VEHICLE STATUS (Mark as Sold, Maintenance, etc.)
+// 4. UPDATE VEHICLE (Partial or Full)
 router.put("/:id", async (req, res) => {
   try {
-    const {
-      regNumber,
-      model,
-      type,
-      weight,
-      insuranceDate,
-      pollutionDate,
-      taxDate,
-      vehiclePhotos,
-      profilePhoto
-    } = req.body;
+    const updateData = { ...req.body };
+    
+    // Map frontend 'weight' to 'capacity' if provided
+    if (req.body.weight !== undefined) {
+      updateData.capacity = req.body.weight;
+      delete updateData.weight;
+    }
+    
+    // Map frontend date fields to schema fields if provided
+    if (req.body.insuranceDate !== undefined) {
+      updateData.insuranceExpiry = req.body.insuranceDate;
+    }
+    if (req.body.pollutionDate !== undefined) {
+      updateData.pollutionExpiry = req.body.pollutionDate;
+    }
+    if (req.body.taxDate !== undefined) {
+      updateData.taxExpiry = req.body.taxDate;
+    }
 
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
       req.params.id,
-      {
-        regNumber,
-        model,
-        type,
-        capacity: weight, // Map 'weight' from frontend to 'capacity' in DB
-        insuranceExpiry: insuranceDate,
-        pollutionExpiry: pollutionDate,
-        taxExpiry: taxDate,
-        vehiclePhotos,
-        profilePhoto
-      },
-      { new: true } // Return updated doc
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
 
     if (!updatedVehicle) {

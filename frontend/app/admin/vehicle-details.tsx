@@ -11,10 +11,12 @@ import {
   StatusBar,
   Dimensions,
   Platform,
+  Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback, useEffect } from "react";
 import { api } from "../../utils/api";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import {
   ChevronLeft,
   Truck,
@@ -46,6 +48,9 @@ const VehicleDetailsScreen = () => {
 
   const [vehicle, setVehicle] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDateType, setSelectedDateType] = useState<'insurance' | 'pollution' | 'tax' | null>(null);
+  const [tempDate, setTempDate] = useState(new Date());
 
   const fetchVehicle = async () => {
     if (!vehicleId) return;
@@ -86,6 +91,38 @@ const VehicleDetailsScreen = () => {
     const date = parseDate(dateInput);
     if (!date) return "Not Set";
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const getRemainingTime = (dateInput?: string) => {
+    const date = parseDate(dateInput);
+    if (!date) return "Not Set";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (date < today) return "Expired";
+
+    let years = date.getFullYear() - today.getFullYear();
+    let months = date.getMonth() - today.getMonth();
+    let days = date.getDate() - today.getDate();
+
+    if (days < 0) {
+      months--;
+      const lastDay = new Date(date.getFullYear(), date.getMonth(), 0).getDate();
+      days += lastDay;
+    }
+
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (months > 0) parts.push(`${months}m`);
+    if (days > 0) parts.push(`${days}d`);
+
+    return parts.length > 0 ? parts.join(' ') : 'Today';
   };
 
   const getExpiryStatus = (dateInput?: string) => {
@@ -146,6 +183,50 @@ const VehicleDetailsScreen = () => {
     } as any);
   };
 
+  const handleEditDocument = (docType: 'insurance' | 'pollution' | 'tax') => {
+    setSelectedDateType(docType);
+    setTempDate(new Date());
+    setShowDatePicker(true);
+  };
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (date) setTempDate(date);
+  };
+
+  const handleConfirmDate = async (dateToConfirm?: Date) => {
+    if (!selectedDateType) return;
+
+    const finalDate = dateToConfirm || tempDate;
+    const formattedDateForDisplay = finalDate.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    const formattedDateForBackend = finalDate.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).split('/').join('/'); // DD/MM/YYYY format
+
+    try {
+      const updateData: any = {};
+      if (selectedDateType === 'insurance') updateData.insuranceDate = formattedDateForBackend;
+      else if (selectedDateType === 'pollution') updateData.pollutionDate = formattedDateForBackend;
+      else if (selectedDateType === 'tax') updateData.taxDate = formattedDateForBackend;
+
+      const res = await api.updateVehicle(vehicle._id, updateData);
+      if (res.ok) {
+        Alert.alert('Success', `Document date successfully updated to ${formattedDateForDisplay}`);
+        fetchVehicle();
+        setShowDatePicker(false);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update document date');
+    }
+  };
+
   const handleMarkAsService = () => {
     router.push({
       pathname: "/manager/report-vehicle-service" as any,
@@ -173,7 +254,12 @@ const VehicleDetailsScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header & Gallery Section */}
         <View style={styles.heroSection}>
-          {vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 ? (
+          {vehicle.profilePhoto ? (
+            <Image 
+              source={{ uri: api.getImageUrl(vehicle.profilePhoto)! }} 
+              style={styles.heroImage} 
+            />
+          ) : vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {vehicle.vehiclePhotos.map((photo: string, i: number) => (
                 <Image key={i} source={{ uri: api.getImageUrl(photo)! }} style={styles.heroImage} />
@@ -225,8 +311,28 @@ const VehicleDetailsScreen = () => {
             <SpecItem icon={Layers} label="Type" value={vehicle.type || "N/A"} />
             <SpecItem icon={Weight} label="Payload" value={getCapacity() ? `${getCapacity()} Kg` : "N/A"} />
             <SpecItem icon={Calendar} label="Reg Date" value={vehicle.createdAt ? formatDateForDisplay(vehicle.createdAt) : "N/A"} />
-            <SpecItem icon={Tag} label="Brand" value={vehicle.brand || "N/A"} />
           </View>
+
+          {/* Vehicle Photos Gallery */}
+          {vehicle.vehiclePhotos && vehicle.vehiclePhotos.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Vehicle Gallery</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.photoGallery}
+              >
+                {vehicle.vehiclePhotos.map((photo: string, index: number) => (
+                  <View key={index} style={styles.photoGalleryItem}>
+                    <Image 
+                      source={{ uri: api.getImageUrl(photo)! }} 
+                      style={styles.galleryImage}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
 
           {/* Document Management */}
           <View style={styles.sectionHeaderRow}>
@@ -239,18 +345,24 @@ const VehicleDetailsScreen = () => {
               label="Insurance Policy"
               date={getInsuranceDate()}
               status={getExpiryStatus(getInsuranceDate())}
+              onEdit={() => handleEditDocument('insurance')}
+              showEdit={userRole === 'manager' || userRole === 'admin'}
             />
             <DocRow
               icon={AlertCircle}
               label="Pollution Control"
               date={getPollutionDate()}
               status={getExpiryStatus(getPollutionDate())}
+              onEdit={() => handleEditDocument('pollution')}
+              showEdit={userRole === 'manager' || userRole === 'admin'}
             />
             <DocRow
               icon={Tag}
               label="Road Tax Payment"
               date={getTaxDate()}
               status={getExpiryStatus(getTaxDate())}
+              onEdit={() => handleEditDocument('tax')}
+              showEdit={userRole === 'manager' || userRole === 'admin'}
               isLast
             />
           </View>
@@ -371,6 +483,60 @@ const VehicleDetailsScreen = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Date Picker Modal for iOS */}
+      <Modal
+        visible={showDatePicker && Platform.OS === 'ios'}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.datePickerModalContainer}>
+          <View style={styles.datePickerContent}>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.datePickerTitle}>
+                {selectedDateType === 'insurance' ? 'Update Insurance' : selectedDateType === 'pollution' ? 'Update Pollution' : 'Update Road Tax'}
+              </Text>
+              <Text style={styles.datePickerSelectedPreview}>
+                Selected: {tempDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </Text>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="spinner"
+              onChange={handleDateChange}
+              maximumDate={new Date(new Date().getFullYear() + 10, 11, 31)}
+            />
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity style={styles.datePickerCancel} onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.datePickerConfirm} onPress={() => handleConfirmDate()}>
+                <Text style={styles.datePickerConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Date Picker for Android */}
+      {showDatePicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            setShowDatePicker(false);
+            if (date) {
+              setTempDate(date);
+              // Pass the date directly to avoid stale closure state issues
+              setTimeout(() => handleConfirmDate(date), 100);
+            }
+          }}
+          maximumDate={new Date(new Date().getFullYear() + 10, 11, 31)}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -385,7 +551,7 @@ const SpecItem = ({ icon: Icon, label, value }: any) => (
   </View>
 );
 
-const DocRow = ({ icon: Icon, label, date, status, isLast }: any) => {
+const DocRow = ({ icon: Icon, label, date, status, isLast, onEdit, showEdit }: any) => {
   const parseDateLocal = (dateInput?: string): Date | null => {
     if (!dateInput) return null;
     if (dateInput.includes('/')) {
@@ -397,11 +563,45 @@ const DocRow = ({ icon: Icon, label, date, status, isLast }: any) => {
     return null;
   };
 
+  const getRemainingTimeLocal = (dateInput?: string) => {
+    const expiryDate = parseDateLocal(dateInput);
+    if (!expiryDate) return "Not Set";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (expiryDate < today) return "Expired";
+
+    let years = expiryDate.getFullYear() - today.getFullYear();
+    let months = expiryDate.getMonth() - today.getMonth();
+    let days = expiryDate.getDate() - today.getDate();
+
+    if (days < 0) {
+      months--;
+      const lastDay = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), 0).getDate();
+      days += lastDay;
+    }
+
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (months > 0) parts.push(`${months}m`);
+    if (days > 0) parts.push(`${days}d`);
+
+    return parts.length > 0 ? parts.join(' ') : 'Today';
+  };
+
   const formattedDate = date ? parseDateLocal(date)?.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric'
   }) : 'Not Set';
+
+  const remainingTime = getRemainingTimeLocal(date);
 
   return (
     <View style={[styles.docRow, isLast && { borderBottomWidth: 0 }]}>
@@ -411,7 +611,17 @@ const DocRow = ({ icon: Icon, label, date, status, isLast }: any) => {
       <View style={{ flex: 1 }}>
         <Text style={styles.docLabelName}>{label}</Text>
         <Text style={styles.docDateVal}>Expires: {formattedDate}</Text>
+        {remainingTime !== 'Not Set' && (
+          <Text style={[styles.docRemainingTime, { color: status.color }]}>
+            {remainingTime === 'Expired' ? 'Expired' : `${remainingTime} remaining`}
+          </Text>
+        )}
       </View>
+      {showEdit && (
+        <TouchableOpacity style={styles.docEditBtn} onPress={onEdit}>
+          <Edit2 size={16} color="#6366F1" />
+        </TouchableOpacity>
+      )}
       <View style={[styles.docStatusBadge, { backgroundColor: status.bg }]}>
         <Text style={[styles.docStatusText, { color: status.color }]}>{status.text}</Text>
       </View>
@@ -622,6 +832,11 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
   },
+  docRemainingTime: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   docStatusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -631,6 +846,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  docEditBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F5F3FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   actionGrid: {
     gap: 12,
@@ -700,6 +924,87 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#94A3B8',
     letterSpacing: 1,
+  },
+  photoGallery: {
+    marginBottom: 24,
+  },
+  photoGalleryItem: {
+    marginRight: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  galleryImage: {
+    width: 160,
+    height: 140,
+    resizeMode: 'cover',
+  },
+  datePickerModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  datePickerContent: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 20,
+  },
+  datePickerHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  datePickerSelectedPreview: {
+    fontSize: 14,
+    color: '#0EA5E9',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  datePickerCancel: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#475569',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+  },
+  datePickerCancelText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  datePickerConfirm: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#0EA5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerConfirmText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 

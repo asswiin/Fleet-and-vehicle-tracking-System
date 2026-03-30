@@ -69,6 +69,7 @@ const EditVehicleScreen = () => {
     field: null,
     value: new Date(),
   });
+  const [tempDate, setTempDate] = useState(new Date());
 
   // Handle Registration Number Input with Formatting
   const handleRegNumberChange = (text: string) => {
@@ -133,20 +134,26 @@ const EditVehicleScreen = () => {
   };
 
   // Helper to handle date changes
-  const onDateChange = (event: any, selectedDate?: Date) => {
+  const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === "android") {
       setDatePicker((prev) => ({ ...prev, show: false }));
     }
-
-    if (selectedDate && datePicker.field) {
-      // Keep ISO string for backend, or standard format depending on your DB preference
-      // Here we store ISO string
-      setForm({ ...form, [datePicker.field]: selectedDate.toISOString() });
+    if (selectedDate) {
+      setTempDate(selectedDate);
     }
+  };
+
+  const handleConfirmDate = () => {
+    if (datePicker.field) {
+      const formatted = tempDate.toLocaleDateString('en-GB');
+      setForm({ ...form, [datePicker.field]: formatted });
+    }
+    setDatePicker((prev) => ({ ...prev, show: false }));
   };
 
   const openDatePicker = (field: string, currentValue: string) => {
     const dateValue = currentValue ? new Date(currentValue) : new Date();
+    setTempDate(dateValue);
     setDatePicker({ show: true, field, value: dateValue });
   };
 
@@ -239,7 +246,11 @@ const EditVehicleScreen = () => {
         }
       }
 
-      const response = await api.updateVehicle(initialData._id, form);
+      const response = await api.updateVehicle(initialData._id, {
+        ...form,
+        branch: "Mukkam",
+        district: "Kozhikode"
+      });
 
       if (response.ok) {
         Alert.alert("Success", "Vehicle details updated successfully", [
@@ -417,12 +428,58 @@ const EditVehicleScreen = () => {
       </ScrollView>
 
       {/* Date Picker */}
-      {datePicker.show && (
+      {datePicker.show && Platform.OS === 'ios' && (
+        <Modal visible={datePicker.show} transparent animationType="slide">
+          <View style={styles.datePickerModalContainer}>
+            <View style={styles.datePickerContent}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Date</Text>
+              </View>
+              <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleDateChange}
+                  textColor="#fff"
+                />
+              </View>
+              <View style={styles.datePickerActions}>
+                <TouchableOpacity
+                  style={styles.datePickerCancel}
+                  onPress={() => setDatePicker(prev => ({ ...prev, show: false }))}
+                >
+                  <Text style={styles.datePickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.datePickerConfirm}
+                  onPress={handleConfirmDate}
+                >
+                  <Text style={styles.datePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {datePicker.show && Platform.OS === 'android' && (
         <DateTimePicker
-          value={datePicker.value}
+          value={tempDate}
           mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={onDateChange}
+          display="default"
+          onChange={(e, date) => {
+            setDatePicker(prev => ({ ...prev, show: false }));
+            if (date) {
+              setTempDate(date);
+              setTimeout(() => {
+                if (datePicker.field) {
+                  const formatted = date.toLocaleDateString('en-GB');
+                  setForm(prev => ({ ...prev, [datePicker.field!]: formatted }));
+                }
+              }, 100);
+            }
+          }}
         />
       )}
 
@@ -458,72 +515,350 @@ const EditVehicleScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    padding: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: "#F5F7FA" 
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  backBtn: { padding: 4 },
-  content: { padding: 20 },
-  inputGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: "800", 
+    color: "#1A202C",
+    letterSpacing: 0.3,
+  },
+  backBtn: { 
+    padding: 8,
+    marginRight: 8,
+  },
+  content: { 
+    padding: 24 
+  },
+  inputGroup: { 
+    marginBottom: 20 
+  },
+  label: { 
+    fontSize: 11, 
+    fontWeight: "700", 
+    color: "#718096", 
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   input: {
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, color: "#1E293B",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1A202C",
+    fontWeight: "500",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   dropdownBtn: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  inputText: { fontSize: 15, color: "#1E293B" },
+  inputText: { 
+    fontSize: 15, 
+    color: "#1A202C",
+    fontWeight: "500",
+  },
   dateBtn: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginTop: 10, marginBottom: 15 },
+  sectionTitle: { 
+    fontSize: 17, 
+    fontWeight: "800", 
+    color: "#1A202C", 
+    marginTop: 24,
+    marginBottom: 16,
+    letterSpacing: 0.3,
+  },
   saveBtn: {
-    backgroundColor: "#2563EB", flexDirection: "row", justifyContent: "center", alignItems: "center",
-    height: 50, borderRadius: 12, shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+    backgroundColor: "#2563EB",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    height: 56,
+    borderRadius: 12,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+    marginTop: 8,
   },
-  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  saveBtnText: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15, color: "#0F172A" },
-  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#F1F5F9", flexDirection: "row", justifyContent: "space-between" },
-  modalItemText: { fontSize: 16, color: "#334155" },
-  descText: { fontSize: 13, color: "#64748B", marginBottom: 15, lineHeight: 18 },
-  photoContainer: { marginBottom: 20 },
-  photoWrapper: { marginRight: 12, position: 'relative' },
-  photoItem: { width: 100, height: 100, borderRadius: 12, backgroundColor: '#E2E8F0' },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: "rgba(0,0,0,0.5)", 
+    justifyContent: "flex-end" 
+  },
+  modalContent: { 
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 32,
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: "800", 
+    marginBottom: 20, 
+    color: "#1A202C",
+    letterSpacing: 0.3,
+  },
+  modalItem: { 
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalItemText: { 
+    fontSize: 16, 
+    color: "#1A202C",
+    fontWeight: "600",
+  },
+  descText: { 
+    fontSize: 13, 
+    color: "#718096", 
+    marginBottom: 16, 
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  photoContainer: { 
+    marginBottom: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: "#F0F4F8",
+  },
+  photoWrapper: { 
+    marginRight: 12, 
+    position: 'relative' 
+  },
+  photoItem: { 
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
   removePhotoBtn: {
-    position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444',
-    borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center'
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   addPhotoBtn: {
-    width: 100, height: 100, borderRadius: 12, borderStyle: 'dashed',
-    borderWidth: 2, borderColor: '#2563EB', justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#EFF6FF'
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
   },
-  addPhotoText: { fontSize: 12, fontWeight: '600', color: '#2563EB', marginTop: 4 },
-  profilePhotoSection: { alignItems: 'center', marginBottom: 24 },
-  profilePhotoContainer: { position: 'relative' },
-  profilePhoto: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#E2E8F0' },
+  addPhotoText: { 
+    fontSize: 12, 
+    fontWeight: '700', 
+    color: '#2563EB', 
+    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+  profilePhotoSection: { 
+    alignItems: 'center', 
+    marginBottom: 32,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 28,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  profilePhotoContainer: { 
+    position: 'relative' 
+  },
+  profilePhoto: { 
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   profilePlaceholder: {
-    width: 120, height: 120, borderRadius: 60, backgroundColor: '#E2E8F0',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1'
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#BFDBFE',
   },
   cameraIconBadge: {
-    position: 'absolute', bottom: 5, right: 5, backgroundColor: '#2563EB',
-    width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: '#fff'
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#2563EB',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  profilePhotoLabel: { fontSize: 14, fontWeight: '600', color: '#64748B', marginTop: 10 }
+  profilePhotoLabel: { 
+    fontSize: 14, 
+    fontWeight: '700', 
+    color: '#1A202C', 
+    marginTop: 16,
+    letterSpacing: 0.2,
+  },
+  datePickerModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  datePickerContent: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 20,
+  },
+  datePickerHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  datePickerCancel: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#475569',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+  },
+  datePickerCancelText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  datePickerConfirm: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#0EA5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerConfirmText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  }
 });
 
 export default EditVehicleScreen;

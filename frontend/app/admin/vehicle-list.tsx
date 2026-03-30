@@ -107,6 +107,36 @@ const VehicleListScreen = () => {
     }
   };
 
+  const parseDate = (dateInput?: string): Date | null => {
+    if (!dateInput) return null;
+    if (dateInput.includes('/')) {
+      const parts = dateInput.split('/');
+      if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+    const date = new Date(dateInput);
+    if (!isNaN(date.getTime())) return date;
+    return null;
+  };
+
+  const isExpiringSoon = (dateInput?: string) => {
+    const date = parseDate(dateInput);
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tenDaysFromNow = new Date(today);
+    tenDaysFromNow.setDate(today.getDate() + 10);
+    return date <= tenDaysFromNow;
+  };
+
+  const vehicleHasAlert = (item: Vehicle) => {
+    const dates = [
+      item.insuranceExpiry || item.insuranceDate || (item as any).insurance_date,
+      item.pollutionExpiry || item.pollutionDate || (item as any).pollution_date,
+      item.taxExpiry || item.taxDate || item.roadTaxExpiry
+    ];
+    return dates.some(d => isExpiringSoon(d));
+  };
+
   const renderStatCard = (label: string, count: number, color: string) => (
     <View style={styles.miniStatCard}>
       <Text style={[styles.miniStatCount, { color }]}>{count}</Text>
@@ -151,7 +181,14 @@ const VehicleListScreen = () => {
 
         <View style={styles.cardRight}>
           <View style={styles.headerRow}>
-            <Text style={styles.regNoText} numberOfLines={1}>{item.regNumber}</Text>
+            <View style={styles.regNoWrapper}>
+              <Text style={styles.regNoText} numberOfLines={1}>{item.regNumber}</Text>
+              {vehicleHasAlert(item) && (
+                <View style={styles.alertBadge}>
+                  <Text style={styles.alertText}>!</Text>
+                </View>
+              )}
+            </View>
             <View style={[styles.statusTag, { backgroundColor: config.bg }]}>
               <StatusIcon size={8} color={config.color} />
               <Text style={[styles.statusTagText, { color: config.color }]}>{config.label}</Text>
@@ -435,6 +472,27 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     textTransform: "uppercase",
+  },
+  regNoWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
+  alertBadge: {
+    backgroundColor: '#EF4444',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  alertText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
   },
   detailsRow: {
     flexDirection: "row",

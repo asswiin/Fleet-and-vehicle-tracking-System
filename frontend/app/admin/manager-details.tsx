@@ -19,8 +19,7 @@ import {
   MapPin,
   Calendar,
   UserX,
-  Edit2, // Import Edit Icon
-  History
+  Edit2,
 } from "lucide-react-native";
 
 const ManagerDetailsScreen = () => {
@@ -156,20 +155,6 @@ const ManagerDetailsScreen = () => {
             </View>
           </View>
 
-          {/* History Button Section */}
-          <TouchableOpacity
-            style={styles.historyCard}
-            onPress={() => router.push({ pathname: "/shared/trip-history", params: { role: 'admin' } } as any)}
-          >
-            <View style={styles.historyIconContainer}>
-              <History size={24} color="#166534" />
-            </View>
-            <View style={styles.historyContent}>
-              <Text style={styles.historyLabel}>Trip History</Text>
-              <Text style={styles.historySubtext}>View all completed trips for this branch</Text>
-            </View>
-          </TouchableOpacity>
-
           {/* Info Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
@@ -190,7 +175,7 @@ const ManagerDetailsScreen = () => {
               </View>
             </View>
 
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]}>
               <View style={styles.iconBox}><Calendar size={20} color="#0EA5E9" /></View>
               <View>
                 <Text style={styles.label}>Date of Birth</Text>
@@ -203,7 +188,7 @@ const ManagerDetailsScreen = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Address Details</Text>
 
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]}>
               <View style={styles.iconBox}><MapPin size={20} color="#0EA5E9" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Formatted Address</Text>
@@ -228,7 +213,7 @@ const ManagerDetailsScreen = () => {
                 <Text style={styles.label}>District</Text>
                 <Text style={styles.value}>{getAddressField("district")}</Text>
               </View>
-              <View style={styles.addressItem}>
+              <View style={[styles.addressItem, { borderBottomWidth: 0 }]}>
                 <Text style={styles.label}>State</Text>
                 <Text style={styles.value}>{getAddressField("state")}</Text>
               </View>
@@ -279,146 +264,140 @@ const ManagerDetailsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
+  safeArea: { flex: 1, backgroundColor: "#F0F4F8" },
   container: { flex: 1 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
     backgroundColor: "#fff",
     marginTop: 30,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8EDF5",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  backButton: { padding: 4 },
-  editButton: { padding: 4 },
-  content: { padding: 20 },
+  headerTitle: { fontSize: 20, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 },
+  backButton: { padding: 8 },
+  editButton: { padding: 8 },
+  content: { padding: 20, paddingTop: 24 },
 
   profileCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 24,
+    padding: 32,
     alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    marginBottom: 28,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#F0F4F8",
   },
   avatar: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: "#E0F2FE",
-    justifyContent: "center", alignItems: "center", marginBottom: 12, resizeMode: "cover"
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#E0F2FE",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    resizeMode: "cover",
   },
   avatarResigned: { backgroundColor: "#FEE2E2" },
-  avatarText: { fontSize: 32, fontWeight: "700", color: "#0EA5E9" },
+  avatarText: { fontSize: 40, fontWeight: "800", color: "#0EA5E9" },
   avatarTextResigned: { color: "#EF4444" },
 
-  name: { fontSize: 22, fontWeight: "700", color: "#1E293B", marginBottom: 4 },
-  role: { fontSize: 14, color: "#64748B", marginBottom: 12 },
+  name: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 6, letterSpacing: -0.5 },
+  role: { fontSize: 15, color: "#64748B", fontWeight: "600", marginBottom: 16 },
 
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  badgeActive: { backgroundColor: "#DCFCE7" },
-  badgeResigned: { backgroundColor: "#FEE2E2" },
+  statusBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14 },
+  badgeActive: { backgroundColor: "#DCFCE7", borderWidth: 1, borderColor: "#BBF7D0" },
+  badgeResigned: { backgroundColor: "#FEE2E2", borderWidth: 1, borderColor: "#FECACA" },
 
-  statusText: { fontSize: 12, fontWeight: "600" },
+  statusText: { fontSize: 13, fontWeight: "700" },
   textActive: { color: "#166534" },
   textResigned: { color: "#991B1B" },
 
   section: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     marginBottom: 20,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F0F4F8",
   },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 16 },
-  infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A", marginBottom: 20, letterSpacing: -0.3 },
+  infoRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: "#F0F4F8" },
   iconBox: {
-    width: 40, height: 40, borderRadius: 10, backgroundColor: "#F1F5F9",
-    justifyContent: "center", alignItems: "center", marginRight: 16
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#EEF2FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+    marginTop: 2,
   },
-  label: { fontSize: 12, color: "#94A3B8", marginBottom: 2, textTransform: "uppercase", fontWeight: "600" },
-  value: { fontSize: 15, color: "#334155", fontWeight: "500" },
+  label: { fontSize: 11, color: "#94A3B8", marginBottom: 4, textTransform: "uppercase", fontWeight: "700", letterSpacing: 0.5 },
+  value: { fontSize: 16, color: "#1E293B", fontWeight: "600" },
 
   addressGrid: {
-    marginTop: 10,
-    backgroundColor: "#F8FAFC",
-    padding: 15,
-    borderRadius: 12,
-    gap: 12
+    marginTop: 0,
+    backgroundColor: "#F8FBFF",
+    padding: 20,
+    borderRadius: 16,
+    gap: 16,
   },
   addressItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    paddingBottom: 8
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F0F4F8",
   },
   deleteButton: {
     backgroundColor: "#EF4444",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    marginTop: 10
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+    marginTop: 12,
   },
   deleteButtonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "700"
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   resignedNotice: {
-    padding: 15,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10
+    padding: 20,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    alignItems: "center",
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
   },
   resignedNoticeText: {
-    color: "#64748B",
-    fontWeight: '600'
-  },
-  historyCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: "#16A34A"
-  },
-  historyIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#DCFCE7",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16
-  },
-  historyContent: {
-    flex: 1
-  },
-  historyLabel: {
-    fontSize: 16,
+    color: "#991B1B",
     fontWeight: "700",
-    color: "#1E293B"
+    fontSize: 14,
   },
-  historySubtext: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 2
-  }
 });
 
 export default ManagerDetailsScreen;

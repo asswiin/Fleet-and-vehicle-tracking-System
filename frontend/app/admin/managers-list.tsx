@@ -23,7 +23,6 @@ import {
   Plus,
   MapPin,
   Mail,
-  Filter,
   Users,
 } from "lucide-react-native";
 import { api } from "../../utils/api";
@@ -188,9 +187,6 @@ const ManagersListScreen: React.FC = () => {
                 onChangeText={setSearchText}
               />
             </View>
-            <TouchableOpacity style={styles.filterBtn}>
-              <Filter size={18} color="#64748B" />
-            </TouchableOpacity>
           </View>
 
           {/* Tabs */}
@@ -298,7 +294,6 @@ const styles = StyleSheet.create({
   searchSection: {
     flexDirection: "row",
     paddingHorizontal: 20,
-    gap: 12,
     marginBottom: 20,
   },
   searchWrapper: {
@@ -312,14 +307,6 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 15, color: "#1E293B", fontWeight: "500" },
-  filterBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#EEF2FF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   tabsWrapper: { paddingBottom: 0 },
   tabBar: { flexDirection: 'row', paddingHorizontal: 20, gap: 32 },
   tabItem: { paddingVertical: 12, position: 'relative' },

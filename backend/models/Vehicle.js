@@ -38,7 +38,11 @@ const vehicleSchema = new mongoose.Schema(
       buyerContact: { type: String, default: "" },
       saleDate: { type: String, default: "" },
       salePrice: { type: String, default: "" },
-    }
+    },
+    // Branch for access control
+    branch: { type: String, default: "Mukkam" },
+    // District for access control
+    district: { type: String, default: "Kozhikode" },
   },
   { timestamps: true }
 );

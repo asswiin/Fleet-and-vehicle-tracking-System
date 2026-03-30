@@ -19,7 +19,9 @@ router.post("/", async (req, res) => {
       serviceCompletionDate,
       status,
       reportedBy,
+      reportedById,
       reporterRole,
+      tripId,
     } = req.body;
 
     const record = new VehicleService({
@@ -35,7 +37,9 @@ router.post("/", async (req, res) => {
       serviceCompletionDate,
       status: status || "In-Service",
       reportedBy,
+      reportedById,
       reporterRole,
+      tripId,
     });
 
     await record.save();
@@ -85,9 +89,10 @@ router.put("/:id", async (req, res) => {
     const record = await VehicleService.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!record) return res.status(404).json({ message: "Record not found" });
 
-    // If completed, set vehicle back to Active
+    // If completed, set vehicle back to Active (or On-trip if it was during a trip)
     if (status === "Completed") {
-      await Vehicle.findByIdAndUpdate(record.vehicleId, { status: "Active" });
+      const vehicleStatus = record.tripId ? "On-trip" : "Active";
+      await Vehicle.findByIdAndUpdate(record.vehicleId, { status: vehicleStatus });
     }
 
     res.json(record);
@@ -110,25 +115,45 @@ router.get("/vehicle/:vehicleId", async (req, res) => {
 // 3. UPDATE SERVICE STATUS (mark as Completed)
 router.patch("/:id/status", async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, userId, userRole, totalServiceCost, odometerReading } = req.body;
+
+    const record = await VehicleService.findById(req.params.id);
+    if (!record) return res.status(404).json({ message: "Record not found" });
+
+    // Permission Logic...
+    if (status === "Completed") {
+      const isManager = userRole === "Manager" || userRole === "admin" || userRole === "manager";
+      const isReportingDriverDuringTrip = (userRole === "Driver" || userRole === "driver") && 
+                                          record.reporterRole === "Driver" && 
+                                          record.reportedById?.toString() === userId && 
+                                          record.tripId;
+      
+      if (!isManager && !isReportingDriverDuringTrip) {
+        return res.status(403).json({ message: "Only managers (or the driver who reported this during a trip) can mark it as completed." });
+      }
+    }
+
     const updatePayload = { status };
     if (status === "Completed") {
       updatePayload.serviceCompletionDate = new Date();
+      if (totalServiceCost !== undefined) updatePayload.totalServiceCost = totalServiceCost;
+      if (odometerReading !== undefined) updatePayload.odometerReading = odometerReading;
     }
 
-    const record = await VehicleService.findByIdAndUpdate(
+    const updatedRecord = await VehicleService.findByIdAndUpdate(
       req.params.id,
       updatePayload,
       { new: true }
     );
-    if (!record) return res.status(404).json({ message: "Record not found" });
+    if (!updatedRecord) return res.status(404).json({ message: "Record not found" });
 
-    // If completed, set vehicle back to Active
+    // If completed, set vehicle back to Active (or On-trip if it was during a trip)
     if (status === "Completed") {
-      await Vehicle.findByIdAndUpdate(record.vehicleId, { status: "Active" });
+      const vehicleStatus = updatedRecord.tripId ? "On-trip" : "Active";
+      await Vehicle.findByIdAndUpdate(updatedRecord.vehicleId, { status: vehicleStatus });
     }
 
-    res.json(record);
+    res.json(updatedRecord);
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

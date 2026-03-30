@@ -187,8 +187,9 @@ const EditManagerProfileScreen: React.FC = () => {
           street: formData.street,
           city: formData.city,
           district: formData.district,
-          state: formData.state
-        }
+          state: formData.state,
+        },
+        branch: "Mukkam"
       };
 
       // Convert image to base64 if a new image was selected
@@ -382,15 +383,13 @@ const EditManagerProfileScreen: React.FC = () => {
 
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>DISTRICT</Text>
-                <TouchableOpacity 
-                  style={[styles.inputWrapper, { paddingLeft: 12 }]} 
-                  onPress={() => setShowDistrictModal(true)}
+                <View 
+                  style={[styles.inputWrapper, { paddingLeft: 12, backgroundColor: "#F1F5F9" }]} 
                 >
-                  <Text style={[styles.input, { textAlignVertical: 'center', paddingTop: 14, color: "#1E293B" }]}>
-                    {formData.district || "Select"}
+                  <Text style={[styles.input, { textAlignVertical: 'center', paddingTop: 14, color: "#64748B" }]}>
+                    {formData.district}
                   </Text>
-                  <ChevronDown size={18} color="#94A3B8" />
-                </TouchableOpacity>
+                </View>
               </View>
             </View>
 
@@ -473,36 +472,70 @@ const EditManagerProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { flex: 1, paddingHorizontal: 20 },
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: "#F5F7FA" 
+  },
+  container: { 
+    flex: 1, 
+    paddingHorizontal: 24 
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 20,
-    marginBottom: 10,
+    paddingVertical: 16,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
-  iconButton: { padding: 4, marginLeft: -4 },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  formContainer: { paddingBottom: 100 },
+  iconButton: { 
+    padding: 8,
+    marginLeft: -8,
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: "800", 
+    color: "#1A202C",
+    letterSpacing: 0.3,
+  },
+  formContainer: { 
+    paddingBottom: 120 
+  },
   
   // Profile Photo Styles
   profilePhotoSection: {
     alignItems: "center",
-    marginBottom: 30,
-    marginTop: 10,
+    marginBottom: 32,
+    marginTop: 16,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F0F4F8",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   profilePhotoContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
     overflow: "hidden",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
     position: "relative",
+    shadowColor: "#0284C7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   profilePhoto: {
     width: "100%",
@@ -513,58 +546,69 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#0EA5E9",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#0284C7",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "#fff",
+    shadowColor: "#0284C7",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   profilePhotoPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
   },
   photoPlaceholderText: {
-    marginTop: 8,
+    marginTop: 10,
     fontSize: 12,
-    color: "#94A3B8",
-    fontWeight: "600",
+    color: "#718096",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   removePhotoBtn: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     backgroundColor: "#FEE2E2",
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
   },
   removePhotoText: {
-    marginLeft: 6,
+    marginLeft: 8,
     fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "600",
+    color: "#DC2626",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 
   sectionHeader: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0EA5E9",
-    marginTop: 10,
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    paddingBottom: 8,
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#1A202C",
+    marginTop: 24,
+    marginBottom: 16,
+    letterSpacing: 0.3,
   },
-  inputGroup: { marginBottom: 20 },
-  row: { flexDirection: "row" },
+  inputGroup: { 
+    marginBottom: 20 
+  },
+  row: { 
+    flexDirection: "row" 
+  },
   label: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#475569",
-    marginBottom: 6,
+    color: "#718096",
+    marginBottom: 8,
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
@@ -575,29 +619,64 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 12,
-    height: 50,
+    height: 52,
     paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  inputIcon: { marginRight: 12 },
-  phonePrefix: { fontSize: 16, fontWeight: "600", color: "#1E293B", marginRight: 8 },
-  phoneDivider: { width: 1, height: 24, backgroundColor: "#E2E8F0", marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: "#1E293B", height: "100%" },
-  footer: { position: "absolute", bottom: 30, left: 20, right: 20 },
+  inputIcon: { 
+    marginRight: 12 
+  },
+  phonePrefix: { 
+    fontSize: 16, 
+    fontWeight: "700", 
+    color: "#1A202C", 
+    marginRight: 10 
+  },
+  phoneDivider: { 
+    width: 1, 
+    height: 28, 
+    backgroundColor: "#E2E8F0", 
+    marginRight: 12 
+  },
+  input: { 
+    flex: 1, 
+    fontSize: 15, 
+    color: "#1A202C", 
+    height: "100%",
+    fontWeight: "500",
+  },
+  footer: { 
+    position: "absolute", 
+    bottom: 20, 
+    left: 24, 
+    right: 24 
+  },
   submitButton: {
     backgroundColor: "#2563EB",
     height: 56,
-    borderRadius: 28,
+    borderRadius: 12,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
     elevation: 4,
   },
-  disabledButton: { opacity: 0.7 },
-  submitButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  disabledButton: { 
+    opacity: 0.7 
+  },
+  submitButtonText: { 
+    color: "#FFFFFF", 
+    fontSize: 16, 
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
   
   modalOverlay: {
     flex: 1,
@@ -606,31 +685,51 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: "60%",
-    padding: 20,
+    padding: 24,
+    paddingBottom: 32,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
-    paddingBottom: 15,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#F0F4F8",
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  closeText: { color: "#0EA5E9", fontSize: 16, fontWeight: "600" },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: "800", 
+    color: "#1A202C",
+    letterSpacing: 0.3,
+  },
+  closeText: { 
+    color: "#0284C7", 
+    fontSize: 16, 
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
   districtItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 15,
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F8FAFC",
   },
-  districtText: { fontSize: 16, color: "#334155" },
-  selectedDistrictText: { color: "#0EA5E9", fontWeight: "700" },
+  districtText: { 
+    fontSize: 16, 
+    color: "#1A202C",
+    fontWeight: "600",
+  },
+  selectedDistrictText: { 
+    color: "#0284C7", 
+    fontWeight: "800" 
+  },
 });
 
 export default EditManagerProfileScreen;

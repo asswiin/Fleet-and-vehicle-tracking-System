@@ -14,15 +14,38 @@ import { User, Briefcase, Truck, MapPin, Building2, ChevronDown } from "lucide-r
 type Role = "admin" | "manager" | "driver" | null;
 
 const DISTRICTS = [
-  "Kozhikode",
-  "Kannur",
-  "Malappuram",
+  "Alappuzha",
   "Ernakulam",
+  "Idukki",
+  "Kannur",
+  "Kasaragod",
+  "Kollam",
   "Kottayam",
-  "Thrissur",
-  "Thiruvananthapuram",
+  "Kozhikode",
+  "Malappuram",
   "Palakkad",
+  "Pathanamthitta",
+  "Thiruvananthapuram",
+  "Thrissur",
+  "Wayanad",
 ];
+
+const BRANCHES_BY_DISTRICT: Record<string, string[]> = {
+  "Alappuzha": ["Alappuzha Town", "Cherthala", "Kayamkulam", "Mavelikkara", "Haripad"],
+  "Ernakulam": ["Kochi City", "Aluva", "Muvattupuzha", "Angamaly", "Perumbavoor", "Kalamassery"],
+  "Idukki": ["Thodupuzha", "Kattappana", "Munnar", "Adimali", "Painavu"],
+  "Kannur": ["Kannur City", "Thalassery", "Payyanur", "Iritty", "Taliparamba"],
+  "Kasaragod": ["Kasaragod Town", "Kanhangad", "Nileshwaram", "Uppala"],
+  "Kollam": ["Kollam City", "Punalur", "Karunagappally", "Kottarakkara", "Chathannoor"],
+  "Kottayam": ["Kottayam Town", "Changanassery", "Pala", "Kanjirappally", "Vaikom"],
+  "Kozhikode": ["Mukkam", "Kunnamangalam", "Kozhikode City", "Thamarassery", "Vadakara", "Koyilandy"],
+  "Malappuram": ["Malappuram Town", "Manjeri", "Kottakkal", "Perinthalmanna", "Tirur", "Ponnani"],
+  "Palakkad": ["Palakkad Town", "Ottapalam", "Chittur", "Mannarkkad", "Shornur", "Alathur"],
+  "Pathanamthitta": ["Pathanamthitta Town", "Adoor", "Thiruvalla", "Konni", "Ranni"],
+  "Thiruvananthapuram": ["Trivandrum City", "Neyyattinkara", "Attingal", "Varkala", "Nedumangad"],
+  "Thrissur": ["Thrissur City", "Chalakudy", "Guruvayur", "Kunnamkulam", "Kodungallur", "Irinjalakuda"],
+  "Wayanad": ["Kalpetta", "Sulthan Bathery", "Mananthavady", "Meenangadi"],
+};
 
 const RoleSelectionScreen: FC = () => {
   const router = useRouter();
@@ -31,12 +54,14 @@ const RoleSelectionScreen: FC = () => {
   const [selectedDistrict, setSelectedDistrict] = useState<string>("");
   const [branchName, setBranchName] = useState<string>("");
   const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+  const [showBranchDropdown, setShowBranchDropdown] = useState(false);
 
   const handleRoleSelect = (role: Role) => {
     setSelectedRole(role);
     setSelectedDistrict("");
     setBranchName("");
     setShowDistrictDropdown(false);
+    setShowBranchDropdown(false);
   };
 
   const handleContinue = () => {
@@ -153,48 +178,102 @@ const RoleSelectionScreen: FC = () => {
               </TouchableOpacity>
 
               {showDistrictDropdown && (
-                <View style={styles.dropdownList}>
-                  {DISTRICTS.map((district) => (
-                    <TouchableOpacity
-                      key={district}
-                      style={[
-                        styles.dropdownItem,
-                        selectedDistrict === district && styles.dropdownItemSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedDistrict(district);
-                        setShowDistrictDropdown(false);
-                      }}
-                    >
-                      <Text
+                <View style={[styles.dropdownList, { zIndex: 1000 }]}>
+                  <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled={true}>
+                    {DISTRICTS.map((district) => (
+                      <TouchableOpacity
+                        key={district}
                         style={[
-                          styles.dropdownItemText,
-                          selectedDistrict === district && styles.dropdownItemTextSelected,
+                          styles.dropdownItem,
+                          selectedDistrict === district && styles.dropdownItemSelected,
                         ]}
+                        onPress={() => {
+                          setSelectedDistrict(district);
+                          setBranchName("");
+                          setShowDistrictDropdown(false);
+                        }}
                       >
-                        {district}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            selectedDistrict === district && styles.dropdownItemTextSelected,
+                          ]}
+                        >
+                          {district}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
 
-            {/* Branch Name - For Manager and Driver */}
+            {/* Branch Dropdown - For Manager and Driver */}
             {(selectedRole === "manager" || selectedRole === "driver") && (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Branch Name</Text>
-                <View style={styles.inputWrapper}>
-                  <Building2 size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter branch name"
-                    placeholderTextColor="#94A3B8"
-                    value={branchName}
-                    onChangeText={setBranchName}
-                    autoCapitalize="words"
-                  />
-                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.dropdownWrapper,
+                    !selectedDistrict && styles.disabledDropdown
+                  ]}
+                  onPress={() => {
+                    if (selectedDistrict) {
+                      setShowBranchDropdown(!showBranchDropdown);
+                      setShowDistrictDropdown(false);
+                    }
+                  }}
+                  disabled={!selectedDistrict}
+                >
+                  <Building2 size={20} color={selectedDistrict ? "#64748B" : "#CBD5E1"} style={styles.inputIcon} />
+                  <Text style={[
+                    styles.dropdownText, 
+                    !branchName && styles.placeholderText,
+                    !selectedDistrict && { color: "#CBD5E1" }
+                  ]}>
+                    {!selectedDistrict 
+                      ? "Select District First" 
+                      : (branchName || "Select Branch")
+                    }
+                  </Text>
+                  <ChevronDown size={20} color={selectedDistrict ? "#64748B" : "#CBD5E1"} />
+                </TouchableOpacity>
+
+                {showBranchDropdown && selectedDistrict && (
+                  <View style={[styles.dropdownList, { zIndex: 999 }]}>
+                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled={true}>
+                      {(BRANCHES_BY_DISTRICT[selectedDistrict] || []).map((branch) => (
+                        <TouchableOpacity
+                          key={branch}
+                          style={[
+                            styles.dropdownItem,
+                            branchName === branch && styles.dropdownItemSelected,
+                          ]}
+                          onPress={() => {
+                            setBranchName(branch);
+                            setShowBranchDropdown(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownItemText,
+                              branchName === branch && styles.dropdownItemTextSelected,
+                            ]}
+                          >
+                            {branch}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      {(!BRANCHES_BY_DISTRICT[selectedDistrict] || BRANCHES_BY_DISTRICT[selectedDistrict].length === 0) && (
+                        <View style={styles.dropdownItem}>
+                          <Text style={[styles.dropdownItemText, { fontStyle: 'italic', color: '#94A3B8' }]}>
+                            No branches found
+                          </Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
             )}
 
@@ -407,6 +486,11 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: "#312E81",
     fontWeight: "600",
+  },
+  disabledDropdown: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#E2E8F0",
+    opacity: 0.7,
   },
   continueButton: {
     backgroundColor: "#312E81",

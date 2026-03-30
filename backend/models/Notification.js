@@ -28,7 +28,9 @@ const notificationSchema = new mongoose.Schema(
     vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
-      required: true,
+      required: function() {
+        return this.type !== "termination";
+      },
     },
     parcelIds: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -36,11 +38,13 @@ const notificationSchema = new mongoose.Schema(
     }],
     tripId: {
       type: String,
-      required: true,
+      required: function() {
+        return this.type !== "termination";
+      },
     },
     type: {
       type: String,
-      enum: ["trip_assignment", "trip_update", "trip_cancellation", "driver_declined", "driver_accepted", "journey_started", "reassign_driver", "parcel_delivered"],
+      enum: ["trip_assignment", "trip_update", "trip_cancellation", "driver_declined", "driver_accepted", "journey_started", "reassign_driver", "parcel_delivered", "termination"],
       default: "trip_assignment",
     },
     status: {

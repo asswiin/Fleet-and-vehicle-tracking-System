@@ -1,7 +1,7 @@
 // app/trip-notifications.tsx
 
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, StatusBar, Image } from "react-native";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, StatusBar, Image, Alert } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { ArrowLeft, Bell, Clock, ChevronRight, MapPin, Package, Truck } from "lucide-react-native";
 import { api, Notification } from "../../utils/api";
@@ -56,9 +56,21 @@ const TripNotificationsScreen = () => {
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[styles.card, item.status === 'pending' && styles.cardPending]}
-              onPress={() => {
-                // NAVIGATE TO THE CONFIRMATION PAGE
+              style={[
+                styles.card, 
+                (item.status === 'pending' || item.type === 'termination') && styles.cardPending,
+                item.type === 'termination' && { borderLeftColor: '#EF4444', backgroundColor: '#FEF2F2' }
+              ]}
+              onPress={async () => {
+                if (item.type === 'termination') {
+                  Alert.alert("Termination Notice", item.message);
+                  if (!item.read) {
+                    await api.markNotificationAsRead(item._id);
+                    fetchNotifications();
+                  }
+                  return;
+                }
+                // NAVIGATE TO THE TRIP CONFIRMATION PAGE
                 router.push({
                   pathname: "/manager/trip-assignment-detail",
                   params: { notificationId: item._id, driverId }
@@ -67,46 +79,48 @@ const TripNotificationsScreen = () => {
             >
               <View style={styles.cardHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.vehicleIconContainer}>
-                    {item.vehicleId?.profilePhoto ? (
-                      <Image source={{ uri: item.vehicleId.profilePhoto }} style={styles.vehicleImage} />
+                  <View style={[styles.vehicleIconContainer, item.type === 'termination' && { backgroundColor: '#FEE2E2' }]}>
+                    {item.type === 'termination' ? (
+                      <Bell size={20} color="#EF4444" />
+                    ) : item.vehicleId?.profilePhoto ? (
+                      <Image source={{ uri: api.getImageUrl(item.vehicleId.profilePhoto)! }} style={styles.vehicleImage} />
                     ) : (
                       <Truck size={20} color="#2563EB" />
                     )}
                   </View>
-                  <Text style={styles.tripId}>Trip #{item.tripId}</Text>
+                  <Text style={[styles.tripId, item.type === 'termination' && { color: '#991B1B' }]}>
+                    {item.type === 'termination' ? "Account Notice" : `Trip #${item.tripId}`}
+                  </Text>
                 </View>
+                {!item.read && item.type === 'termination' && (
+                  <View style={styles.unreadDot} />
+                )}
                 <View style={[styles.badge, item.status === 'pending' ? styles.badgePending : styles.badgeDone]}>
                   <Text style={[styles.badgeText, item.status === 'pending' ? styles.textPending : styles.textDone]}>
                     {item.status.toUpperCase()}
                   </Text>
                 </View>
-                {/* Show a special icon/label if this is a trip_update notification */}
-                {item.type === 'trip_update' && (
-                  <View style={{ marginLeft: 8, backgroundColor: '#FDE68A', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                    <Text style={{ color: '#B45309', fontSize: 10, fontWeight: '700' }}>VEHICLE CHANGED</Text>
-                  </View>
-                )}
               </View>
-              <Text style={styles.message}>{item.message}</Text>
-              {/* Parcels and Weight Info */}
-              {item.parcelIds && item.parcelIds.length > 0 && (
-                <View style={styles.infoRow}>
-                  <Package size={14} color="#64748B" />
-                  <Text style={styles.infoText}>
-                    {item.parcelIds.length} parcel(s) • {item.parcelIds.reduce((sum, p) => sum + (p.weight || 0), 0).toFixed(1)}kg
-                  </Text>
-                </View>
+              <Text style={[styles.message, item.type === 'termination' && { color: '#B91C1C', fontWeight: '500' }]}>{item.message}</Text>
+              
+              {/* Parcels and Weight Info - Only for trips */}
+              {item.type !== 'termination' && item.parcelIds && item.parcelIds.length > 0 && (
+                <>
+                  <View style={styles.infoRow}>
+                    <Package size={14} color="#64748B" />
+                    <Text style={styles.infoText}>
+                      {item.parcelIds.length} parcel(s) • {item.parcelIds.reduce((sum, p) => sum + (p.weight || 0), 0).toFixed(1)}kg
+                    </Text>
+                  </View>
+                  <View style={styles.destinationContainer}>
+                    <MapPin size={14} color="#2563EB" />
+                    <Text style={styles.destinationText} numberOfLines={2}>
+                      {item.parcelIds.map(p => p.recipient?.address || 'Unknown').join(' → ')}
+                    </Text>
+                  </View>
+                </>
               )}
-              {/* Destination Info */}
-              {item.parcelIds && item.parcelIds.length > 0 && (
-                <View style={styles.destinationContainer}>
-                  <MapPin size={14} color="#2563EB" />
-                  <Text style={styles.destinationText} numberOfLines={2}>
-                    {item.parcelIds.map(p => p.recipient?.address || 'Unknown').join(' → ')}
-                  </Text>
-                </View>
-              )}
+
               <View style={styles.cardFooter}>
                 <Clock size={14} color="#94A3B8" />
                 <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
@@ -158,6 +172,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden'
   },
   vehicleImage: { width: 36, height: 36 },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+    marginRight: 8,
+  },
 });
 
 export default TripNotificationsScreen;

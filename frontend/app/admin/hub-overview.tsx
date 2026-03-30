@@ -58,11 +58,27 @@ const HubOverview = () => {
                 api.getExpenses(),
             ]);
 
-            if (historyRes.ok) setParcels(historyRes.data || []);
-            if (servicesRes.ok) setServices(servicesRes.data || []);
-            if (tripExpensesRes.ok) setTripExpenses(tripExpensesRes.data || []);
+            if (historyRes.ok) {
+                const allParcels = historyRes.data || [];
+                console.log("📦 Parcels fetched:", allParcels.length, allParcels);
+                setParcels(Array.isArray(allParcels) ? allParcels : []);
+            }
+            if (servicesRes.ok) {
+                const allServices = servicesRes.data || [];
+                console.log("🔧 Services fetched:", allServices.length, allServices);
+                setServices(Array.isArray(allServices) ? allServices : []);
+            }
+            if (tripExpensesRes.ok) {
+                const allExpenses = tripExpensesRes.data || [];
+                console.log("💰 Expenses fetched:", allExpenses.length, allExpenses);
+                setTripExpenses(Array.isArray(allExpenses) ? allExpenses : []);
+            }
         } catch (error) {
             console.error("Error fetching hub data:", error);
+            // Set empty arrays on error
+            setParcels([]);
+            setServices([]);
+            setTripExpenses([]);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -80,6 +96,14 @@ const HubOverview = () => {
 
     // Filter Data based on TimeFilter
     const filteredStats = useMemo(() => {
+        const getNumericAmount = (...values: any[]) => {
+            for (const value of values) {
+                const parsed = Number(value);
+                if (!isNaN(parsed)) return parsed;
+            }
+            return 0;
+        };
+
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
@@ -149,19 +173,21 @@ const HubOverview = () => {
         }
 
         const currentRevenue = filteredParcels.reduce(
-            (acc, p) => acc + (Number(p.parcelDetails?.amount) || 0),
+            (acc, p) => acc + getNumericAmount(p.parcelDetails?.amount, p.amount, p.totalAmount, p.parcelAmount),
             0
         );
         const currentServices = filteredServices.reduce(
-            (acc, s) => acc + (Number(s.totalServiceCost) || 0),
+            (acc, s) => acc + getNumericAmount(s.totalServiceCost, s.cost, s.amount),
             0
         );
         const currentTripExp = filteredExpenses.reduce(
-            (acc, e) => acc + (Number(e.totalAmount) || 0),
+            (acc, e) => acc + getNumericAmount(e.totalAmount, e.amount, e.expenseAmount),
             0
         );
 
         const totalExpenses = currentServices + currentTripExp;
+
+        console.log(`📊 ${timeFilter}: Revenue=${currentRevenue}, Services=${currentServices}, TripExp=${currentTripExp}, Total Exp=${totalExpenses}`);
 
         // Calculate Last Month stats specifically for comparison
         const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
@@ -178,13 +204,19 @@ const HubOverview = () => {
         const lastMonthTripExpenses = tripExpenses.reduce((acc, exp) => {
             const d = new Date(exp.date || exp.createdAt);
             if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) {
-                return acc + (Number(exp.totalAmount) || 0);
+                return acc + getNumericAmount(exp.totalAmount, exp.amount, exp.expenseAmount);
             }
             return acc;
         }, 0);
 
-        const lastMonthRevenue = lastMonthParcels.reduce((acc, p) => acc + (Number(p.parcelDetails?.amount) || 0), 0);
-        const lastMonthExp = lastMonthServices.reduce((acc, s) => acc + (Number(s.totalServiceCost) || 0), 0) + lastMonthTripExpenses;
+        const lastMonthRevenue = lastMonthParcels.reduce(
+            (acc, p) => acc + getNumericAmount(p.parcelDetails?.amount, p.amount, p.totalAmount, p.parcelAmount),
+            0
+        );
+        const lastMonthExp = lastMonthServices.reduce(
+            (acc, s) => acc + getNumericAmount(s.totalServiceCost, s.cost, s.amount),
+            0
+        ) + lastMonthTripExpenses;
 
         return {
             revenue: currentRevenue,
@@ -200,6 +232,14 @@ const HubOverview = () => {
 
     // Chart Data Generation (Last 6 Months)
     const chartData = useMemo(() => {
+        const getNumericAmount = (...values: any[]) => {
+            for (const value of values) {
+                const parsed = Number(value);
+                if (!isNaN(parsed)) return parsed;
+            }
+            return 0;
+        };
+
         const lastSixMonths = [];
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -221,12 +261,18 @@ const HubOverview = () => {
                 return d.getMonth() === m.monthIdx && d.getFullYear() === m.year;
             });
 
-            const income = monthParcels.reduce((acc, p) => acc + (Number(p.parcelDetails?.amount) || 0), 0);
-            const servExpenses = monthServices.reduce((acc, s) => acc + (Number(s.totalServiceCost) || 0), 0);
+            const income = monthParcels.reduce(
+                (acc, p) => acc + getNumericAmount(p.parcelDetails?.amount, p.amount, p.totalAmount, p.parcelAmount),
+                0
+            );
+            const servExpenses = monthServices.reduce(
+                (acc, s) => acc + getNumericAmount(s.totalServiceCost, s.cost, s.amount),
+                0
+            );
             const tripExp = tripExpenses.reduce((acc, exp) => {
                 const d = new Date(exp.date || exp.createdAt);
                 if (d.getMonth() === m.monthIdx && d.getFullYear() === m.year) {
-                    return acc + (Number(exp.totalAmount) || 0);
+                    return acc + getNumericAmount(exp.totalAmount, exp.amount, exp.expenseAmount);
                 }
                 return acc;
             }, 0);
@@ -264,7 +310,10 @@ const HubOverview = () => {
                         <ChevronLeft size={24} color="#1E293B" />
                     </TouchableOpacity>
 
-                    <Text style={styles.headerTitle}>Financial Analytics</Text>
+                    <View style={{ alignItems: 'center' }}>
+                        <Text style={styles.headerTitle}>Financial Analytics</Text>
+                        <Text style={styles.headerSubtitle}>Mukkam Branch Hub</Text>
+                    </View>
 
                     <TouchableOpacity style={styles.notificationButton}>
                         <Bell size={22} color="#1E293B" />
@@ -555,6 +604,12 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: "#0F172A",
         letterSpacing: -0.5,
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#64748B",
+        marginTop: 2,
     },
     notificationButton: {
         padding: 8,

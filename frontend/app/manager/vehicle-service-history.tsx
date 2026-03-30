@@ -42,6 +42,8 @@ const VehicleServiceHistoryScreen = () => {
     vehicleModel?: string;
     userName?: string;
     vehicleStatus?: string;
+    userId?: string;
+    role?: string;
   }>();
 
   const [records, setRecords] = useState<any[]>([]);
@@ -92,7 +94,12 @@ const VehicleServiceHistoryScreen = () => {
 
   const handleMarkCompleted = async (recordId: string) => {
     try {
-      const res = await api.updateServiceStatus(recordId, "Completed");
+      const res = await api.updateServiceStatus(
+        recordId, 
+        "Completed", 
+        params.userId || "management", 
+        params.role || "Manager"
+      );
       if (res.ok) {
         fetchRecords(true);
       }

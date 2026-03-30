@@ -32,7 +32,7 @@ import { api, Driver } from "../../utils/api";
 
 const { width } = Dimensions.get("window");
 
-const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Accepted", "Pending", "Resigned"];
+const FILTER_TABS = ["All", "Available", "Offline", "On-trip", "Accepted", "Pending", "Resigned", "Terminated"];
 
 const DriversListScreen = () => {
   const router = useRouter();
@@ -90,6 +90,8 @@ const DriversListScreen = () => {
           statusMatch = driver.driverStatus === "pending";
         } else if (selectedTab === "Resigned") {
           statusMatch = driver.status === "Resigned";
+        } else if (selectedTab === "Terminated") {
+          statusMatch = driver.status === "Terminated";
         }
       }
       return matchesSearch && statusMatch;
@@ -116,6 +118,9 @@ const DriversListScreen = () => {
     }
     if (driver.status === "Resigned") {
       return { color: '#EF4444', bg: '#FEF2F2', label: 'Resigned', icon: XCircle };
+    }
+    if (driver.status === "Terminated") {
+      return { color: '#B91C1C', bg: '#FEE2E2', label: 'Terminated', icon: XCircle };
     }
     if (driver.isAvailable) {
       return { color: '#10B981', bg: '#ECFDF5', label: 'Available', icon: CheckCircle2 };
